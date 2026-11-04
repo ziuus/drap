@@ -303,23 +303,22 @@
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
 
-      // Scroll vs Drag Directional Angle Check
+      // Directional Angle & Gesture Check
       if (!isHoldLifted && !activeDrag) {
-        if (Math.abs(dy) > Math.abs(dx) || dy > 8 || dy < -8) {
-          // Pure vertical scrolling -> cancel hold timer & lock into scroll!
-          isScrolling = true;
-          clearTimeout(holdTimer);
-          return;
-        }
-
-        // In Transfer Mode: Immediate drag on flicking towards ANY edge (left, right, up, down)
+        // In Transfer Mode: Immediate flick in ANY direction (left, right, up, down)
         if (currentMode === 'transfer') {
-          const isHorizFlick = Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy) * 1.25;
-          const isVertFlick = Math.abs(dy) > 22 && Math.abs(dy) > Math.abs(dx) * 1.25;
-          if (isHorizFlick || isVertFlick) {
+          if (Math.abs(dx) > 16 || Math.abs(dy) > 16) {
             e.preventDefault();
             startActiveDrag(t.clientX, t.clientY);
           }
+          return;
+        }
+
+        // In Browse Mode: Lock into vertical scroll only if moving fast vertically without holding
+        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.6) {
+          isScrolling = true;
+          clearTimeout(holdTimer);
+          return;
         }
       }
 
@@ -389,44 +388,42 @@
     lastClientY = clientY;
     lastTouchTime = now;
 
-    // Distances to all 4 borders of the phone
+    // Distances in physical pixels to the 4 phone screen borders
     const distLeft = clientX;
     const distRight = screenW - clientX;
     const distTop = clientY;
     const distBottom = screenH - clientY;
 
-    const horizReach = screenW * 0.60;
-    const vertReach = screenH * 0.38;
-
-    const proxLeft = Math.max(0.0, Math.min(1.0, (horizReach - distLeft) / (horizReach * 0.82)));
-    const proxRight = Math.max(0.0, Math.min(1.0, (horizReach - distRight) / (horizReach * 0.82)));
-    const proxTop = Math.max(0.0, Math.min(1.0, (vertReach - distTop) / (vertReach * 0.82)));
-    const proxBottom = Math.max(0.0, Math.min(1.0, (vertReach - distBottom) / (vertReach * 0.82)));
-
+    // Find the closest border physically
+    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
     let phoneEdge = "left";
     let desktopEdge = "right";
-    let proximity = proxLeft;
     let normCoord = normY;
+    let reach = screenW * 0.65;
 
-    if (proxRight > proximity) {
-      proximity = proxRight;
+    if (minDist === distLeft) {
+      phoneEdge = "left";
+      desktopEdge = "right";
+      normCoord = normY;
+      reach = screenW * 0.65;
+    } else if (minDist === distRight) {
       phoneEdge = "right";
       desktopEdge = "left";
       normCoord = normY;
-    }
-    if (proxTop > proximity) {
-      proximity = proxTop;
+      reach = screenW * 0.65;
+    } else if (minDist === distTop) {
       phoneEdge = "top";
       desktopEdge = "bottom";
       normCoord = normX;
-    }
-    if (proxBottom > proximity) {
-      proximity = proxBottom;
+      reach = screenH * 0.38;
+    } else {
       phoneEdge = "bottom";
       desktopEdge = "top";
       normCoord = normX;
+      reach = screenH * 0.38;
     }
 
+    const proximity = Math.max(0.0, Math.min(1.0, (reach - minDist) / (reach * 0.80)));
     const pressure = 0.5 + (proximity * 0.5);
 
     // Haptic detent feedback every 80px of travel

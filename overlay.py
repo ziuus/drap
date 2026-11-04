@@ -588,11 +588,11 @@ class DrapOverlay:
         elif edge == "top":
             x_pos = coord * width
             cr.translate(x_pos, 0)
-            cr.rotate(math.pi / 2)
+            cr.rotate(-math.pi / 2)
         elif edge == "bottom":
             x_pos = coord * width
             cr.translate(x_pos, height)
-            cr.rotate(-math.pi / 2)
+            cr.rotate(math.pi / 2)
         else: # "right" (default)
             y_pos = coord * height
             cr.translate(width, y_pos)
@@ -846,10 +846,10 @@ class DrapOverlay:
             cr.rotate(math.pi)
         elif edge == "top":
             cr.translate(coord * width, 0)
-            cr.rotate(math.pi / 2)
+            cr.rotate(-math.pi / 2)
         elif edge == "bottom":
             cr.translate(coord * width, height)
-            cr.rotate(-math.pi / 2)
+            cr.rotate(math.pi / 2)
         else: # "right"
             cr.translate(width, coord * height)
 
@@ -884,10 +884,10 @@ class DrapOverlay:
             cr.rotate(math.pi)
         elif edge == "top":
             cr.translate(coord * width, 0)
-            cr.rotate(math.pi / 2)
+            cr.rotate(-math.pi / 2)
         elif edge == "bottom":
             cr.translate(coord * width, height)
-            cr.rotate(-math.pi / 2)
+            cr.rotate(math.pi / 2)
         else: # "right"
             cr.translate(width, coord * height)
 
