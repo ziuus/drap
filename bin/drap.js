@@ -3,20 +3,162 @@
 const { spawn, execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const http = require("http");
 
 const PROJECT_DIR = path.resolve(__dirname, "..");
 const RUN_SCRIPT = path.join(PROJECT_DIR, "run.sh");
 const HUB_SCRIPT = path.join(PROJECT_DIR, "hub.py");
 const SHARE_SCRIPT = path.join(PROJECT_DIR, "share.sh");
+const SYSTEMD_SERVICE = "drap.service";
 
 const args = process.argv.slice(2);
-const command = args[0] || "start";
+const command = (args[0] || "help").toLowerCase();
+const subCommand = (args[1] || "").toLowerCase();
+
+function isSystemdActive() {
+  try {
+    const res = execSync(`systemctl --user is-active ${SYSTEMD_SERVICE} 2>/dev/null`).toString().trim();
+    return res === "active";
+  } catch (e) {
+    return false;
+  }
+}
+
+function isSystemdEnabled() {
+  try {
+    const res = execSync(`systemctl --user is-enabled ${SYSTEMD_SERVICE} 2>/dev/null`).toString().trim();
+    return res === "enabled";
+  } catch (e) {
+    return false;
+  }
+}
+
+function areProcessesRunning() {
+  try {
+    const s = execSync("pgrep -f 'server.py' 2>/dev/null").toString().trim();
+    const o = execSync("pgrep -f 'overlay.py' 2>/dev/null").toString().trim();
+    return Boolean(s && o);
+  } catch (e) {
+    return false;
+  }
+}
+
+function startServices() {
+  console.log("💧 Starting Drap spatial transfer system...");
+  // Prefer systemd user service if enabled/installed
+  try {
+    const hasService = fs.existsSync(path.join(process.env.HOME, ".config/systemd/user", SYSTEMD_SERVICE));
+    if (hasService) {
+      execSync(`systemctl --user start ${SYSTEMD_SERVICE}`);
+      console.log("✓ Drap started via systemd service.");
+      return;
+    }
+  } catch (e) {}
+
+  // Standalone fallback spawn
+  const runner = spawn(RUN_SCRIPT, [], { stdio: "inherit", detached: true });
+  runner.unref();
+  console.log("✓ Drap background processes launched.");
+}
+
+function stopServices() {
+  console.log("🛑 Stopping Drap services...");
+  try {
+    execSync(`systemctl --user stop ${SYSTEMD_SERVICE} 2>/dev/null || true`);
+  } catch (e) {}
+  try {
+    execSync("pkill -f 'server.py' || true");
+    execSync("pkill -f 'overlay.py' || true");
+    console.log("✓ Drap stopped.");
+  } catch (e) {
+    console.log("Nothing to stop.");
+  }
+}
 
 switch (command) {
+  case "on":
   case "start":
-    console.log("🌌 Starting Drap for Linux (Hyprland / Wayland)...");
-    const runner = spawn(RUN_SCRIPT, [], { stdio: "inherit" });
-    runner.on("exit", (code) => process.exit(code || 0));
+    if (areProcessesRunning() || isSystemdActive()) {
+      console.log("ℹ️  Drap is already running. Run 'drap status' or 'drap restart'.");
+    } else {
+      startServices();
+    }
+    break;
+
+  case "off":
+  case "stop":
+    stopServices();
+    break;
+
+  case "restart":
+    stopServices();
+    setTimeout(() => {
+      startServices();
+    }, 600);
+    break;
+
+  case "autostart":
+    if (subCommand === "on" || subCommand === "enable") {
+      try {
+        execSync(`systemctl --user daemon-reload && systemctl --user enable ${SYSTEMD_SERVICE}`);
+        console.log("✓ Drap autostart on login ENABLED.");
+      } catch (e) {
+        console.error("❌ Failed to enable systemd service:", e.message);
+      }
+    } else if (subCommand === "off" || subCommand === "disable") {
+      try {
+        execSync(`systemctl --user disable ${SYSTEMD_SERVICE}`);
+        console.log("✓ Drap autostart on login DISABLED.");
+      } catch (e) {
+        console.error("❌ Failed to disable systemd service:", e.message);
+      }
+    } else {
+      const enabled = isSystemdEnabled();
+      console.log(`Drap Autostart: ${enabled ? "✅ ENABLED (starts automatically on login)" : "⚪ DISABLED"}`);
+      console.log("Usage: drap autostart on | off");
+    }
+    break;
+
+  case "status":
+    const active = areProcessesRunning() || isSystemdActive();
+    const autostart = isSystemdEnabled();
+
+    console.log("\n==================================================");
+    console.log("  💧 DRAP SYSTEM STATUS");
+    console.log("==================================================");
+    console.log(`  State:        ${active ? "🟢 ON (Running)" : "🔴 OFF (Stopped)"}`);
+    console.log(`  Autostart:    ${autostart ? "✅ Enabled on login" : "⚪ Disabled"}`);
+
+    if (active) {
+      try {
+        const raw = execSync("curl -s --max-time 1.5 http://127.0.0.1:8080/api/status").toString();
+        const info = JSON.parse(raw);
+        const hostIp = info.host_ip || info.ip || "127.0.0.1";
+        console.log(`  IP / Gateway: http://${hostIp}:${info.port || 8080}`);
+        console.log(`  HTTPS Secure: https://${hostIp}:8443 (For 1-tap PWA install)`);
+        console.log(`  Phones Linked:${info.active_ws_connections} active`);
+        console.log(`  LocalSend:    Port 53317 (v2 protocol active)`);
+      } catch (e) {
+        console.log("  Gateway:      Waiting for API response...");
+      }
+    } else {
+      console.log("\n  To start Drap, run: 'drap on'");
+    }
+    console.log("==================================================\n");
+    break;
+
+  case "theme":
+    const chosenTheme = subCommand;
+    if (!["aurora", "plasma", "solar", "liquid"].includes(chosenTheme)) {
+      console.log("Usage: drap theme [aurora | plasma | solar | liquid]");
+      process.exit(1);
+    }
+    try {
+      execSync(`curl -s -X POST http://127.0.0.1:8080/api/effect -H "Content-Type: application/json" -d '{"theme":"${chosenTheme}"}'`);
+      console.log(`✓ Active theme switched to: ${chosenTheme}`);
+    } catch (e) {
+      console.error("❌ Failed to switch theme. Is Drap running? ('drap on')");
+    }
     break;
 
   case "hub":
@@ -35,40 +177,22 @@ switch (command) {
     sharer.on("exit", (code) => process.exit(code || 0));
     break;
 
-  case "status":
-    try {
-      const output = execSync("curl -s http://127.0.0.1:8080/api/status").toString();
-      console.log("Drap Daemon Status:\n", JSON.parse(output));
-    } catch (e) {
-      console.log("❌ Drap daemon is not running. Run 'drap start' or 'systemctl --user start drap'.");
-    }
-    break;
-
-  case "stop":
-    console.log("Shutting down Drap processes...");
-    try {
-      execSync("pkill -f 'server.py' || true");
-      execSync("pkill -f 'overlay.py' || true");
-      console.log("✓ Drap stopped.");
-    } catch (e) {
-      console.log("Nothing to stop.");
-    }
-    break;
-
   case "help":
   case "--help":
   default:
     console.log(`
 💧 Drap - Spatial Cross-Device Transfer & Continuity System
-Usage:
-  drap [command]
 
 Commands:
-  drap start          Start server & GTK4 Layer Shell overlay
-  drap gui            Open desktop control hub
-  drap share <file>   Push file from laptop to connected phone
-  drap status         Check active connections and daemon health
-  drap stop           Stop running background daemons
+  drap on              Turn Drap ON (starts background server & bezel overlay)
+  drap off             Turn Drap OFF (stops all processes)
+  drap restart         Restart all Drap services
+  drap status          Display system health, active phones, and network IPs
+  drap autostart on    Enable automatic launch when logging into Linux
+  drap autostart off   Disable automatic launch on login
+  drap theme <name>    Switch active shader palette (aurora, plasma, solar, liquid)
+  drap gui             Open native GTK4 Control Panel & pairing QR code
+  drap share <file>    Push any file from your laptop terminal to your phone
 `);
     break;
 }

@@ -113,38 +113,54 @@ Push a photo toward the bezel: a pearlescent fluid meniscus wells up from your l
   sudo dnf install gtk4 gtk4-layer-shell python3-cairo python3-gobject mpv wl-clipboard
   ```
 
-### 2. Installation
+### 2. Quick 1-Line Installation
 
-Clone and run the automated installer:
+Run the universal installer directly in your terminal:
 
 ```bash
-git clone https://github.com/ziuus/drap.git
-cd drap
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/ziuus/drap/main/install.sh | bash
 ```
 
-This installs:
-- Global CLI executable `drap` in `~/.local/bin/drap`
-- Desktop entry `drap.desktop` in your application launcher / rofi / wofi
+*(Or clone manually and run `./install.sh`).*
+
+This sets up:
+- Global CLI binary `drap` in `~/.local/bin/drap`
+- Desktop Application Launcher entry (`drap.desktop`)
 - Systemd user service `drap.service` for automatic login startup
 
-### 3. Launching Drap
+---
+
+## ⌨️ Managing Drap (CLI Commands)
+
+Manage Drap effortlessly right from your terminal:
 
 ```bash
-# Start background daemon & overlay
-drap start
+# Turn Drap ON (starts background server & GTK4 Layer Shell overlay)
+drap on
 
-# Open Desktop Control Hub & Pairing QR Code
-drap gui
+# Turn Drap OFF (stops all background processes cleanly)
+drap off
 
-# Check daemon health & active telemetry
+# Restart Drap services
+drap restart
+
+# Check live system dashboard (status, connected phones, gateway URLs, IPs)
 drap status
 
-# Send a file from terminal to phone
-drap share ~/Pictures/photo.jpg
+# Enable automatic start on login
+drap autostart on
 
-# Stop running daemons
-drap stop
+# Disable automatic start on login
+drap autostart off
+
+# Switch live ambient shader theme from terminal
+drap theme aurora    # or: plasma, solar, liquid
+
+# Launch native GTK4 Control Hub & pairing QR Code
+drap gui
+
+# Beam any file from your laptop terminal to your phone
+drap share ~/Pictures/photo.jpg
 ```
 
 ---
