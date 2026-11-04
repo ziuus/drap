@@ -336,13 +336,13 @@
     // Phone Edge Glow & Meniscus Bulb feedback
     const bulb = document.getElementById("phoneEdgeBulb");
     if (proximity > 0.05) {
-      leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.5);
-      leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.6);
+      leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.8);
+      leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
       if (bulb) {
         bulb.style.top = `${clientY}px`;
-        bulb.style.opacity = Math.min(1.0, proximity * 1.6);
-        const pushX = (1.0 - proximity) * -45;
-        bulb.style.transform = `translateY(-50%) translateX(${pushX}%) scale(${0.8 + proximity * 0.4})`;
+        bulb.style.opacity = Math.min(1.0, proximity * 1.8);
+        const pushX = (1.0 - proximity) * -65;
+        bulb.style.transform = `translateY(-50%) translateX(${pushX}%) scale(${0.85 + proximity * 0.55})`;
       }
     } else {
       leftBezelHalo.style.opacity = "0";
@@ -351,8 +351,10 @@
     }
 
     if (dragGhost) {
-      const tilt = -4.0 * proximity;
-      dragGhost.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scale(${1.0 + proximity * 0.08})`;
+      const tilt = Math.max(-14, Math.min(14, (normY - 0.5) * -18 - (proximity * 6)));
+      const squeezeX = proximity > 0.4 ? (1.0 - (proximity - 0.4) * 0.28) : 1.0;
+      const squeezeY = proximity > 0.4 ? (1.0 + (proximity - 0.4) * 0.20) : 1.0;
+      dragGhost.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scaleX(${(1.06 * squeezeX).toFixed(3)}) scaleY(${(1.06 * squeezeY).toFixed(3)})`;
     }
 
     // Send spatial coordinate packet to desktop
@@ -367,6 +369,18 @@
       item_type: activeDrag ? activeDrag.itemType : "photo",
       theme: activeTheme
     });
+  }
+
+  function triggerMobileWaterWave(x, y) {
+    const container = document.getElementById("mobileRippleContainer");
+    if (!container) return;
+    const wave = document.createElement("div");
+    wave.className = "mobile-water-wave";
+    wave.style.top = `${y}px`;
+    container.appendChild(wave);
+    setTimeout(() => {
+      if (wave && wave.parentNode) wave.parentNode.removeChild(wave);
+    }, 850);
   }
 
   async function finishDrag(clientX, clientY) {
@@ -390,7 +404,8 @@
     const crossedThreshold = clientX <= 55;
 
     if (crossedThreshold) {
-      haptic([40, 30, 70]);
+      triggerMobileWaterWave(clientX, clientY);
+      haptic([30, 40, 80]);
 
       if (drag.itemType === "video") {
         const video = document.getElementById("continuityVideo");
