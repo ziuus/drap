@@ -184,6 +184,11 @@ class DrooopHubWindow(Gtk.ApplicationWindow):
         btn_web.connect("clicked", lambda b: subprocess.Popen(["xdg-open", "http://localhost:8080"]))
         act_box.append(btn_web)
 
+        btn_localsend = Gtk.Button(label="📱 Open LocalSend App")
+        btn_localsend.add_css_class("action-btn-secondary")
+        btn_localsend.connect("clicked", lambda b: subprocess.Popen(["flatpak", "run", "org.localsend.localsend_app"]))
+        act_box.append(btn_localsend)
+
         btn_cont = Gtk.Button(label="🎬 Test Continuity")
         btn_cont.add_css_class("action-btn-secondary")
         btn_cont.connect("clicked", lambda b: subprocess.Popen([

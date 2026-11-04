@@ -19,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+from localsend_service import start_localsend_service, discovered_peers, send_file_to_localsend_peer
+
 # Ensure D-Bus session bus is available for desktop integration
 if os.environ.get("DBUS_SESSION_BUS_ADDRESS") in (None, "", "disabled:"):
     bus_path = f"/run/user/{os.getuid()}/bus"
@@ -273,6 +275,24 @@ async def get_device_info():
         "active_peers": len(manager.active_connections)
     }
 
+@app.get("/api/localsend/peers")
+async def get_localsend_peers():
+    """Returns discovered LocalSend devices on the LAN."""
+    return list(discovered_peers.values())
+
+@app.post("/api/localsend/send_to_peer")
+async def send_to_localsend_peer_endpoint(payload: Dict[str, Any]):
+    """Sends a local file or shared file to an official LocalSend peer."""
+    target_ip = payload.get("target_ip")
+    file_path = payload.get("file_path")
+    if not target_ip or not file_path:
+        raise HTTPException(status_code=400, detail="Missing target_ip or file_path")
+    try:
+        send_file_to_localsend_peer(target_ip, file_path)
+        return {"status": "success", "target_ip": target_ip}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/status")
 async def get_status():
     return {
@@ -373,4 +393,8 @@ def print_startup_banner():
 
 if __name__ == "__main__":
     print_startup_banner()
+    try:
+        start_localsend_service()
+    except Exception as e:
+        print(f"[LocalSend] Warning: failed to start LocalSend service: {e}")
     uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
