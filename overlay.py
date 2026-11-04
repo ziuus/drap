@@ -50,6 +50,8 @@ class DrapOverlay:
         self.running = True
         self.target_y = 0.5
         self.current_y = 0.5
+        self.target_vy = 0.0
+        self.current_vy = 0.0
         self.target_intensity = 0.0
         self.current_intensity = 0.0
         self.target_pressure = 0.5
@@ -282,6 +284,8 @@ class DrapOverlay:
             if "y" in data:
                 self.target_y = float(data["y"])
                 self.current_y += (self.target_y - self.current_y) * 0.55
+            if "vy" in data:
+                self.target_vy = float(data["vy"])
 
             proximity = float(data.get("proximity", 0.0))
             pressure = float(data.get("pressure", 0.5))
@@ -374,8 +378,12 @@ class DrapOverlay:
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
 
-        # Silky spring tracking
+        # Silky spring tracking & velocity damping
+        prev_y = self.current_y
         self.current_y += (self.target_y - self.current_y) * 0.45
+        calculated_vy = (self.current_y - prev_y) / dt
+        self.current_vy += ((self.target_vy * 3.5 + calculated_vy * 0.15) - self.current_vy) * 0.35
+        self.target_vy *= 0.85
 
         if self.target_intensity <= 0.001:
             self.current_intensity *= 0.65
@@ -475,18 +483,52 @@ class DrapOverlay:
         Authentic Drooop Atmospheric Light:
         - Sub-millisecond precomputed 512x512 bilinear LUT blit (300+ FPS capability).
         - Pure seamless volumetric diffusion blooming from the right bezel.
-        - ZERO wireframe stroke lines (no C-shaped curves).
-        - Dynamic pressure & organic vertical elasticity.
+        - Dynamic vertical stretch, shear, and directional bezel wake responding to up/down motion.
         """
         surf = self.luts.get(self.effect_theme, self.luts["aurora"])
         lut_size = 512
 
         pressure_scale = 0.80 + self.current_pressure * 0.90
         radius_x = (360 + active_intensity * 540) * pressure_scale
-        radius_y = radius_x * 1.55
+        
+        # Vertical stretch responding dynamically to drag velocity
+        v_stretch = 1.0 + min(0.60, abs(self.current_vy) * 0.45)
+        radius_y = radius_x * 1.55 * v_stretch
 
+        # 1. Directional Bezel Liquid Wake (trailing fluid streak along screen edge)
+        if abs(self.current_vy) > 0.06:
+            wake_len = min(360, abs(self.current_vy) * 220)
+            wake_dir = -1 if self.current_vy < 0 else 1  # Trail extends opposite to motion
+            wake_y0 = y_pos
+            wake_y1 = max(0, min(height, y_pos - wake_dir * wake_len))
+
+            cr.save()
+            wake_pat = cairo.LinearGradient(width - 8, wake_y0, width, wake_y1)
+            wake_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.90 * active_intensity)
+            if self.effect_theme == "plasma":
+                wake_pat.add_color_stop_rgba(0.40, 0.85, 0.40, 1.00, 0.60 * active_intensity)
+            elif self.effect_theme == "solar":
+                wake_pat.add_color_stop_rgba(0.40, 1.00, 0.70, 0.30, 0.60 * active_intensity)
+            else: # aurora / liquid
+                wake_pat.add_color_stop_rgba(0.40, 0.40, 0.90, 1.00, 0.60 * active_intensity)
+            wake_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+
+            cr.set_source(wake_pat)
+            cr.set_line_width(6.0)
+            cr.move_to(width - 2, wake_y0)
+            cr.line_to(width - 2, wake_y1)
+            cr.stroke()
+            cr.restore()
+
+        # 2. Skewed / Stretched Volumetric Fluid Bloom
         cr.save()
         cr.translate(width, y_pos)
+        
+        # Directional shear matrix: tilts in the direction of movement
+        skew_y = max(-0.25, min(0.25, -self.current_vy * 0.20))
+        skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
+        cr.transform(skew_mat)
+
         cr.scale(radius_x / lut_size, radius_y / (lut_size / 2))
         cr.translate(-lut_size, -lut_size / 2)
 

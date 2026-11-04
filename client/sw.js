@@ -1,5 +1,5 @@
 // drap PWA Service Worker
-const CACHE_NAME = "drap-v3";
+const CACHE_NAME = "drap-v4";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",

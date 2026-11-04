@@ -341,6 +341,11 @@
     dragGhost.style.top = `${y}px`;
   }
 
+  let lastClientY = null;
+  let lastTouchTime = null;
+  let smoothVelocityY = 0;
+  let lastHapticSector = null;
+
   function onDragStreaming(clientX, clientY) {
     updateGhostPosition(clientX, clientY);
 
@@ -348,17 +353,35 @@
     const screenH = window.innerHeight;
     const normY = Math.max(0.05, Math.min(0.95, clientY / screenH));
 
+    // Calculate vertical movement velocity
+    const now = performance.now();
+    if (lastClientY !== null && lastTouchTime !== null) {
+      const dt = Math.max(1, now - lastTouchTime);
+      const dy = clientY - lastClientY;
+      const rawVel = dy / dt; // Positive = DOWN, Negative = UP
+      smoothVelocityY = smoothVelocityY * 0.70 + rawVel * 0.30;
+    }
+    lastClientY = clientY;
+    lastTouchTime = now;
+
     // Calculate proximity and bezel penetration depth
     const leftReach = screenW * 0.70;
     const proximity = clientX > leftReach ? 0.0 : Math.max(0.0, Math.min(1.0, (leftReach - clientX) / (leftReach * 0.85)));
     const peekDepth = Math.max(0.0, Math.min(1.0, (leftReach * 0.45 - clientX) / (leftReach * 0.45)));
     const pressure = 0.5 + (proximity * 0.5);
 
+    // Haptic detent feedback every 80px of vertical travel
+    const sector = Math.floor(clientY / 80);
+    if (lastHapticSector !== null && sector !== lastHapticSector && proximity > 0.05) {
+      haptic(10);
+    }
+    lastHapticSector = sector;
+
     if (activeDrag) {
       activeDrag.normalizedY = normY;
     }
 
-    // Phone Edge Glow & Meniscus Bulb feedback
+    // Phone Edge Glow & Meniscus Bulb Directional Morphing
     const bulb = document.getElementById("phoneEdgeBulb");
     if (proximity > 0.05) {
       leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.8);
@@ -367,25 +390,52 @@
         bulb.style.top = `${clientY}px`;
         bulb.style.opacity = Math.min(1.0, proximity * 1.8);
         const pushX = (1.0 - proximity) * -65;
-        bulb.style.transform = `translateY(-50%) translateX(${pushX}%) scale(${0.85 + proximity * 0.55})`;
+
+        if (smoothVelocityY < -0.12) {
+          // Dragging UPWARDS: top bulges out, bottom stretches into a smooth tail
+          bulb.style.borderRadius = "0 180px 40px 0";
+          bulb.style.transform = `translateY(calc(-50% - 16px)) translateX(${pushX}%) scaleY(1.32) scaleX(${0.85 + proximity * 0.55})`;
+          leftBezelRim.style.background = "linear-gradient(to top, transparent 0%, #38bdf8 60%, #ffffff 100%)";
+          bulb.classList.add("moving-up");
+          bulb.classList.remove("moving-down");
+        } else if (smoothVelocityY > 0.12) {
+          // Dragging DOWNWARDS: bottom bulges out, top stretches into a smooth tail
+          bulb.style.borderRadius = "0 40px 180px 0";
+          bulb.style.transform = `translateY(calc(-50% + 16px)) translateX(${pushX}%) scaleY(1.32) scaleX(${0.85 + proximity * 0.55})`;
+          leftBezelRim.style.background = "linear-gradient(to bottom, transparent 0%, #38bdf8 60%, #ffffff 100%)";
+          bulb.classList.add("moving-down");
+          bulb.classList.remove("moving-up");
+        } else {
+          bulb.style.borderRadius = "0 145px 145px 0";
+          bulb.style.transform = `translateY(-50%) translateX(${pushX}%) scale(${0.85 + proximity * 0.55})`;
+          leftBezelRim.style.background = "linear-gradient(to bottom, #ffffff 0%, #38bdf8 30%, #818cf8 70%, #c084fc 100%)";
+          bulb.classList.remove("moving-up", "moving-down");
+        }
       }
     } else {
       leftBezelHalo.style.opacity = "0";
       leftBezelRim.style.opacity = "0";
-      if (bulb) bulb.style.opacity = "0";
+      if (bulb) {
+        bulb.style.opacity = "0";
+        bulb.classList.remove("moving-up", "moving-down");
+      }
     }
 
     if (dragGhost) {
-      const tilt = Math.max(-14, Math.min(14, (normY - 0.5) * -18 - (proximity * 6)));
+      // Dynamic 3D card tilt responding directly to vertical movement velocity
+      const velTilt = Math.max(-14, Math.min(14, smoothVelocityY * 18));
+      const normTilt = (normY - 0.5) * -10;
+      const totalTilt = velTilt + normTilt;
       const squeezeX = proximity > 0.4 ? (1.0 - (proximity - 0.4) * 0.28) : 1.0;
       const squeezeY = proximity > 0.4 ? (1.0 + (proximity - 0.4) * 0.20) : 1.0;
-      dragGhost.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scaleX(${(1.06 * squeezeX).toFixed(3)}) scaleY(${(1.06 * squeezeY).toFixed(3)})`;
+      dragGhost.style.transform = `translate(-50%, -50%) rotate(${totalTilt.toFixed(1)}deg) scaleX(${(1.06 * squeezeX).toFixed(3)}) scaleY(${(1.06 * squeezeY).toFixed(3)})`;
     }
 
-    // Send spatial coordinate packet to desktop
+    // Send spatial coordinate packet with vertical velocity to desktop
     sendWS({
       type: "drag_move",
       y: normY,
+      vy: smoothVelocityY,
       proximity: proximity,
       pressure: pressure,
       peek: peekDepth,
@@ -415,6 +465,10 @@
     const bulb = document.getElementById("phoneEdgeBulb");
     if (bulb) bulb.style.opacity = "0";
     if (dragGhost) dragGhost.style.display = "none";
+    lastClientY = null;
+    lastTouchTime = null;
+    smoothVelocityY = 0;
+    lastHapticSector = null;
 
     if (!activeDrag) {
       sendWS({ type: "drag_edge_leave" });
