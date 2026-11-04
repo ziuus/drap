@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#070a12">
+  <title>Drooop • Spatial Transfer</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Phone Left Bezel Aura Glow -->
+  <div id="leftBezelAura">
+    <div id="leftBezelAuraGlow"></div>
+    <div id="leftBezelRim"></div>
+  </div>
+
+  <!-- Drag Ghost Following Touch -->
+  <div id="dragGhost">
+    <img id="ghostThumb" src="/media/sample_photo1.jpg" alt="Preview">
+    <div class="ghost-info">
+      <div id="ghostTitle" class="ghost-title">Title</div>
+      <div id="ghostSub" class="ghost-sub">Drop across bezel</div>
+    </div>
+  </div>
+
+  <!-- Toast for Transfer Success -->
+  <div id="handoffToast">
+    <span style="color: #10b981;">✓</span>
+    <span id="toastMessage">Transferred to Laptop</span>
+  </div>
+
+  <!-- Fullscreen Photo Viewer / Lightbox -->
+  <div id="photoLightbox" class="lightbox-modal">
+    <div class="lightbox-backdrop"></div>
+    <div class="lightbox-content">
+      <button id="lightboxCloseBtn" class="lightbox-close" type="button">✕</button>
+      <div class="lightbox-img-wrapper">
+        <img id="lightboxImg" src="" alt="Full view">
+      </div>
+      <div class="lightbox-toolbar">
+        <div class="lightbox-info">
+          <h4 id="lightboxTitle">Photo</h4>
+          <span id="lightboxSize">High Resolution</span>
+        </div>
+        <div class="lightbox-actions">
+          <a id="lightboxDownloadBtn" class="btn-action download-btn" href="#" download>
+            <span>⬇</span> Save to Phone
+          </a>
+          <button id="lightboxSendBtn" class="btn-action send-btn" type="button">
+            <span>💻</span> Push to Laptop
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <h1>Drooop</h1>
+      </div>
+      <div class="header-right">
+        <button id="installPwaBtn" class="install-pwa-btn" type="button" style="display: none;">
+          <span>📲</span> Install
+        </button>
+        <div id="statusPill" class="status-pill">
+          <span>Connecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Laptop to Phone Drop Zone (Active on Desktop or on-demand) -->
+    <div id="laptopDropZone" class="laptop-drop-zone">
+      <div class="drop-zone-icon">💻 ➔ 📱</div>
+      <div class="drop-zone-title">Share from Laptop to Phone</div>
+      <div class="drop-zone-sub">Drop any file here or click to choose from Laptop</div>
+      <input type="file" id="laptopFileInput" style="display: none;" multiple>
+    </div>
+
+    <!-- Ambient Effect Theme Switcher -->
+    <div class="effect-selector-container">
+      <div class="effect-label">Ambient Bezel Style</div>
+      <div class="effect-pills">
+        <button class="effect-pill active" data-theme="liquid" type="button">💧 Liquid Fluid</button>
+        <button class="effect-pill" data-theme="aurora" type="button">🌌 Aurora</button>
+        <button class="effect-pill" data-theme="plasma" type="button">⚡ Plasma</button>
+        <button class="effect-pill" data-theme="solar" type="button">🔥 Solar</button>
+      </div>
+    </div>
+
+    <!-- LocalSend Quick Text & Link Sharing -->
+    <div class="localsend-container">
+      <div class="section-title">
+        <span>LocalSend Clipboard</span>
+        <span class="section-badge" style="background: rgba(6, 182, 212, 0.2); color: #06b6d4;">P2P Instant</span>
+      </div>
+      <div class="localsend-input-box">
+        <textarea id="localSendText" placeholder="Paste or type text, link, or note to share..." rows="2"></textarea>
+        <button id="localSendBtn" class="localsend-send-btn" type="button">
+          <span>📋</span> Send to Laptop Clipboard
+        </button>
+      </div>
+      <div id="localSendReceivedBox" class="localsend-received-box" style="display: none;">
+        <div class="received-text-label">Received from Laptop:</div>
+        <div id="localSendReceivedText" class="received-text-content"></div>
+        <button id="copyLocalSendBtn" class="copy-text-btn" type="button">📋 Copy to Clipboard</button>
+      </div>
+    </div>
+
+    <!-- Spatial Orientation Hint -->
+    <div class="spatial-banner">
+      <div class="spatial-icon">👈</div>
+      <div>
+        <strong>Phone ➔ Laptop:</strong> Place phone to the right of your laptop. Drag any card toward the <strong>left screen edge</strong> to hand off.
+      </div>
+    </div>
+
+    <!-- Section: Received from Laptop -->
+    <div id="receivedSection" class="received-section" style="display: none;">
+      <div class="section-title">
+        <span>Received from Laptop</span>
+        <span class="section-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Incoming</span>
+      </div>
+      <div class="received-list" id="receivedList"></div>
+    </div>
+
+    <!-- Section: Video Continuity -->
+    <div class="section-title">
+      <span>Media Continuity</span>
+      <span class="section-badge">Real-time Handoff</span>
+    </div>
+
+    <div class="video-card" id="videoHandoffCard" data-item-type="video" data-url="/media/continue.mp4" data-title="Tokyo Night Motion">
+      <div class="video-container">
+        <video id="continuityVideo" src="/media/continue.mp4" playsinline loop preload="metadata" poster="/media/sample_photo3.jpg"></video>
+      </div>
+      <div class="video-footer">
+        <div class="video-meta">
+          <h3 id="videoTitleDisplay">Tokyo Night Motion</h3>
+          <p id="videoTimestampDisplay">Tap to play • Drag to hand off</p>
+        </div>
+        <button id="videoHandoffBtn" class="drag-prompt-btn" type="button">
+          <span>👈</span> Drag to Laptop
+        </button>
+      </div>
+    </div>
+
+    <!-- Section: Media & File Gallery -->
+    <div class="section-title">
+      <span>Local Photos & Files</span>
+      <span class="section-badge">Tap to View • Drag to Send</span>
+    </div>
+
+    <div class="media-grid" id="mediaGrid">
+      <!-- Sample Photo 1 -->
+      <div class="media-item" data-item-type="photo" data-file="/media/sample_photo1.jpg" data-title="Cyberpunk Street.jpg">
+        <img class="media-thumb" src="/media/sample_photo1.jpg" alt="Cyberpunk Street">
+        <div class="media-info">
+          <div class="media-title">Cyberpunk Street.jpg</div>
+          <div class="media-sub">178 KB • Tap to view</div>
+        </div>
+        <button class="view-pill-btn" type="button">🔍 View</button>
+      </div>
+
+      <!-- Sample Photo 2 -->
+      <div class="media-item" data-item-type="photo" data-file="/media/sample_photo2.jpg" data-title="Iridescent Fluid.jpg">
+        <img class="media-thumb" src="/media/sample_photo2.jpg" alt="Iridescent Fluid">
+        <div class="media-info">
+          <div class="media-title">Iridescent Fluid.jpg</div>
+          <div class="media-sub">83 KB • Tap to view</div>
+        </div>
+        <button class="view-pill-btn" type="button">🔍 View</button>
+      </div>
+
+      <!-- Sample Photo 3 -->
+      <div class="media-item" data-item-type="photo" data-file="/media/sample_photo3.jpg" data-title="Neon Horizon.jpg">
+        <img class="media-thumb" src="/media/sample_photo3.jpg" alt="Neon Horizon">
+        <div class="media-info">
+          <div class="media-title">Neon Horizon.jpg</div>
+          <div class="media-sub">152 KB • Tap to view</div>
+        </div>
+        <button class="view-pill-btn" type="button">🔍 View</button>
+      </div>
+
+      <!-- Custom Upload from Phone Camera / Files -->
+      <label class="upload-card" for="customFileInput">
+        <div class="upload-icon">＋</div>
+        <div class="upload-text">Choose from Phone</div>
+        <div class="upload-sub">Photos, Videos, Files</div>
+        <input type="file" id="customFileInput" style="display: none;" accept="*/*">
+      </label>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
