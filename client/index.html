@@ -15,12 +15,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Ambient Left Bezel Halo on Phone -->
+  <!-- Phone Dynamic Bezel Halo & Fluid Meniscus Bulb -->
+  <div class="phone-ambient-perimeter" id="phoneAmbientPerimeter"></div>
   <div class="left-bezel-halo" id="leftBezelHalo"></div>
   <div class="left-bezel-rim" id="leftBezelRim"></div>
+  <div class="phone-edge-bulb" id="phoneEdgeBulb"></div>
+  <div class="drag-scrim" id="dragScrim"></div>
 
   <!-- Main View -->
-  <main class="app-shell">
+  <main class="app-shell" id="appShell">
     <!-- Header -->
     <header class="app-header">
       <div class="brand-row">
@@ -32,8 +35,8 @@
           </div>
         </div>
 
-        <!-- PWA Install Button (appears if not installed) -->
-        <button id="pwaInstallBtn" class="btn-install" style="display: none;">
+        <!-- PWA Install Button -->
+        <button id="pwaInstallBtn" class="btn-install" type="button">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           Install
         </button>
@@ -220,6 +223,44 @@
     <div class="lightbox-footer">
       <div id="lightboxTitle">Photo</div>
       <a id="lightboxDownload" href="#" download>Save</a>
+    </div>
+  </div>
+
+  <!-- Install App Modal Guide -->
+  <div class="install-modal" id="installModal">
+    <div class="install-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div class="sheet-icon">
+          <img src="/icon-192.png" alt="drap" width="48" height="48" style="border-radius: 12px;">
+        </div>
+        <div>
+          <h3>Install drap App</h3>
+          <p>Instant file access & fullscreen spatial transfer</p>
+        </div>
+      </div>
+      
+      <div class="install-steps" id="iosSteps">
+        <div class="install-step">
+          <span class="step-num">1</span>
+          <span>Tap the <strong>Share</strong> button <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> in Safari toolbar</span>
+        </div>
+        <div class="install-step">
+          <span class="step-num">2</span>
+          <span>Scroll down and select <strong>Add to Home Screen ⊕</strong></span>
+        </div>
+        <div class="install-step">
+          <span class="step-num">3</span>
+          <span>Tap <strong>Add</strong> in the top-right corner</span>
+        </div>
+      </div>
+
+      <div class="install-https-tip" id="httpsTip">
+        <p>On Android Chrome, install requires secure context. Tap to open HTTPS:</p>
+        <a id="httpsLink" href="https://10.25.254.201:8443" class="btn-https">Open Secure HTTPS (Port 8443)</a>
+      </div>
+
+      <button class="btn-sheet-close" id="closeInstallModal" type="button">Close</button>
     </div>
   </div>
 

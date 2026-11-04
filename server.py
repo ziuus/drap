@@ -10,10 +10,11 @@ import json
 import asyncio
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 from typing import Set, Optional, Dict, Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -233,6 +234,37 @@ async def video_resume_endpoint(payload: Dict[str, Any]):
     launch_video_continuity(url, start_time)
     return {"status": "ok", "url": url, "time": start_time}
 
+@app.post("/api/clipboard")
+async def clipboard_endpoint(request: Request):
+    text = ""
+    try:
+        form = await request.form()
+        text = str(form.get("text", ""))
+    except Exception:
+        pass
+    if not text:
+        try:
+            body = await request.json()
+            text = str(body.get("text", ""))
+        except Exception:
+            pass
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty text")
+    try:
+        subprocess.run(["wl-copy"], input=text.encode(), check=False)
+        preview = text[:60] + "..." if len(text) > 60 else text
+        subprocess.Popen([
+            "notify-send",
+            "drap — Copied to Clipboard",
+            preview,
+            "-a", "drap",
+            "-i", "edit-copy"
+        ])
+    except Exception:
+        pass
+    await manager.broadcast({"type": "text_received", "text": text})
+    return {"status": "success", "length": len(text)}
+
 @app.post("/api/send_text")
 async def send_text_endpoint(payload: Dict[str, Any]):
     """LocalSend text/link clipboard sharing between devices."""
@@ -383,13 +415,25 @@ app.mount("/media", StaticFiles(directory=str(MEDIA_DIR), follow_symlink=True), 
 if CLIENT_DIR.exists():
     app.mount("/", StaticFiles(directory=str(CLIENT_DIR), html=True), name="client")
 
+def start_https_server():
+    ssl_key = BASE_DIR / "certs" / "server.key"
+    ssl_cert = BASE_DIR / "certs" / "server.crt"
+    if ssl_key.exists() and ssl_cert.exists():
+        def run_ssl():
+            uvicorn.run(app, host="0.0.0.0", port=8443, ssl_keyfile=str(ssl_key), ssl_certfile=str(ssl_cert), log_level="warning")
+        t = threading.Thread(target=run_ssl, daemon=True)
+        t.start()
+        print("[drap HTTPS] Secure HTTPS server running at https://0.0.0.0:8443 (Required for PWA install)")
+
 def print_startup_banner():
     ip = get_local_ip()
     port = 8080
     url = f"http://{ip}:{port}"
+    https_url = f"https://{ip}:8443"
     print("=" * 60)
-    print("  🌌 DROOOP FOR LINUX (Hyprland / Wayland)")
-    print(f"  Local daemon running at: {url}")
+    print("  🌌 DRAP FOR LINUX (Hyprland / Wayland)")
+    print(f"  HTTP Web Gateway:        {url}")
+    print(f"  HTTPS PWA Gateway:       {https_url}")
     print(f"  Downloads location:      {DOWNLOADS_DIR}")
     print("=" * 60)
     try:
@@ -410,4 +454,8 @@ if __name__ == "__main__":
         start_localsend_service()
     except Exception as e:
         print(f"[LocalSend] Warning: failed to start LocalSend service: {e}")
+    try:
+        start_https_server()
+    except Exception as e:
+        print(f"[HTTPS] Warning: failed to start HTTPS server: {e}")
     uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")

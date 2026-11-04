@@ -27,14 +27,65 @@ body {
   position: relative;
 }
 
+/* Ambient Phone Perimeter & Meniscus Animations */
+.phone-ambient-perimeter {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 850;
+  box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.25);
+  opacity: 0.6;
+  transition: box-shadow 0.3s, opacity 0.3s;
+}
+
+body[data-theme="plasma"] .phone-ambient-perimeter {
+  box-shadow: inset 0 0 28px rgba(168, 85, 247, 0.45);
+}
+body[data-theme="solar"] .phone-ambient-perimeter {
+  box-shadow: inset 0 0 28px rgba(245, 158, 11, 0.45);
+}
+body[data-theme="liquid"] .phone-ambient-perimeter {
+  box-shadow: inset 0 0 28px rgba(20, 184, 166, 0.45);
+}
+
+/* Fluid Meniscus Bulb on Phone Left Edge */
+.phone-edge-bulb {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) translateX(-40%);
+  width: 90px;
+  height: 220px;
+  border-radius: 0 100px 100px 0;
+  background: radial-gradient(ellipse at 15% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(56, 189, 248, 0.8) 35%, rgba(168, 85, 247, 0.4) 65%, transparent 85%);
+  filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 920;
+  transition: opacity 0.15s ease-out, transform 0.1s ease-out;
+}
+
+body[data-theme="plasma"] .phone-edge-bulb {
+  background: radial-gradient(ellipse at 15% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(217, 70, 239, 0.85) 35%, rgba(14, 165, 233, 0.5) 65%, transparent 85%);
+}
+body[data-theme="solar"] .phone-edge-bulb {
+  background: radial-gradient(ellipse at 15% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(245, 158, 11, 0.9) 35%, rgba(239, 68, 68, 0.5) 65%, transparent 85%);
+}
+body[data-theme="liquid"] .phone-edge-bulb {
+  background: radial-gradient(ellipse at 15% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(20, 184, 166, 0.9) 35%, rgba(56, 189, 248, 0.5) 65%, transparent 85%);
+}
+
 /* Ambient Left Bezel Halo on Phone */
 .left-bezel-halo {
   position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 90px;
-  background: radial-gradient(ellipse at left center, rgba(56, 189, 248, 0.6) 0%, rgba(14, 116, 144, 0.3) 45%, transparent 80%);
+  width: 110px;
+  background: radial-gradient(ellipse at left center, rgba(56, 189, 248, 0.7) 0%, rgba(14, 116, 144, 0.4) 45%, transparent 80%);
   opacity: 0;
   pointer-events: none;
   z-index: 900;
@@ -46,12 +97,33 @@ body {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width: 3.5px;
   background: linear-gradient(to bottom, #38bdf8, #818cf8, #c084fc);
+  box-shadow: 0 0 12px #38bdf8;
   opacity: 0;
   pointer-events: none;
   z-index: 901;
   transition: opacity 0.15s ease-out;
+}
+
+/* Scrim / Blur Backdrop when Dragging */
+.drag-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(9, 9, 11, 0.60);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 700;
+  transition: opacity 0.2s ease-out;
+}
+
+body.is-dragging-active .drag-scrim {
+  opacity: 1;
 }
 
 /* App Shell */
@@ -668,4 +740,138 @@ body.mode-transfer .card-item {
   text-decoration: none;
   font-weight: 600;
   font-size: 13px;
+}
+
+/* Install Modal Sheet */
+.install-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1300;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.install-modal.open {
+  display: flex;
+}
+
+.install-sheet {
+  width: 100%;
+  max-width: 440px;
+  background: #18181b;
+  border: 1px solid var(--surface-border);
+  border-radius: 28px 28px 0 0;
+  padding: 16px 20px 32px;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  margin: 0 auto 16px;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.sheet-header h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sheet-header p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 14px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.install-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #e4e4e7;
+}
+
+.step-num {
+  width: 24px;
+  height: 24px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.install-https-tip {
+  margin-bottom: 18px;
+  padding: 12px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.install-https-tip p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.btn-https {
+  display: inline-block;
+  background: #38bdf8;
+  color: #09090b;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 16px;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.btn-sheet-close {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 14px;
+  cursor: pointer;
 }

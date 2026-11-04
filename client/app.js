@@ -5,6 +5,8 @@
   // 1. PWA Registration & Install Prompt
   let deferredInstallPrompt = null;
   const pwaInstallBtn = document.getElementById("pwaInstallBtn");
+  const installModal = document.getElementById("installModal");
+  const closeInstallModal = document.getElementById("closeInstallModal");
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -17,7 +19,6 @@
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    if (pwaInstallBtn) pwaInstallBtn.style.display = 'flex';
   });
 
   if (pwaInstallBtn) {
@@ -30,8 +31,17 @@
         }
         deferredInstallPrompt = null;
       } else {
-        alert("To install: tap 'Share' in Safari and select 'Add to Home Screen', or use the browser menu on Android.");
+        if (installModal) installModal.classList.add('open');
       }
+    });
+  }
+
+  if (closeInstallModal && installModal) {
+    closeInstallModal.addEventListener('click', () => {
+      installModal.classList.remove('open');
+    });
+    installModal.addEventListener('click', (e) => {
+      if (e.target === installModal) installModal.classList.remove('open');
     });
   }
 
@@ -83,6 +93,7 @@
   function setTheme(theme) {
     activeTheme = theme;
     localStorage.setItem("drap_effect_theme", theme);
+    document.body.setAttribute("data-theme", theme);
     themeBtns.forEach(btn => {
       if (btn.getAttribute("data-theme") === theme) {
         btn.classList.add("active");
@@ -93,6 +104,9 @@
     sendWS({ type: "set_effect", theme: theme });
     haptic(15);
   }
+
+  // Set initial theme attribute
+  document.body.setAttribute("data-theme", activeTheme);
 
   themeBtns.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -192,6 +206,7 @@
     function startActiveDrag(x, y) {
       isHoldLifted = true;
       card.classList.add("is-lifted", "is-dragging");
+      document.body.classList.add("is-dragging-active");
       haptic(30);
 
       // Extract preview thumbnail
@@ -318,13 +333,26 @@
       activeDrag.normalizedY = normY;
     }
 
-    // Phone Edge Glow feedback
+    // Phone Edge Glow & Meniscus Bulb feedback
+    const bulb = document.getElementById("phoneEdgeBulb");
     if (proximity > 0.05) {
       leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.5);
       leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.6);
+      if (bulb) {
+        bulb.style.top = `${clientY}px`;
+        bulb.style.opacity = Math.min(1.0, proximity * 1.6);
+        const pushX = (1.0 - proximity) * -45;
+        bulb.style.transform = `translateY(-50%) translateX(${pushX}%) scale(${0.8 + proximity * 0.4})`;
+      }
     } else {
       leftBezelHalo.style.opacity = "0";
       leftBezelRim.style.opacity = "0";
+      if (bulb) bulb.style.opacity = "0";
+    }
+
+    if (dragGhost) {
+      const tilt = -4.0 * proximity;
+      dragGhost.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scale(${1.0 + proximity * 0.08})`;
     }
 
     // Send spatial coordinate packet to desktop
@@ -342,8 +370,11 @@
   }
 
   async function finishDrag(clientX, clientY) {
+    document.body.classList.remove("is-dragging-active");
     leftBezelHalo.style.opacity = "0";
     leftBezelRim.style.opacity = "0";
+    const bulb = document.getElementById("phoneEdgeBulb");
+    if (bulb) bulb.style.opacity = "0";
     if (dragGhost) dragGhost.style.display = "none";
 
     if (!activeDrag) {

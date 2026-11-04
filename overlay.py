@@ -412,7 +412,7 @@ class DrapOverlay:
         cr.restore()
 
     def _draw_aurora_effect(self, cr, width, y_pos, active_intensity, t_sec):
-        """Vibrant multi-spectral Northern Lights ribbons (cyan, magenta, violet, lime)."""
+        """Vibrant multi-spectral Northern Lights ribbons and fluid meniscus."""
         cr.save()
         t_slow = t_sec * 0.90
         cr.translate(width, y_pos)
@@ -434,15 +434,46 @@ class DrapOverlay:
         cr.fill()
         cr.restore()
 
-        # Dynamic Bezel rim light
+        # Authentic Drooop Bézier fluid meniscus along bezel
         cr.save()
-        rim_pat = cairo.LinearGradient(width - 5, 0, width, 0)
-        rim_pat.add_color_stop_rgba(0.0, 0.2, 0.8, 1.0, 0.0)
-        rim_pat.add_color_stop_rgba(1.0, 1.0, 1.0, 1.0, 0.95 * active_intensity)
-        cr.set_source(rim_pat)
-        rim_h = 240 * pressure_scale
-        cr.rectangle(width - 4, y_pos - rim_h / 2, 4, rim_h)
-        cr.fill()
+        wave_height = (220 + active_intensity * 240) * pressure_scale
+        bulge_depth = (90 + active_intensity * 240) * pressure_scale + math.sin(t_sec * 3.4) * 12.0 * active_intensity
+        y_top = y_pos - wave_height / 2
+        y_bot = y_pos + wave_height / 2
+        peak_x = width - bulge_depth
+
+        cr.new_path()
+        cr.move_to(width, y_top)
+        cr.curve_to(
+            width - (bulge_depth * 0.28), y_top + wave_height * 0.22,
+            peak_x, y_pos - wave_height * 0.20,
+            peak_x, y_pos
+        )
+        cr.curve_to(
+            peak_x, y_pos + wave_height * 0.20,
+            width - (bulge_depth * 0.28), y_bot - wave_height * 0.22,
+            width, y_bot
+        )
+        cr.line_to(width, y_top)
+        cr.close_path()
+
+        fluid_pat = cairo.RadialGradient(width, y_pos, 5, width - bulge_depth * 0.45, y_pos, bulge_depth * 1.15)
+        fluid_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.92 * active_intensity)
+        fluid_pat.add_color_stop_rgba(0.25, 1.0, 0.88, 0.38, 0.72 * active_intensity)
+        fluid_pat.add_color_stop_rgba(0.60, 0.88, 0.30, 0.82, 0.45 * active_intensity)
+        fluid_pat.add_color_stop_rgba(0.85, 0.35, 0.78, 0.95, 0.18 * active_intensity)
+        fluid_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        cr.set_source(fluid_pat)
+        cr.fill_preserve()
+
+        # Specular glowing rim stroke
+        rim_stroke = cairo.LinearGradient(peak_x, y_pos, width, y_pos)
+        rim_stroke.add_color_stop_rgba(0.0, 1.0, 1.0, 1.0, 0.98 * active_intensity)
+        rim_stroke.add_color_stop_rgba(0.65, 0.45, 0.92, 1.0, 0.75 * active_intensity)
+        rim_stroke.add_color_stop_rgba(1.0, 0.10, 0.50, 0.90, 0.0)
+        cr.set_source(rim_stroke)
+        cr.set_line_width(2.8)
+        cr.stroke()
         cr.restore()
 
     def _draw_plasma_effect(self, cr, width, y_pos, active_intensity, t_sec):
