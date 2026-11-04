@@ -38,6 +38,14 @@ Push a photo toward the bezel: a pearlescent fluid meniscus wells up from your l
 
 ## 🌟 Key Features
 
+### 🧭 Omnidirectional 4-Edge Spatial Transfer
+- **Full 360° Spatial Alignment**: Place your phone anywhere around your laptop:
+  - **Swipe Left on Phone** &rarr; Enters the **Right** bezel of your desktop (phone to the right).
+  - **Swipe Right on Phone** &rarr; Enters the **Left** bezel of your desktop (phone to the left).
+  - **Swipe Up on Phone** &rarr; Enters the **Bottom** bezel of your desktop (phone in front of laptop).
+  - **Swipe Down on Phone** &rarr; Enters the **Top** bezel of your desktop (phone above laptop).
+- **Dynamic Adaptive Edge Meniscus**: Phone's meniscus bulb, rim glow, and tactile water ripples automatically conform to whichever of the 4 borders your finger approaches.
+
 ### 🌊 Dynamic Directional Velocity Physics
 - **Directional Shear & Vertical Stretch**: Dragging upward or downward dynamically shears the liquid bezel contour (`skew_y = -v_y * 0.20`) and elongates the meniscus (`v_stretch = 1.0 + |v_y| * 0.45`).
 - **Trailing Bezel Liquid Wake**: A soft liquid trail streams along the screen edge opposite to your drag direction.

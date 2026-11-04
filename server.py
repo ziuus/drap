@@ -323,6 +323,9 @@ async def websocket_endpoint(websocket: WebSocket):
 async def upload_file(
     request: Request,
     file: UploadFile = File(...),
+    edge: Optional[str] = Form("right"),
+    coord: Optional[float] = Form(0.5),
+    x: Optional[float] = Form(0.5),
     y: Optional[float] = Form(0.5),
     item_type: Optional[str] = Form("file")
 ):
@@ -359,6 +362,9 @@ async def upload_file(
         "filepath": str(dest_path),
         "size": file_size,
         "mime_type": mime_type,
+        "edge": edge,
+        "coord": float(coord) if coord is not None else 0.5,
+        "x": float(x) if x is not None else 0.5,
         "y": float(y) if y is not None else 0.5,
         "item_type": item_type
     }

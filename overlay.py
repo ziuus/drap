@@ -48,6 +48,12 @@ def rounded_rectangle(cr, x, y, width, height, radius):
 class DrapOverlay:
     def __init__(self):
         self.running = True
+        self.active_edge = "right"  # "right", "left", "bottom", "top"
+        self.target_edge = "right"
+        self.target_coord = 0.5
+        self.current_coord = 0.5
+        self.target_x = 0.5
+        self.current_x = 0.5
         self.target_y = 0.5
         self.current_y = 0.5
         self.target_vy = 0.0
@@ -69,7 +75,7 @@ class DrapOverlay:
         self.card_active = False
         self.card_progress = 0.0
         self.card_x = 1920
-        self.card_y = 0.5
+        self.card_y = 540
         self.card_filename = ""
         self.card_size_str = ""
         self.card_start_time = 0.0
@@ -78,11 +84,15 @@ class DrapOverlay:
         # Full-Screen Drop Confirmation Radiance Wave
         self.confirm_active = False
         self.confirm_progress = 0.0
+        self.confirm_edge = "right"
+        self.confirm_coord = 0.5
         self.confirm_y = 0.5
 
         # Video continuity ripple state
         self.ripple_active = False
         self.ripple_progress = 0.0
+        self.ripple_edge = "right"
+        self.ripple_coord = 0.5
         self.ripple_y = 0.5
 
         # Dynamic Tick Callback & Bounding Box Optimization
@@ -297,6 +307,17 @@ class DrapOverlay:
 
         if msg_type == "drag_move":
             self.last_interaction_time = time.time()
+            if "edge" in data:
+                self.active_edge = data["edge"].lower()
+            if "coord" in data:
+                self.target_coord = float(data["coord"])
+                self.current_coord += (self.target_coord - self.current_coord) * 0.55
+            elif "y" in data:
+                self.target_coord = float(data["y"])
+                self.current_coord += (self.target_coord - self.current_coord) * 0.55
+            if "x" in data:
+                self.target_x = float(data["x"])
+                self.current_x += (self.target_x - self.current_x) * 0.55
             if "y" in data:
                 self.target_y = float(data["y"])
                 self.current_y += (self.target_y - self.current_y) * 0.55
@@ -321,9 +342,17 @@ class DrapOverlay:
 
         elif msg_type == "drag_edge_enter":
             self.last_interaction_time = time.time()
+            if "edge" in data:
+                self.active_edge = data["edge"].lower()
+            if "coord" in data:
+                self.target_coord = float(data["coord"])
+                self.current_coord = self.target_coord
             if "y" in data:
                 self.target_y = float(data["y"])
                 self.current_y = self.target_y
+            if "x" in data:
+                self.target_x = float(data["x"])
+                self.current_x = self.target_x
             self.target_intensity = 0.85
             self.current_intensity = 0.85
             self.edge_proximity = 0.85
@@ -345,8 +374,21 @@ class DrapOverlay:
                 self.drawing_area.queue_draw()
 
         elif msg_type == "drag_drop" or msg_type == "file_uploaded":
-            if "y" in data:
-                self.target_y = float(data["y"])
+            if "edge" in data:
+                self.confirm_edge = data["edge"].lower()
+            else:
+                self.confirm_edge = self.active_edge
+
+            if "coord" in data:
+                self.confirm_coord = float(data["coord"])
+            elif self.confirm_edge in ("top", "bottom") and "x" in data:
+                self.confirm_coord = float(data["x"])
+            elif "y" in data:
+                self.confirm_coord = float(data["y"])
+            else:
+                self.confirm_coord = self.current_coord
+            self.confirm_y = self.confirm_coord
+
             filename = data.get("filename", "Transferred File")
             size_bytes = data.get("size", 0)
             if size_bytes >= 1024 * 1024:
@@ -359,29 +401,30 @@ class DrapOverlay:
             # Trigger Full-Screen Confirmation Radiance Wave
             self.confirm_active = True
             self.confirm_progress = 0.0
-            self.confirm_y = self.target_y
 
             # Trigger Confirmation Card
-            self.trigger_drop_card(filename, size_str, self.target_y)
+            self.trigger_drop_card(filename, size_str, self.confirm_coord, self.confirm_edge)
             self.target_intensity = 0.0
             self.drawing_area.queue_draw()
 
         elif msg_type == "video_resume":
-            if "y" in data:
-                self.target_y = float(data["y"])
-            self.trigger_video_ripple(self.target_y)
+            edge = data.get("edge", self.active_edge)
+            coord = float(data.get("coord", data.get("y", 0.5)))
+            self.trigger_video_ripple(coord, edge)
 
-    def trigger_drop_card(self, filename: str, size_str: str, y: float):
+    def trigger_drop_card(self, filename: str, size_str: str, coord: float, edge: str = "right"):
         self.card_active = True
         self.card_filename = filename
         self.card_size_str = size_str
-        self.card_y = max(0.12, min(0.88, y))
+        self.card_coord = max(0.12, min(0.88, coord))
+        self.card_edge = edge
         self.card_start_time = time.time()
         self.card_progress = 0.0
 
-    def trigger_video_ripple(self, y: float):
+    def trigger_video_ripple(self, coord: float, edge: str = "right"):
         self.ripple_active = True
-        self.ripple_y = max(0.12, min(0.88, y))
+        self.ripple_coord = max(0.12, min(0.88, coord))
+        self.ripple_edge = edge
         self.ripple_progress = 0.0
 
     def _on_tick(self, widget, frame_clock, *args):
@@ -395,9 +438,11 @@ class DrapOverlay:
             self.edge_proximity = 0.0
 
         # Silky spring tracking & velocity damping
-        prev_y = self.current_y
-        self.current_y += (self.target_y - self.current_y) * 0.45
-        calculated_vy = (self.current_y - prev_y) / dt
+        prev_coord = self.current_coord
+        self.current_coord += (self.target_coord - self.current_coord) * 0.45
+        self.current_y = self.current_coord
+        self.current_x = self.current_coord
+        calculated_vy = (self.current_coord - prev_coord) / dt
         self.current_vy += ((self.target_vy * 3.5 + calculated_vy * 0.15) - self.current_vy) * 0.35
         self.target_vy *= 0.85
 
@@ -446,17 +491,35 @@ class DrapOverlay:
                 norm = elapsed / self.card_duration
                 self.card_progress = norm
                 screen_w = 1920
+                screen_h = 1080
+                c1 = 1.70158
+                c3 = c1 + 1
+
                 if norm < 0.22:
                     t = norm / 0.22
-                    c1 = 1.70158
-                    c3 = c1 + 1
                     ease_in = 1 + c3 * math.pow(t - 1, 3) + c1 * math.pow(t - 1, 2)
-                    self.card_x = screen_w - (ease_in * 320)
+                    offset = ease_in
                 elif norm < 0.78:
-                    self.card_x = screen_w - 320
+                    offset = 1.0
                 else:
                     t = (norm - 0.78) / 0.22
-                    self.card_x = (screen_w - 320) + (t * t * 340)
+                    offset = 1.0 - (t * t)
+
+                edge = getattr(self, "card_edge", "right")
+                coord = getattr(self, "card_coord", 0.5)
+
+                if edge == "right":
+                    self.card_x = screen_w - (offset * 320)
+                    self.card_y = coord * screen_h
+                elif edge == "left":
+                    self.card_x = (offset * 320) - 280
+                    self.card_y = coord * screen_h
+                elif edge == "top":
+                    self.card_x = coord * screen_w
+                    self.card_y = (offset * 120) - 74
+                elif edge == "bottom":
+                    self.card_x = coord * screen_w
+                    self.card_y = screen_h - (offset * 120)
 
         if needs_draw:
             widget.queue_draw()
@@ -475,29 +538,28 @@ class DrapOverlay:
         cr.set_operator(cairo.Operator.OVER)
 
         t_sec = time.time() - self.start_time
-        y_pos = self.current_y * height
         active_intensity = self.current_intensity
 
-        # 2. Draw Magnificent Drooop Ambient Atmosphere (Exact photo match)
+        # 2. Draw Magnificent Drooop Ambient Atmosphere (Exact photo match on ANY edge)
         if active_intensity > 0.004:
-            self._draw_drooop_photo_ambience(cr, width, height, y_pos, active_intensity, t_sec)
+            self._draw_drooop_photo_ambience(cr, width, height, active_intensity, t_sec)
 
         # 3. Full-Screen Confirmation Radiance Wave (On file drop)
         if self.confirm_active:
-            self._draw_fullscreen_confirm_wave(cr, width, height, self.confirm_y * height, self.confirm_progress)
+            self._draw_fullscreen_confirm_wave(cr, width, height, self.confirm_progress)
 
         # 4. Video Continuity Shockwave
         if self.ripple_active:
-            self._draw_video_portal_shockwave(cr, width, height, self.ripple_y * height, self.ripple_progress)
+            self._draw_video_portal_shockwave(cr, width, height, self.ripple_progress)
 
         # 5. Dropped File Confirmation Card
         if self.card_active:
             self._draw_drop_card(cr, width, height)
 
-    def _draw_drooop_photo_ambience(self, cr, width, height, y_pos, active_intensity, t_sec):
+    def _draw_drooop_photo_ambience(self, cr, width, height, active_intensity, t_sec):
         """
         Exact Drooop Chromatic Dispersion Ambience (Matching photo):
-        - Maximum blinding incandescent white core at the touch point (width, y_pos).
+        - Maximum blinding incandescent white core at the touch point on ANY edge.
         - Prismatic rainbow dispersion ring (peach, rose, lilac, golden amber, sky cyan).
         - Deep atmospheric oceanic teal mist sweeping up to 900px+ across desktop.
         - Naturally enlargens and brightens with touch pressure and edge proximity.
@@ -513,12 +575,30 @@ class DrapOverlay:
         radius_y = radius_x * 1.62 * v_stretch
 
         cr.save()
-        cr.translate(width, y_pos)
-        
-        # Soft fluid shear matrix: tilts naturally in the direction of movement
-        skew_y = max(-0.20, min(0.20, -self.current_vy * 0.16))
-        skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
-        cr.transform(skew_mat)
+        edge = getattr(self, "active_edge", "right")
+        coord = getattr(self, "current_coord", 0.5)
+
+        if edge == "left":
+            y_pos = coord * height
+            cr.translate(0, y_pos)
+            cr.rotate(math.pi)
+            skew_y = max(-0.20, min(0.20, self.current_vy * 0.16))
+            skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
+            cr.transform(skew_mat)
+        elif edge == "top":
+            x_pos = coord * width
+            cr.translate(x_pos, 0)
+            cr.rotate(math.pi / 2)
+        elif edge == "bottom":
+            x_pos = coord * width
+            cr.translate(x_pos, height)
+            cr.rotate(-math.pi / 2)
+        else: # "right" (default)
+            y_pos = coord * height
+            cr.translate(width, y_pos)
+            skew_y = max(-0.20, min(0.20, -self.current_vy * 0.16))
+            skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
+            cr.transform(skew_mat)
 
         cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
         cr.translate(-lut_w, -lut_h / 2)
@@ -741,17 +821,15 @@ class DrapOverlay:
             cr.fill()
         cr.restore()
 
-    def _draw_fullscreen_confirm_wave(self, cr, width, height, y_pos, progress):
+    def _draw_fullscreen_confirm_wave(self, cr, width, height, progress):
         """
         Physical water wave ripple propagating smoothly across the screen:
-        - Sub-millisecond pre-computed bilinear LUT blit (< 2.5ms render time, 400+ FPS).
-        - Concentric wave crests with specular glint and natural quadratic water damping.
+        - Radiates dynamically from whichever edge (right, left, top, bottom) received the file.
         """
         surf = self.water_luts.get(self.effect_theme, self.water_luts["aurora"])
         lut_w = 512
         lut_h = 1024
 
-        # Physics: wave expands smoothly and naturally dissipates as it spreads
         max_r = 1800
         radius = progress * max_r
         damping = math.pow(max(0.0, 1.0 - progress), 1.25)
@@ -760,8 +838,21 @@ class DrapOverlay:
             return
 
         cr.save()
-        cr.translate(width, y_pos)
-        # Organic liquid wave proportions
+        edge = getattr(self, "confirm_edge", "right")
+        coord = getattr(self, "confirm_coord", 0.5)
+
+        if edge == "left":
+            cr.translate(0, coord * height)
+            cr.rotate(math.pi)
+        elif edge == "top":
+            cr.translate(coord * width, 0)
+            cr.rotate(math.pi / 2)
+        elif edge == "bottom":
+            cr.translate(coord * width, height)
+            cr.rotate(-math.pi / 2)
+        else: # "right"
+            cr.translate(width, coord * height)
+
         cr.scale(radius / lut_w, (radius * 1.08) / (lut_h / 2))
         cr.translate(-lut_w, -lut_h / 2)
 
@@ -771,8 +862,8 @@ class DrapOverlay:
         cr.paint_with_alpha(damping * 0.95)
         cr.restore()
 
-    def _draw_video_portal_shockwave(self, cr, width, height, y_pos, progress):
-        """High-speed physical portal water ripple expanding on video handoff."""
+    def _draw_video_portal_shockwave(self, cr, width, height, progress):
+        """High-speed physical portal water ripple expanding on video handoff from active edge."""
         surf = self.water_luts.get(self.effect_theme, self.water_luts["aurora"])
         lut_w = 512
         lut_h = 1024
@@ -785,7 +876,21 @@ class DrapOverlay:
             return
 
         cr.save()
-        cr.translate(width, y_pos)
+        edge = getattr(self, "ripple_edge", "right")
+        coord = getattr(self, "ripple_coord", 0.5)
+
+        if edge == "left":
+            cr.translate(0, coord * height)
+            cr.rotate(math.pi)
+        elif edge == "top":
+            cr.translate(coord * width, 0)
+            cr.rotate(math.pi / 2)
+        elif edge == "bottom":
+            cr.translate(coord * width, height)
+            cr.rotate(-math.pi / 2)
+        else: # "right"
+            cr.translate(width, coord * height)
+
         cr.scale(radius / lut_w, radius / (lut_h / 2))
         cr.translate(-lut_w, -lut_h / 2)
 
@@ -797,10 +902,16 @@ class DrapOverlay:
 
     def _draw_drop_card(self, cr, width, height):
         """Clean Apple-grade frosted confirmation card."""
+        edge = getattr(self, "card_edge", "right")
         card_w = 280
         card_h = 74
-        card_x = self.card_x
-        card_y = max(50, min(height - card_h - 50, self.card_y * height - card_h / 2))
+
+        if edge in ("top", "bottom"):
+            card_x = max(40, min(width - card_w - 40, self.card_x - card_w / 2))
+            card_y = max(40, min(height - card_h - 40, self.card_y))
+        else:
+            card_x = self.card_x
+            card_y = max(50, min(height - card_h - 50, self.card_y - card_h / 2))
 
         alpha = 1.0
         if self.card_progress > 0.78:

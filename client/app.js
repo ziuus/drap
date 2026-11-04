@@ -312,10 +312,14 @@
           return;
         }
 
-        // In Transfer Mode: Immediate drag if swiping left towards bezel
-        if (currentMode === 'transfer' && dx < -18 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-          e.preventDefault();
-          startActiveDrag(t.clientX, t.clientY);
+        // In Transfer Mode: Immediate drag on flicking towards ANY edge (left, right, up, down)
+        if (currentMode === 'transfer') {
+          const isHorizFlick = Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy) * 1.25;
+          const isVertFlick = Math.abs(dy) > 22 && Math.abs(dy) > Math.abs(dx) * 1.25;
+          if (isHorizFlick || isVertFlick) {
+            e.preventDefault();
+            startActiveDrag(t.clientX, t.clientY);
+          }
         }
       }
 
@@ -357,8 +361,10 @@
     dragGhost.style.top = `${y}px`;
   }
 
+  let lastClientX = null;
   let lastClientY = null;
   let lastTouchTime = null;
+  let smoothVelocityX = 0;
   let smoothVelocityY = 0;
   let lastHapticSector = null;
 
@@ -367,78 +373,146 @@
 
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
+    const normX = Math.max(0.05, Math.min(0.95, clientX / screenW));
     const normY = Math.max(0.05, Math.min(0.95, clientY / screenH));
 
-    // Calculate vertical movement velocity
+    // Calculate movement velocity
     const now = performance.now();
     if (lastClientY !== null && lastTouchTime !== null) {
       const dt = Math.max(1, now - lastTouchTime);
       const dy = clientY - lastClientY;
-      const rawVel = dy / dt; // Positive = DOWN, Negative = UP
-      smoothVelocityY = smoothVelocityY * 0.70 + rawVel * 0.30;
+      const dx = clientX - (lastClientX !== null ? lastClientX : clientX);
+      smoothVelocityY = smoothVelocityY * 0.70 + (dy / dt) * 0.30;
+      smoothVelocityX = smoothVelocityX * 0.70 + (dx / dt) * 0.30;
     }
+    lastClientX = clientX;
     lastClientY = clientY;
     lastTouchTime = now;
 
-    // Calculate proximity and bezel penetration depth
-    const leftReach = screenW * 0.70;
-    const proximity = clientX > leftReach ? 0.0 : Math.max(0.0, Math.min(1.0, (leftReach - clientX) / (leftReach * 0.85)));
-    const peekDepth = Math.max(0.0, Math.min(1.0, (leftReach * 0.45 - clientX) / (leftReach * 0.45)));
+    // Distances to all 4 borders of the phone
+    const distLeft = clientX;
+    const distRight = screenW - clientX;
+    const distTop = clientY;
+    const distBottom = screenH - clientY;
+
+    const horizReach = screenW * 0.60;
+    const vertReach = screenH * 0.38;
+
+    const proxLeft = Math.max(0.0, Math.min(1.0, (horizReach - distLeft) / (horizReach * 0.82)));
+    const proxRight = Math.max(0.0, Math.min(1.0, (horizReach - distRight) / (horizReach * 0.82)));
+    const proxTop = Math.max(0.0, Math.min(1.0, (vertReach - distTop) / (vertReach * 0.82)));
+    const proxBottom = Math.max(0.0, Math.min(1.0, (vertReach - distBottom) / (vertReach * 0.82)));
+
+    let phoneEdge = "left";
+    let desktopEdge = "right";
+    let proximity = proxLeft;
+    let normCoord = normY;
+
+    if (proxRight > proximity) {
+      proximity = proxRight;
+      phoneEdge = "right";
+      desktopEdge = "left";
+      normCoord = normY;
+    }
+    if (proxTop > proximity) {
+      proximity = proxTop;
+      phoneEdge = "top";
+      desktopEdge = "bottom";
+      normCoord = normX;
+    }
+    if (proxBottom > proximity) {
+      proximity = proxBottom;
+      phoneEdge = "bottom";
+      desktopEdge = "top";
+      normCoord = normX;
+    }
+
     const pressure = 0.5 + (proximity * 0.5);
 
-    // Haptic detent feedback every 80px of vertical travel
-    const sector = Math.floor(clientY / 80);
+    // Haptic detent feedback every 80px of travel
+    const travelCoord = (phoneEdge === "top" || phoneEdge === "bottom") ? clientX : clientY;
+    const sector = Math.floor(travelCoord / 80);
     if (lastHapticSector !== null && sector !== lastHapticSector && proximity > 0.05) {
       haptic(10);
     }
     lastHapticSector = sector;
 
     if (activeDrag) {
+      activeDrag.normalizedX = normX;
       activeDrag.normalizedY = normY;
+      activeDrag.normCoord = normCoord;
+      activeDrag.phoneEdge = phoneEdge;
+      activeDrag.desktopEdge = desktopEdge;
     }
 
-    // Phone Edge Glow & Meniscus Bulb Directional Morphing
+    // Phone Edge Glow & Meniscus Bulb Directional Morphing for all 4 edges
     const bulb = document.getElementById("phoneEdgeBulb");
     if (proximity > 0.05) {
-      leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.8);
-      leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
       if (bulb) {
-        bulb.style.top = `${clientY}px`;
         bulb.style.opacity = Math.min(1.0, proximity * 1.8);
-        const pushX = (1.0 - proximity) * -65;
+        const push = (1.0 - proximity) * -65;
+        const scale = 0.85 + proximity * 0.55;
 
-        if (smoothVelocityY < -0.12) {
-          // Dragging UPWARDS: top bulges out, bottom stretches into a smooth tail
-          bulb.style.borderRadius = "0 180px 40px 0";
-          bulb.style.transform = `translateY(calc(-50% - 16px)) translateX(${pushX}%) scaleY(1.32) scaleX(${0.85 + proximity * 0.55})`;
-          leftBezelRim.style.background = "linear-gradient(to top, transparent 0%, #38bdf8 60%, #ffffff 100%)";
-          bulb.classList.add("moving-up");
-          bulb.classList.remove("moving-down");
-        } else if (smoothVelocityY > 0.12) {
-          // Dragging DOWNWARDS: bottom bulges out, top stretches into a smooth tail
-          bulb.style.borderRadius = "0 40px 180px 0";
-          bulb.style.transform = `translateY(calc(-50% + 16px)) translateX(${pushX}%) scaleY(1.32) scaleX(${0.85 + proximity * 0.55})`;
-          leftBezelRim.style.background = "linear-gradient(to bottom, transparent 0%, #38bdf8 60%, #ffffff 100%)";
-          bulb.classList.add("moving-down");
-          bulb.classList.remove("moving-up");
-        } else {
-          bulb.style.borderRadius = "0 145px 145px 0";
-          bulb.style.transform = `translateY(-50%) translateX(${pushX}%) scale(${0.85 + proximity * 0.55})`;
-          leftBezelRim.style.background = "linear-gradient(to bottom, #ffffff 0%, #38bdf8 30%, #818cf8 70%, #c084fc 100%)";
-          bulb.classList.remove("moving-up", "moving-down");
+        if (phoneEdge === "left") {
+          bulb.style.left = "0";
+          bulb.style.right = "auto";
+          bulb.style.top = `${clientY}px`;
+          bulb.style.bottom = "auto";
+          bulb.style.transform = `translateY(-50%) translateX(${push}%) scale(${scale})`;
+          if (leftBezelRim) {
+            leftBezelRim.style.left = "0"; leftBezelRim.style.right = "auto";
+            leftBezelRim.style.top = "0"; leftBezelRim.style.bottom = "0";
+            leftBezelRim.style.width = "5px"; leftBezelRim.style.height = "100%";
+            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
+          }
+        } else if (phoneEdge === "right") {
+          bulb.style.left = "auto";
+          bulb.style.right = "0";
+          bulb.style.top = `${clientY}px`;
+          bulb.style.bottom = "auto";
+          bulb.style.transform = `translateY(-50%) translateX(${-push}%) rotate(180deg) scale(${scale})`;
+          if (leftBezelRim) {
+            leftBezelRim.style.left = "auto"; leftBezelRim.style.right = "0";
+            leftBezelRim.style.top = "0"; leftBezelRim.style.bottom = "0";
+            leftBezelRim.style.width = "5px"; leftBezelRim.style.height = "100%";
+            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
+          }
+        } else if (phoneEdge === "top") {
+          bulb.style.left = `${clientX}px`;
+          bulb.style.right = "auto";
+          bulb.style.top = "0";
+          bulb.style.bottom = "auto";
+          bulb.style.transform = `translateX(-50%) translateY(${push}%) rotate(90deg) scale(${scale})`;
+          if (leftBezelRim) {
+            leftBezelRim.style.left = "0"; leftBezelRim.style.right = "0";
+            leftBezelRim.style.top = "0"; leftBezelRim.style.bottom = "auto";
+            leftBezelRim.style.width = "100%"; leftBezelRim.style.height = "5px";
+            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
+          }
+        } else if (phoneEdge === "bottom") {
+          bulb.style.left = `${clientX}px`;
+          bulb.style.right = "auto";
+          bulb.style.top = "auto";
+          bulb.style.bottom = "0";
+          bulb.style.transform = `translateX(-50%) translateY(${-push}%) rotate(-90deg) scale(${scale})`;
+          if (leftBezelRim) {
+            leftBezelRim.style.left = "0"; leftBezelRim.style.right = "0";
+            leftBezelRim.style.top = "auto"; leftBezelRim.style.bottom = "0";
+            leftBezelRim.style.width = "100%"; leftBezelRim.style.height = "5px";
+            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
+          }
         }
       }
-    } else {
-      leftBezelHalo.style.opacity = "0";
-      leftBezelRim.style.opacity = "0";
-      if (bulb) {
-        bulb.style.opacity = "0";
-        bulb.classList.remove("moving-up", "moving-down");
+      if (leftBezelHalo) {
+        leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.8);
       }
+    } else {
+      if (leftBezelHalo) leftBezelHalo.style.opacity = "0";
+      if (leftBezelRim) leftBezelRim.style.opacity = "0";
+      if (bulb) bulb.style.opacity = "0";
     }
 
     if (dragGhost) {
-      // Dynamic 3D card tilt responding directly to vertical movement velocity
       const velTilt = Math.max(-14, Math.min(14, smoothVelocityY * 18));
       const normTilt = (normY - 0.5) * -10;
       const totalTilt = velTilt + normTilt;
@@ -447,14 +521,17 @@
       dragGhost.style.transform = `translate(-50%, -50%) rotate(${totalTilt.toFixed(1)}deg) scaleX(${(1.06 * squeezeX).toFixed(3)}) scaleY(${(1.06 * squeezeY).toFixed(3)})`;
     }
 
-    // Send spatial coordinate packet with vertical velocity to desktop
+    // Send spatial coordinate packet to desktop
     sendWS({
       type: "drag_move",
+      edge: desktopEdge,
+      phone_edge: phoneEdge,
+      coord: normCoord,
+      x: normX,
       y: normY,
       vy: smoothVelocityY,
       proximity: proximity,
       pressure: pressure,
-      peek: peekDepth,
       title: activeDrag ? activeDrag.title : "",
       size: activeDrag ? activeDrag.size : "",
       item_type: activeDrag ? activeDrag.itemType : "photo",
@@ -467,6 +544,7 @@
     if (!container) return;
     const wave = document.createElement("div");
     wave.className = "mobile-water-wave";
+    wave.style.left = `${x}px`;
     wave.style.top = `${y}px`;
     container.appendChild(wave);
     setTimeout(() => {
@@ -476,13 +554,15 @@
 
   async function finishDrag(clientX, clientY) {
     document.body.classList.remove("is-dragging-active");
-    leftBezelHalo.style.opacity = "0";
-    leftBezelRim.style.opacity = "0";
+    if (leftBezelHalo) leftBezelHalo.style.opacity = "0";
+    if (leftBezelRim) leftBezelRim.style.opacity = "0";
     const bulb = document.getElementById("phoneEdgeBulb");
     if (bulb) bulb.style.opacity = "0";
     if (dragGhost) dragGhost.style.display = "none";
+    lastClientX = null;
     lastClientY = null;
     lastTouchTime = null;
+    smoothVelocityX = 0;
     smoothVelocityY = 0;
     lastHapticSector = null;
 
@@ -495,11 +575,49 @@
     activeDrag = null;
     sendWS({ type: "drag_edge_leave" });
 
-    // Threshold: Reached left bezel edge
-    const crossedThreshold = clientX <= 55;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    const edgeThreshold = 55;
+    const crossedLeft = clientX <= edgeThreshold;
+    const crossedRight = clientX >= screenW - edgeThreshold;
+    const crossedTop = clientY <= edgeThreshold;
+    const crossedBottom = clientY >= screenH - edgeThreshold;
+    const crossedThreshold = crossedLeft || crossedRight || crossedTop || crossedBottom;
+
+    let dropPhoneEdge = drag.phoneEdge || "left";
+    let dropDesktopEdge = drag.desktopEdge || "right";
+    let dropCoord = drag.normCoord || 0.5;
+    let waveX = 0;
+    let waveY = clientY;
+
+    if (crossedLeft) {
+      dropPhoneEdge = "left";
+      dropDesktopEdge = "right";
+      dropCoord = clientY / screenH;
+      waveX = 0;
+      waveY = clientY;
+    } else if (crossedRight) {
+      dropPhoneEdge = "right";
+      dropDesktopEdge = "left";
+      dropCoord = clientY / screenH;
+      waveX = screenW;
+      waveY = clientY;
+    } else if (crossedTop) {
+      dropPhoneEdge = "top";
+      dropDesktopEdge = "bottom";
+      dropCoord = clientX / screenW;
+      waveX = clientX;
+      waveY = 0;
+    } else if (crossedBottom) {
+      dropPhoneEdge = "bottom";
+      dropDesktopEdge = "top";
+      dropCoord = clientX / screenW;
+      waveX = clientX;
+      waveY = screenH;
+    }
 
     if (crossedThreshold) {
-      triggerMobileWaterWave(clientX, clientY);
+      triggerMobileWaterWave(waveX, waveY);
       haptic([30, 40, 80]);
 
       if (drag.itemType === "video") {
@@ -511,14 +629,20 @@
           type: "video_resume",
           url: drag.payload || "/media/continue.mp4",
           time: curTime,
-          y: drag.normalizedY
+          edge: dropDesktopEdge,
+          coord: dropCoord,
+          x: drag.normalizedX || 0.5,
+          y: drag.normalizedY || 0.5
         });
         showToast(`Video Resumed on Desktop (${curTime.toFixed(1)}s)`);
       } else {
         showToast(`Transferred ${drag.title} to Desktop`);
         try {
           const formData = new FormData();
-          formData.append("y", drag.normalizedY.toString());
+          formData.append("edge", dropDesktopEdge);
+          formData.append("coord", dropCoord.toString());
+          formData.append("x", (drag.normalizedX || 0.5).toString());
+          formData.append("y", (drag.normalizedY || 0.5).toString());
           formData.append("item_type", drag.itemType);
 
           if (drag.payload instanceof File || drag.payload instanceof Blob) {
