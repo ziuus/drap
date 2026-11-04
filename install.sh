@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drooop for Linux Installer
+# Drap for Linux Installer
 # Sets up CLI command, Desktop Shortcut / Application Launcher, and Systemd Autostart
 
 set -e
@@ -11,7 +11,7 @@ ICON_DIR="$HOME/.local/share/icons/hicolor/512x512/apps"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
 
 echo "============================================================"
-echo "  🌌 INSTALLING DROOOP FOR LINUX (Hyprland / Wayland)"
+echo "  💧 INSTALLING DRAP FOR LINUX (Hyprland / Wayland)"
 echo "============================================================"
 
 # 1. Create necessary directories
@@ -19,28 +19,30 @@ mkdir -p "$BIN_DIR" "$APP_DIR" "$ICON_DIR" "$SYSTEMD_DIR"
 
 # 2. Install application icon
 echo "==> Installing app icon..."
+cp "$DIR/client/icon-512.png" "$ICON_DIR/drap.png"
 cp "$DIR/client/icon-512.png" "$ICON_DIR/drooop.png"
 
-# 3. Install CLI binary into ~/.local/bin/drooop
-echo "==> Linking CLI binary to $BIN_DIR/drooop..."
+# 3. Install CLI binary into ~/.local/bin/drap (and drooop alias)
+echo "==> Linking CLI binary to $BIN_DIR/drap..."
+ln -sf "$DIR/bin/drap.js" "$BIN_DIR/drap"
 ln -sf "$DIR/bin/drooop.js" "$BIN_DIR/drooop"
-chmod +x "$DIR/bin/drooop.js" "$DIR/run.sh" "$DIR/share.sh" "$DIR/hub.py"
+chmod +x "$DIR/bin/drap.js" "$DIR/bin/drooop.js" "$DIR/run.sh" "$DIR/share.sh" "$DIR/hub.py"
 
 # 4. Install Desktop Entry (.desktop launcher)
-echo "==> Installing Desktop Launcher to $APP_DIR/drooop.desktop..."
-cat <<EOF > "$APP_DIR/drooop.desktop"
+echo "==> Installing Desktop Launcher to $APP_DIR/drap.desktop..."
+cat <<EOF > "$APP_DIR/drap.desktop"
 [Desktop Entry]
-Name=Drooop
+Name=Drap
 GenericName=Spatial Device Transfer
 Comment=Spatial cross-device drag-and-drop and media continuity for Hyprland
-Exec=$BIN_DIR/drooop gui
-Icon=drooop
+Exec=$BIN_DIR/drap gui
+Icon=drap
 Terminal=false
 Type=Application
 Categories=Utility;Network;FileTransfer;GTK;
 StartupNotify=true
-StartupWMClass=org.drooop.hub
-Keywords=airdrop;drooop;spatial;transfer;hyprland;
+StartupWMClass=org.drap.hub
+Keywords=airdrop;drap;drooop;spatial;transfer;hyprland;
 EOF
 
 # Update desktop database if available
@@ -48,9 +50,9 @@ update-desktop-database "$APP_DIR" 2>/dev/null || true
 
 # 5. Install Systemd User Service for Automatic Autostart
 echo "==> Setting up systemd user service for auto-start on login..."
-cat <<EOF > "$SYSTEMD_DIR/drooop.service"
+cat <<EOF > "$SYSTEMD_DIR/drap.service"
 [Unit]
-Description=Drooop Spatial Transfer Daemon & Bezel Overlay
+Description=Drap Spatial Transfer Daemon & Bezel Overlay
 After=graphical-session.target
 PartOf=graphical-session.target
 
@@ -67,13 +69,12 @@ WantedBy=graphical-session.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable drooop.service 2>/dev/null || true
+systemctl --user enable drap.service 2>/dev/null || true
 
 echo "============================================================"
-echo "🎉 Drooop Installation Complete!"
+echo "🎉 Drap Installation Complete!"
 echo ""
-echo "  • CLI Command:        drooop (e.g. 'drooop start', 'drooop gui', 'drooop share <file>')"
-echo "  • Desktop Launcher:   Search for 'Drooop' in your application menu / rofi / wofi"
-echo "  • Autostart Service:  systemctl --user start|stop|status drooop"
-echo "  • Mobile Gateway:     http://10.166.229.201:8080"
+echo "  • CLI Command:        drap (e.g. 'drap start', 'drap gui', 'drap share <file>')"
+echo "  • Desktop Launcher:   Search for 'Drap' in your application menu / rofi / wofi"
+echo "  • Autostart Service:  systemctl --user start|stop|status drap"
 echo "============================================================"

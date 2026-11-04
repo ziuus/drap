@@ -1,9 +1,10 @@
 {
-  "name": "drooop",
+  "name": "drap",
   "version": "1.0.0",
-  "description": "Spatial cross-device transfer tool for Linux (Hyprland / Wayland)",
-  "main": "bin/drooop.js",
+  "description": "Spatial Cross-Device Transfer & Video Continuity System for Linux (Wayland / Hyprland)",
+  "main": "bin/drap.js",
   "bin": {
+    "drap": "./bin/drap.js",
     "drooop": "./bin/drooop.js"
   },
   "scripts": {
@@ -12,12 +13,14 @@
     "test": "python3 test_spatial_transfer.py"
   },
   "keywords": [
+    "drap",
     "drooop",
     "hyprland",
     "wayland",
     "spatial-transfer",
     "airdrop",
-    "continuity"
+    "continuity",
+    "gtk4-layer-shell"
   ],
   "author": "Antigravity",
   "license": "MIT"

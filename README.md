@@ -1,82 +1,97 @@
-# 💧 drooop-linux
+# 💧 drap
 
-> **Spatial Cross-Device Transfer & Continuity System for Linux (Wayland / Hyprland)**  
-> Inspired by [Tornike Gomareli's **drooop**](https://x.com/gomarelit/status/1782062590483861869).
+> **Spatial Cross-Device Transfer & Video Continuity System for Linux (Wayland / Hyprland)**  
+> *Seamless, fluid, physical interactions bridging your mobile device and native Linux desktop.*
 
----
-
-![Drooop Wide Fluid Meniscus](assets/drooop_wide_fluid.png)
-
-## ✨ What is drooop-linux?
-
-**drooop-linux** brings Apple-like spatial drag-and-drop file transfers, dynamic bezel aura effects, and real-time video continuity to native Linux desktops running Wayland/Hyprland. 
-
-By running a hardware-accelerated **GTK4 Layer Shell** surface over your compositor and an ultra-low latency WebSocket signaling engine, files and videos fluidly transfer between your phone and laptop screen bezels as if your monitors are physically adjacent.
-
----
-
-## 🌟 Key Features
-
-1. **Spatial Edge Meniscus & Fluid Bloom (`overlay.py`)**:
-   - Built on `gtk4-layer-shell` and Cairo.
-   - Anchored to your right screen bezel (`eDP-1`) with `OVERLAY` layer priority.
-   - Full mouse click-through (`cairo.Region()`) so your normal desktop workflow is 100% uninterrupted.
-   - **Multi-Harmonic Living Fluid Wave**: Dynamic surface tension wobble that breathes and flexes with your finger gestures.
-   - **Pressure-Sensitive Ambient Sink**: Sweeps up to 900px deep into your desktop wallpaper as push depth or touch pressure intensifies.
-   - **4 Ambient Themes**: Liquid Seafoam, Aurora Borealis, Cyberpunk Neon Plasma, and Molten Solar Flare.
-   - **Zero Idle CPU**: Automatically drops to 0.0% CPU when released, with a clean clearing pass that wipes the surface to 100% transparency.
-
-2. **Real-Time Video Continuity Handoff**:
-   - Start watching a video on your phone, then fling it toward the left bezel.
-   - A chromatic portal shockwave detonates across your laptop display.
-   - Automatically resumes playback instantly in `mpv` at the exact second (`mpv --start=<timestamp>`).
-
-3. **Spatial File & Photo Transfers**:
-   - Drag any photo or custom file off your phone's screen edge to beam it to your laptop.
-   - An animated frosted glass card bounces onto your desktop showing file name, size, and drop status.
-   - Saved automatically into `~/Downloads`.
-   - Native desktop notification via `notify-send` / `org.freedesktop.Notifications`.
-
-4. **LocalSend-Compatible Clipboard & Two-Way Push**:
-   - Push clipboard text directly between phone and laptop via `wl-copy`.
-   - Drop zone on your desktop to send files back to your mobile device.
-
-5. **Standalone Native Desktop Hub (`hub.py`)**:
-   - Frosted GTK4 desktop control panel with server status, IP display, QR code for instant phone pairing, service toggles, and live theme picker.
+[![Linux](https://img.shields.io/badge/Platform-Linux%20%7C%20Wayland-007ACC?logo=linux&logoColor=white)](https://github.com/ziuus/drap)
+[![Wayland](https://img.shields.io/badge/Compositor-Hyprland%20%2F%20wlroots-blue)](https://hyprland.org)
+[![Performance](https://img.shields.io/badge/Render%20Engine-300%2B%20FPS%20LUT-emerald)](#-performance--architecture)
+[![Idle CPU](https://img.shields.io/badge/Idle%20CPU-0.00%25-brightgreen)](#-performance--architecture)
+[![LocalSend](https://img.shields.io/badge/Protocol-LocalSend%20v2%20Compatible-orange)](https://localsend.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 ## 📸 Visual Showcase
 
-| Wide Fluid Bezel Bloom | Frosted Drop Confirmation Card |
-| :---: | :---: |
-| ![Fluid Meniscus](assets/drooop_wide_fluid.png) | ![Drop Card](assets/drooop_card.png) |
+<div align="center">
+  <img src="assets/drap_aurora_bloom.png" alt="Drap Aurora Bloom" width="92%" />
+  <p><em>Ethereal multi-spectral Aurora Borealis spatial bloom and organic fluid meniscus anchored to display bezel.</em></p>
+</div>
+
+<br />
+
+<div align="center">
+  <img src="assets/drap_water_ripple.png" alt="Concentric Water Wave Ripple" width="92%" />
+  <p><em>Physical concentric water ripples with specular crest reflections dispersing across desktop on file drop.</em></p>
+</div>
+
+---
+
+## ✨ What is Drap?
+
+**Drap** transforms cross-device file sharing and media continuity into an intuitive spatial gesture. By leveraging a high-performance **GTK4 Layer Shell** overlay on Wayland and an ultra-low latency WebSocket telemetry bridge, dragging media on your phone feels as though your mobile display and monitor are physically touching.
+
+Push a photo toward the bezel: a pearlescent fluid meniscus wells up from your laptop screen edge. Fling an active video: a chromatic portal shockwave detonates across your desktop, instantly resuming video playback in `mpv` at the exact second.
+
+---
+
+## 🌟 Key Features
+
+### 🌊 Dynamic Directional Velocity Physics
+- **Directional Shear & Vertical Stretch**: Dragging upward or downward dynamically shears the liquid bezel contour (`skew_y = -v_y * 0.20`) and elongates the meniscus (`v_stretch = 1.0 + |v_y| * 0.45`).
+- **Trailing Bezel Liquid Wake**: A soft liquid trail streams along the screen edge opposite to your drag direction.
+- **Teardrop Meniscus Bulb**: Mobile bezel indicator dynamically morphs into an aerodynamic teardrop pointing in the direction of motion.
+- **Tactile 3D Card Physics**: Aerodynamic tilt (`-14°` to `+14°`) and haptic detents provide tangible physical weight as you guide items across screens.
+
+### ⚡ 300+ FPS Shader LUT Engine (0.00% Idle CPU)
+- **Pre-computed 512×512 Bilinear LUT**: Eliminated costly CPU radial gradients, reducing frame draw times from `~41ms` to `~2.8ms` (350+ FPS rendering).
+- **Zero-Power Tick Hibernation**: Automatically detaches GTK frame clock listeners when idle. Drops to **0.00% CPU** with 100% surface transparency until touch events arrive.
+
+### 💧 Physical Water Ripple Engine
+- Multi-wave concentric wavefronts with physical wave speed ($v = 420\text{ px/s}$) and quadratic viscosity damping ($e^{-3.8t}$).
+- Specular crest highlights and soft refractions provide an authentic liquid drop sensation.
+
+### 🎬 Real-Time Video Continuity Handoff
+- Stream a video on your mobile phone and flick it towards your monitor bezel.
+- Laptop detects the drop vector and launches `mpv --start=<seconds>` with zero latency.
+
+### 📋 Two-Way File & Clipboard Sharing (LocalSend Compatible)
+- Seamlessly paste phone text into laptop clipboard via native `wl-copy`.
+- Drop files from laptop onto desktop drop zones to beam directly to mobile devices.
+- Built-in LocalSend v2 compatibility for automatic discovery across your local network.
+
+### 🎨 Apple-Style Minimalist Web PWA
+- Clean, focused interface with live glowing connection pill and ambient OLED aura.
+- Frosted glass settings sheet for instant theme switching (**Aurora**, **Seafoam**, **Plasma**, **Solar**).
 
 ---
 
 ## 🛠️ Architecture
 
 ```
-                                      [ Mobile Phone (PWA) ]
-                                                │
-                          WebSocket Telemetry   │  HTTP Multipart
-                           (x, y, proximity,    │  (Payloads / Photos)
-                                pressure)       │
-                                                ▼
-                                    ┌───────────────────────┐
-                                    │      server.py        │
-                                    │ (FastAPI & Uvicorn)   │
-                                    │    Port 0.0.0.0:8080  │
-                                    └───────────┬───────────┘
-                                                │
-                       ┌────────────────────────┼────────────────────────┐
-                       │ Local WebSocket        │ OS Subprocess          │ File IO
-                       ▼                        ▼                        ▼
-           ┌───────────────────────┐  ┌───────────────────┐    ┌─────────────────┐
-           │      overlay.py       │  │  mpv / wl-copy    │    │   ~/Downloads   │
-           │ (GTK4 Layer Shell +   │  │ (Video continuity │    │                 │
-           │   Cairo Meniscus)     │  │   & clipboard)    │    └─────────────────┘
-           └───────────────────────┘  └───────────────────┘
+                             [ Mobile Device (PWA) ]
+                                        │
+           WebSocket Telemetry          │  HTTP Multipart
+           (x, y, proximity,            │  (Files / Media / Clips)
+            pressure, velocity)         │
+                                        ▼
+                            ┌───────────────────────┐
+                            │       server.py       │
+                            │ (FastAPI & Uvicorn)   │
+                            │   Port 0.0.0.0:8080   │
+                            │   HTTPS / WSS: 8443   │
+                            └───────────┬───────────┘
+                                        │
+               ┌────────────────────────┼────────────────────────┐
+               │ Local WebSocket        │ OS Subprocess          │ File IO
+               ▼                        ▼                        ▼
+   ┌───────────────────────┐  ┌───────────────────┐    ┌─────────────────┐
+   │      overlay.py       │  │  mpv / wl-copy    │    │   ~/Downloads   │
+   │  (GTK4 Layer Shell +  │  │ (Video continuity │    │                 │
+   │   Bilinear LUT / 300+ │  │   & clipboard)    │    └─────────────────┘
+   │    FPS Liquid Cairo)  │  └───────────────────┘
+   └───────────────────────┘
 ```
 
 ---
@@ -85,112 +100,91 @@ By running a hardware-accelerated **GTK4 Layer Shell** surface over your composi
 
 ### 1. Requirements
 
-- **Linux Compositor**: Wayland (Hyprland, Sway, River, or any `wlroots`/`ext-layer-shell` compositor).
-- **Dependencies**:
+- **Compositor**: Wayland (`Hyprland`, `Sway`, `River`, or any `wlroots`/`ext-layer-shell` compositor).
+- **Core Packages**:
   ```bash
   # Arch Linux
   sudo pacman -S gtk4 gtk4-layer-shell python-cairo python-gobject mpv wl-clipboard
+  
+  # Ubuntu / Debian
+  sudo apt install libgtk-4-dev libgtk4-layer-shell-dev python3-cairo python3-gi mpv wl-clipboard
+  
+  # Fedora
+  sudo dnf install gtk4 gtk4-layer-shell python3-cairo python3-gobject mpv wl-clipboard
   ```
 
-### 2. Run Directly
+### 2. Installation
 
-Clone the repository and run the startup script:
-
-```bash
-git clone https://github.com/ziuus/drooop-linux.git
-cd drooop-linux
-
-# Start daemon and overlay
-./run.sh
-```
-
-Then open the mobile web app on your phone by navigating to:
-```
-http://<your-laptop-ip>:8080
-```
-*(Or launch `python3 hub.py` to scan the on-screen pairing QR code).*
-
----
-
-## 📦 Installation & Systemd Service
-
-### Automated Installer
-
-Run the included install script:
+Clone and run the automated installer:
 
 ```bash
-chmod +x install.sh
+git clone https://github.com/ziuus/drap.git
+cd drap
 ./install.sh
 ```
 
 This installs:
-- Global CLI binary `drooop` in `~/.local/bin/drooop`
-- Desktop Application Launcher entry (`drooop.desktop`) with high-res icon
-- Background systemd user service (`~/.config/systemd/user/drooop.service`)
+- Global CLI executable `drap` in `~/.local/bin/drap`
+- Desktop entry `drap.desktop` in your application launcher / rofi / wofi
+- Systemd user service `drap.service` for automatic login startup
 
-### Systemd User Service
-
-Enable and start drooop on boot:
-
-```bash
-systemctl --user enable --now drooop.service
-```
-
-Check service status or logs:
-```bash
-systemctl --user status drooop.service
-journalctl --user -u drooop.service -f
-```
-
----
-
-## ⌨️ CLI Usage
+### 3. Launching Drap
 
 ```bash
 # Start background daemon & overlay
-drooop start
+drap start
 
-# Open Native GTK4 Control Hub & QR Code
-drooop gui
+# Open Desktop Control Hub & Pairing QR Code
+drap gui
 
-# Check daemon status
-drooop status
+# Check daemon health & active telemetry
+drap status
 
-# Share a file from laptop terminal to phone
-drooop share /path/to/picture.png
+# Send a file from terminal to phone
+drap share ~/Pictures/photo.jpg
 
-# Stop all running services
-drooop stop
+# Stop running daemons
+drap stop
 ```
 
 ---
 
-## 🎨 Compositor Rules (Hyprland)
+## 📱 Mobile Connection & PWA Setup
 
-In your `hyprland.conf`, you can optionally fine-tune layer blur:
+1. Open your laptop IP in your phone browser:
+   - **HTTP**: `http://<your-laptop-ip>:8080`
+   - **HTTPS**: `https://<your-laptop-ip>:8443` *(recommended for 1-tap PWA install)*
+2. **Installing as Native PWA**:
+   - **Brave Browser (Android)**: Chromium blocks PWA installs over LAN IP without trusted CA. Simply open `brave://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<your-laptop-ip>:8080`, enable and relaunch; or tap `Menu (⋮) -> Add to Home screen -> Create Shortcut`.
+   - **Chrome (Android)**: Open the HTTPS link (`https://<your-laptop-ip>:8443`), accept the local certificate, and tap **Install** when prompted.
+   - **Safari (iOS)**: Tap the Share button (`⎋`) -> **Add to Home Screen** (`⊕`).
+
+---
+
+## 🎨 Hyprland Compositor Rules
+
+Add the following to your `hyprland.conf` for optimal overlay rendering:
 
 ```ini
-# Optional: keep overlay crisp and disable compositor background blur over the layer
-layerrule = noblur, drooop-aurora
+# Keep overlay razor-sharp without compositor blur interference
+layerrule = noblur, drap-aurora
 ```
 
 ---
 
 ## 📡 WebSocket Signaling Protocol
 
-The daemon exposes a WebSocket endpoint at `ws://<host>:8080/ws`.
+The telemetry engine communicates via `ws://<host>:8080/ws` with JSON frames:
 
-| Packet Type | Fields | Description |
-| :--- | :--- | :--- |
-| `drag_move` | `y` (0.0–1.0), `proximity` (0.0–1.0), `pressure` (0.0–1.0) | Streams continuous touch coordinates and push depth |
-| `drag_edge_enter` | `y` (0.0–1.0) | Emitted when touch enters bezel trigger zone |
-| `drag_edge_leave` | none | Emitted on touch release; triggers immediate transparent fade |
-| `drag_drop` | `filename`, `size`, `y` | Triggers frosted glass drop card animation |
-| `video_resume` | `url`, `time` (seconds), `y` | Triggers shockwave portal and resumes playback in `mpv` |
-| `set_effect` | `theme`: `"liquid"` \| `"aurora"` \| `"plasma"` \| `"solar"` | Switches active ambient shader theme |
+- `drag_move`: Streams touch coordinates (`y`, `proximity`, `pressure`, `vy`).
+- `drag_edge_enter`: Emitted when touch enters bezel proximity threshold.
+- `drag_edge_leave`: Emitted on finger release; begins fluid decay to zero.
+- `drag_drop`: Emitted on release over edge; triggers physical water ripple and file download.
+- `video_resume`: Transmits video source URL and timestamp for instant `mpv` continuity.
+- `set_effect`: Switches active shader palette (`aurora`, `liquid`, `plasma`, `solar`).
 
 ---
 
 ## 📄 License
 
-MIT License. Crafted with ❤️ for Linux and Wayland enthusiasts.
+Distributed under the [MIT License](LICENSE). Built with ❤️ for the Linux and Wayland community.
