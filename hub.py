@@ -117,7 +117,15 @@ class DrooopHubWindow(Gtk.ApplicationWindow):
         vbox_head = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         t_label = Gtk.Label(label="Drooop Spatial Transfer", xalign=0)
         t_label.add_css_class("hub-title")
-        sub_label = Gtk.Label(label="Hyprland (eDP-1) • Mobile Gateway: http://10.166.229.201:8080", xalign=0)
+        import socket
+        try:
+            _s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            _s.connect(("8.8.8.8", 80))
+            _ip = _s.getsockname()[0]
+            _s.close()
+        except Exception:
+            _ip = "127.0.0.1"
+        sub_label = Gtk.Label(label=f"Hyprland (eDP-1) • Mobile Gateway: http://{_ip}:8080", xalign=0)
         sub_label.add_css_class("hub-subtitle")
         vbox_head.append(t_label)
         vbox_head.append(sub_label)

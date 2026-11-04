@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ws.onopen = () => {
       isConnected = true;
       statusPill.classList.add("connected");
-      statusPill.innerHTML = "<span>Connected (10.166.229.201)</span>";
+      statusPill.innerHTML = `<span>Connected (${window.location.hostname})</span>`;
     };
 
     ws.onclose = () => {

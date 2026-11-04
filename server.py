@@ -263,13 +263,24 @@ async def send_text_endpoint(payload: Dict[str, Any]):
     await manager.broadcast(msg)
     return {"status": "success", "length": len(text)}
 
+def get_local_ip():
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 @app.get("/api/device_info")
 async def get_device_info():
     """LocalSend peer discovery endpoint."""
     return {
         "alias": "Hyprland Desktop (eDP-1)",
         "device_model": "Arch Linux",
-        "ip": "10.166.229.201",
+        "ip": get_local_ip(),
         "port": 8080,
         "protocol": "LocalSend / Drooop P2P",
         "active_peers": len(manager.active_connections)
@@ -299,7 +310,7 @@ async def get_status():
         "status": "running",
         "active_ws_connections": len(manager.active_connections),
         "downloads_dir": str(DOWNLOADS_DIR),
-        "host_ip": "10.166.229.201",
+        "host_ip": get_local_ip(),
         "port": 8080
     }
 
@@ -371,7 +382,7 @@ if CLIENT_DIR.exists():
     app.mount("/", StaticFiles(directory=str(CLIENT_DIR), html=True), name="client")
 
 def print_startup_banner():
-    ip = "10.166.229.201"
+    ip = get_local_ip()
     port = 8080
     url = f"http://{ip}:{port}"
     print("=" * 60)
