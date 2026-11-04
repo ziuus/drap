@@ -6,6 +6,7 @@
   <title>drap</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="drap">
   <meta name="theme-color" content="#09090b">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/style.css">
@@ -20,58 +21,147 @@
 
   <!-- Main View -->
   <main class="app-shell">
-    <!-- Clean Minimalist Header -->
+    <!-- Header -->
     <header class="app-header">
       <div class="brand-row">
-        <div class="logo">drap</div>
-        <div class="connection-status" id="statusPill">
-          <span class="status-dot"></span>
-          <span class="status-text">Connecting...</span>
+        <div class="brand-left">
+          <div class="logo">drap</div>
+          <div class="connection-status" id="statusPill">
+            <span class="status-dot"></span>
+            <span class="status-text">Connecting...</span>
+          </div>
         </div>
+
+        <!-- PWA Install Button (appears if not installed) -->
+        <button id="pwaInstallBtn" class="btn-install" style="display: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Install
+        </button>
+      </div>
+
+      <!-- Mode Switcher: Intelligent solution to navigation vs dragging -->
+      <div class="mode-control-row">
+        <div class="mode-switcher" id="modeSwitcher">
+          <button class="mode-tab active" id="tabBrowse" type="button" data-mode="browse">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
+            Browse
+          </button>
+          <button class="mode-tab" id="tabTransfer" type="button" data-mode="transfer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Transfer
+          </button>
+        </div>
+        <div class="mode-hint" id="modeHint">
+          Hold any item 250ms to lift & flick
+        </div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="category-scroll">
+        <button class="cat-pill active" data-cat="all">All</button>
+        <button class="cat-pill" data-cat="photo">Photos</button>
+        <button class="cat-pill" data-cat="document">Documents</button>
+        <button class="cat-pill" data-cat="video">Videos</button>
       </div>
     </header>
 
-    <!-- Media Library Grid -->
+    <!-- Library Section -->
     <section class="content-section">
       <div class="section-header">
-        <h2>Library</h2>
+        <div class="section-title-wrap">
+          <h2>Device Library</h2>
+          <span class="file-count" id="fileCountBadge">7 items</span>
+        </div>
+        <!-- Native File Picker Trigger -->
         <label for="customFileInput" class="btn-add">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-          Add File
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add Files
         </label>
-        <input type="file" id="customFileInput" style="display: none;">
+        <input type="file" id="customFileInput" multiple accept="*/*" style="display: none;">
       </div>
 
       <div class="media-grid" id="mediaGrid">
-        <div class="card-item" data-item-type="photo" data-title="Misty Forest.jpg" data-file="/media/sample_photo1.jpg">
-          <div class="card-thumb">
-            <img src="/media/sample_photo1.jpg" alt="Misty Forest" loading="lazy">
+        <!-- Q4 Report (Matching Tornike Drooop demo) -->
+        <div class="card-item" data-cat="document" data-item-type="document" data-title="Q4 Report.pdf" data-size="1.4 MB" data-file="/media/sample_photo3.jpg" data-theme="blue">
+          <div class="card-thumb doc-thumb doc-blue">
+            <div class="doc-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <div class="chart-bars">
+              <span style="height: 40%;"></span>
+              <span style="height: 65%;"></span>
+              <span style="height: 50%;"></span>
+              <span style="height: 85%;"></span>
+              <span style="height: 100%;"></span>
+            </div>
           </div>
           <div class="card-meta">
-            <span class="title">Misty Forest</span>
-            <span class="sub">178 KB • Photo</span>
+            <span class="title">Q4 Report.pdf</span>
+            <span class="sub">1.4 MB • Document</span>
           </div>
+          <div class="card-lift-indicator"></div>
         </div>
 
-        <div class="card-item" data-item-type="photo" data-title="Alpine Peak.jpg" data-file="/media/sample_photo2.jpg">
+        <!-- Pitch Deck -->
+        <div class="card-item" data-cat="document" data-item-type="document" data-title="Pitch Deck.key" data-size="2.8 MB" data-file="/media/sample_photo1.jpg" data-theme="violet">
+          <div class="card-thumb doc-thumb doc-violet">
+            <div class="doc-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="doc-key-tag">KEYNOTE</div>
+          </div>
+          <div class="card-meta">
+            <span class="title">Pitch Deck.key</span>
+            <span class="sub">2.8 MB • Presentation</span>
+          </div>
+          <div class="card-lift-indicator"></div>
+        </div>
+
+        <!-- Golden Hour Photo -->
+        <div class="card-item" data-cat="photo" data-item-type="photo" data-title="Golden Hour.jpg" data-size="307 KB" data-file="/media/sample_photo1.jpg">
+          <div class="card-thumb">
+            <img src="/media/sample_photo1.jpg" alt="Golden Hour" loading="lazy">
+          </div>
+          <div class="card-meta">
+            <span class="title">Golden Hour.jpg</span>
+            <span class="sub">307 KB • Photo</span>
+          </div>
+          <div class="card-lift-indicator"></div>
+        </div>
+
+        <!-- Alpine Peak Photo -->
+        <div class="card-item" data-cat="photo" data-item-type="photo" data-title="Alpine Peak.jpg" data-size="83 KB" data-file="/media/sample_photo2.jpg">
           <div class="card-thumb">
             <img src="/media/sample_photo2.jpg" alt="Alpine Peak" loading="lazy">
           </div>
           <div class="card-meta">
-            <span class="title">Alpine Peak</span>
+            <span class="title">Alpine Peak.jpg</span>
             <span class="sub">83 KB • Photo</span>
           </div>
+          <div class="card-lift-indicator"></div>
+        </div>
+
+        <!-- Jellyfish Photo -->
+        <div class="card-item" data-cat="photo" data-item-type="photo" data-title="Jellyfish.jpg" data-size="120 KB" data-file="/media/sample_photo3.jpg">
+          <div class="card-thumb">
+            <img src="/media/sample_photo3.jpg" alt="Jellyfish" loading="lazy">
+          </div>
+          <div class="card-meta">
+            <span class="title">Jellyfish.jpg</span>
+            <span class="sub">120 KB • Photo</span>
+          </div>
+          <div class="card-lift-indicator"></div>
         </div>
       </div>
     </section>
 
     <!-- Video Continuity Card -->
-    <section class="content-section">
+    <section class="content-section" data-cat="video">
       <div class="section-header">
         <h2>Video Continuity</h2>
       </div>
 
-      <div class="video-card" id="videoHandoffCard" data-item-type="video" data-url="/media/continue.mp4" data-title="Tokyo Motion">
+      <div class="video-card card-item" data-cat="video" id="videoHandoffCard" data-item-type="video" data-url="/media/continue.mp4" data-title="Tokyo Motion.mp4" data-size="19 MB">
         <div class="video-wrapper">
           <video id="continuityVideo" src="/media/continue.mp4" playsinline loop preload="metadata" poster="/media/sample_photo3.jpg"></video>
           <div class="video-overlay-play" id="videoPlayIndicator">
@@ -79,9 +169,10 @@
           </div>
         </div>
         <div class="video-info">
-          <div class="video-title">Tokyo Motion</div>
-          <div class="video-time" id="videoTime">0:00 / 0:00 • Drag to Laptop</div>
+          <div class="video-title">Tokyo Motion.mp4</div>
+          <div class="video-time" id="videoTime">0:00 / 0:00 • Drag to Resume on Desktop</div>
         </div>
+        <div class="card-lift-indicator"></div>
       </div>
     </section>
 
@@ -91,21 +182,20 @@
         <h2>Quick Clipboard</h2>
       </div>
       <div class="clipboard-box">
-        <input type="text" id="quickTextInput" placeholder="Paste link or text to send to laptop...">
+        <input type="text" id="quickTextInput" placeholder="Paste link or text to send to desktop...">
         <button id="quickSendBtn" type="button">Send</button>
       </div>
     </section>
 
-    <!-- Bottom Spacing -->
     <div style="height: 60px;"></div>
   </main>
 
   <!-- Clean Floating Drag Ghost -->
   <div class="drag-ghost" id="dragGhost">
-    <img id="ghostImg" src="/media/sample_photo1.jpg" alt="Ghost">
+    <div class="ghost-thumb" id="ghostThumb"></div>
     <div class="ghost-info">
-      <span class="ghost-title" id="ghostTitle">Photo</span>
-      <span class="ghost-sub">Drag across left bezel</span>
+      <span class="ghost-title" id="ghostTitle">File</span>
+      <span class="ghost-sub">Flick towards left bezel</span>
     </div>
   </div>
 

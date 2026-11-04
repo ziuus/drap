@@ -1,5 +1,5 @@
-// Drooop PWA Service Worker
-const CACHE_NAME = "drooop-v1";
+// drap PWA Service Worker
+const CACHE_NAME = "drap-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -35,7 +35,6 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Network first for dynamic API and WebSocket, cache fallback for static
   if (event.request.url.includes("/api/") || event.request.url.includes("/ws")) {
     return;
   }
