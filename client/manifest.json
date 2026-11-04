@@ -1,15 +1,16 @@
 {
-  "id": "/?source=pwa",
+  "id": "/",
   "name": "drap",
   "short_name": "drap",
   "description": "Spatial cross-device drag-and-drop and video continuity",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "window-controls-overlay"],
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#09090b",
   "theme_color": "#09090b",
+  "prefer_related_applications": false,
   "categories": ["utilities", "productivity"],
   "icons": [
     {

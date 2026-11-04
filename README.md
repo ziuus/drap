@@ -156,6 +156,12 @@ drap autostart off
 # Switch live ambient shader theme from terminal
 drap theme aurora    # or: plasma, solar, liquid
 
+# Security & Access Control (Choose which devices can connect):
+drap devices         # List connected and paired devices (IP, status, name)
+drap allow <ip>      # Authorize a phone IP to transfer files
+drap block <ip>      # Block an untrusted device from connecting
+drap security open   # Mode: open (trust all LAN), prompt (default), strict (whitelist)
+
 # Launch native GTK4 Control Hub & pairing QR Code
 drap gui
 

@@ -57,7 +57,7 @@ class DrapOverlay:
         self.target_pressure = 0.5
         self.current_pressure = 0.5
         self.edge_proximity = 0.0
-        self.effect_theme = "liquid"  # Options: "liquid", "aurora", "plasma", "solar"
+        self.effect_theme = "aurora"  # Options: "aurora", "liquid", "plasma", "solar"
 
         # Time & Inactivity Watchdog
         self.start_time = time.time()
@@ -129,25 +129,27 @@ class DrapOverlay:
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             elif theme == "liquid":
-                # Crystalline oceanic cyan & aqua mist
-                pat.add_color_stop_rgba(0.00, 0.96, 1.00, 1.00, 0.95)
-                pat.add_color_stop_rgba(0.15, 0.25, 0.92, 1.00, 0.80)
-                pat.add_color_stop_rgba(0.34, 0.15, 0.75, 0.95, 0.58)
-                pat.add_color_stop_rgba(0.58, 0.08, 0.50, 0.80, 0.28)
-                pat.add_color_stop_rgba(0.80, 0.04, 0.28, 0.55, 0.09)
-                pat.add_color_stop_rgba(0.92, 0.02, 0.15, 0.30, 0.02)
+                # Crystalline oceanic cyan & aqua mist with pure white-hot originating core
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
+                pat.add_color_stop_rgba(0.18, 0.96, 1.00, 1.00, 0.95)
+                pat.add_color_stop_rgba(0.35, 0.35, 0.95, 0.98, 0.75)
+                pat.add_color_stop_rgba(0.55, 0.15, 0.80, 0.92, 0.48)
+                pat.add_color_stop_rgba(0.75, 0.08, 0.55, 0.78, 0.22)
+                pat.add_color_stop_rgba(0.90, 0.03, 0.30, 0.50, 0.06)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
-            else: # "aurora" (Exact Tornike Drooop Pearlescent Volumetric Light)
-                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.96)
-                pat.add_color_stop_rgba(0.08, 0.98, 1.00, 1.00, 0.90)
-                pat.add_color_stop_rgba(0.18, 0.85, 0.96, 1.00, 0.78)
-                pat.add_color_stop_rgba(0.32, 0.38, 0.88, 0.98, 0.58)
-                pat.add_color_stop_rgba(0.48, 0.22, 0.65, 0.96, 0.38)
-                pat.add_color_stop_rgba(0.65, 0.45, 0.32, 0.92, 0.20)
-                pat.add_color_stop_rgba(0.82, 0.72, 0.22, 0.88, 0.08)
-                pat.add_color_stop_rgba(0.94, 0.90, 0.30, 0.65, 0.01)
-                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            else: # "aurora" (Exact Chromatic Dispersion matching Tornike Drooop Demo Photo)
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)  # Pure incandescent white origin
+                pat.add_color_stop_rgba(0.20, 1.00, 1.00, 1.00, 0.98)
+                pat.add_color_stop_rgba(0.32, 1.00, 0.98, 0.96, 0.92)
+                pat.add_color_stop_rgba(0.42, 1.00, 0.90, 0.88, 0.85)  # Warm blush cream
+                pat.add_color_stop_rgba(0.50, 1.00, 0.72, 0.78, 0.78)  # Soft rose pink
+                pat.add_color_stop_rgba(0.58, 0.88, 0.70, 0.98, 0.65)  # Ethereal lilac/violet
+                pat.add_color_stop_rgba(0.66, 0.70, 0.88, 0.75, 0.50)  # Golden amber & chartreuse lime
+                pat.add_color_stop_rgba(0.74, 0.40, 0.85, 0.98, 0.35)  # Vivid sky cyan
+                pat.add_color_stop_rgba(0.84, 0.20, 0.65, 0.90, 0.20)  # Oceanic azure
+                pat.add_color_stop_rgba(0.92, 0.10, 0.45, 0.70, 0.08)  # Deep teal mist
+                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)  # Seamless transparent fade
 
             cr.set_source(pat)
             cr.paint()
@@ -476,18 +478,9 @@ class DrapOverlay:
         y_pos = self.current_y * height
         active_intensity = self.current_intensity
 
-        # 2. Draw Authentic Drooop Meniscus & Ambient Wash
+        # 2. Draw Magnificent Drooop Ambient Atmosphere (Exact photo match)
         if active_intensity > 0.004:
-            self._draw_ambient_sink(cr, width, height, y_pos, active_intensity, t_sec)
-
-            if self.effect_theme == "liquid":
-                self._draw_liquid_effect(cr, width, y_pos, active_intensity, t_sec)
-            elif self.effect_theme == "plasma":
-                self._draw_plasma_effect(cr, width, y_pos, active_intensity, t_sec)
-            elif self.effect_theme == "solar":
-                self._draw_solar_effect(cr, width, y_pos, active_intensity, t_sec)
-            else: # aurora
-                self._draw_aurora_effect(cr, width, y_pos, active_intensity, t_sec)
+            self._draw_drooop_photo_ambience(cr, width, height, y_pos, active_intensity, t_sec)
 
         # 3. Full-Screen Confirmation Radiance Wave (On file drop)
         if self.confirm_active:
@@ -500,6 +493,41 @@ class DrapOverlay:
         # 5. Dropped File Confirmation Card
         if self.card_active:
             self._draw_drop_card(cr, width, height)
+
+    def _draw_drooop_photo_ambience(self, cr, width, height, y_pos, active_intensity, t_sec):
+        """
+        Exact Drooop Chromatic Dispersion Ambience (Matching photo):
+        - Maximum blinding incandescent white core at the touch point (width, y_pos).
+        - Prismatic rainbow dispersion ring (peach, rose, lilac, golden amber, sky cyan).
+        - Deep atmospheric oceanic teal mist sweeping up to 900px+ across desktop.
+        - Naturally enlargens and brightens with touch pressure and edge proximity.
+        """
+        surf = self.luts.get(self.effect_theme, self.luts["aurora"])
+        lut_w = 512
+        lut_h = 1024
+
+        pressure_scale = 0.80 + self.current_pressure * 1.05
+        # Expansive desktop reach matching the photo
+        radius_x = (420 + active_intensity * 500) * pressure_scale
+        v_stretch = 1.0 + min(0.50, abs(self.current_vy) * 0.40)
+        radius_y = radius_x * 1.62 * v_stretch
+
+        cr.save()
+        cr.translate(width, y_pos)
+        
+        # Soft fluid shear matrix: tilts naturally in the direction of movement
+        skew_y = max(-0.20, min(0.20, -self.current_vy * 0.16))
+        skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
+        cr.transform(skew_mat)
+
+        cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
+        cr.translate(-lut_w, -lut_h / 2)
+
+        pat = cairo.SurfacePattern(surf)
+        pat.set_filter(cairo.Filter.BILINEAR)
+        cr.set_source(pat)
+        cr.paint_with_alpha(active_intensity * 0.98)
+        cr.restore()
 
     def _draw_ambient_sink(self, cr, width, height, y_pos, active_intensity, t_sec):
         """Massive volumetric ambient wash sinking deep into the display wallpaper."""

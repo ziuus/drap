@@ -13,6 +13,7 @@ import subprocess
 import threading
 from pathlib import Path
 from typing import Set, Optional, Dict, Any
+from datetime import datetime
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
@@ -56,6 +57,154 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+CONFIG_DIR = Path.home() / ".config" / "drap"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+DEVICES_FILE = CONFIG_DIR / "devices.json"
+
+class DeviceSecurity:
+    """Device pairing, whitelisting, and desktop notification security manager."""
+    def __init__(self):
+        self.mode = "prompt"  # "open" (auto-trust), "prompt" (notify on new), "strict" (whitelist only)
+        self.devices: Dict[str, Dict[str, Any]] = {}
+        self.load()
+
+    def load(self):
+        if DEVICES_FILE.exists():
+            try:
+                with open(DEVICES_FILE, "r") as f:
+                    data = json.load(f)
+                    self.mode = data.get("mode", "prompt")
+                    self.devices = data.get("devices", {})
+            except Exception as e:
+                print(f"[Drooop Security] Could not load devices config: {e}")
+
+    def save(self):
+        try:
+            with open(DEVICES_FILE, "w") as f:
+                json.dump({"mode": self.mode, "devices": self.devices}, f, indent=2)
+        except Exception as e:
+            print(f"[Drooop Security] Could not save devices config: {e}")
+
+    def get_all(self):
+        return list(self.devices.values())
+
+    def allow(self, ip: str) -> bool:
+        if ip in self.devices:
+            self.devices[ip]["status"] = "allowed"
+        else:
+            now_str = datetime.now().isoformat()
+            self.devices[ip] = {
+                "ip": ip,
+                "name": "Authorized Device",
+                "status": "allowed",
+                "first_seen": now_str,
+                "last_seen": now_str
+            }
+        self.save()
+        self._notify(f"Device Allowed: {ip}", "Transfers and spatial telemetry authorized.")
+        return True
+
+    def block(self, ip: str) -> bool:
+        if ip in self.devices:
+            self.devices[ip]["status"] = "blocked"
+        else:
+            now_str = datetime.now().isoformat()
+            self.devices[ip] = {
+                "ip": ip,
+                "name": "Blocked Device",
+                "status": "blocked",
+                "first_seen": now_str,
+                "last_seen": now_str
+            }
+        self.save()
+        self._notify(f"Device Blocked: {ip}", "Access and uploads revoked.")
+        return True
+
+    def set_mode(self, mode: str):
+        if mode in ("open", "prompt", "strict"):
+            self.mode = mode
+            self.save()
+            return True
+        return False
+
+    def check_access(self, client_ip: str, user_agent: str = "") -> bool:
+        if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return True
+
+        now_str = datetime.now().isoformat()
+        dev = self.devices.get(client_ip)
+
+        if not dev:
+            alias = self._infer_alias(user_agent)
+            default_status = "allowed" if self.mode == "open" else ("allowed" if self.mode == "prompt" else "pending")
+            self.devices[client_ip] = {
+                "ip": client_ip,
+                "name": alias,
+                "status": default_status,
+                "first_seen": now_str,
+                "last_seen": now_str
+            }
+            self.save()
+            if self.mode != "open":
+                self._notify(
+                    f"New Device: {alias} ({client_ip})",
+                    f"Status: {default_status.upper()}. Run 'drap allow {client_ip}' or 'drap block {client_ip}'"
+                )
+            if self.mode == "strict" and default_status != "allowed":
+                return False
+            return True
+        else:
+            dev["last_seen"] = now_str
+            if user_agent and dev.get("name") in ("Mobile Client", "Network Device", None):
+                dev["name"] = self._infer_alias(user_agent)
+            self.save()
+
+            if dev["status"] == "blocked":
+                return False
+            if self.mode == "strict" and dev["status"] != "allowed":
+                return False
+            return True
+
+    def _infer_alias(self, ua: str) -> str:
+        if not ua:
+            return "Mobile Client"
+        if "iPhone" in ua:
+            return "Apple iPhone"
+        if "iPad" in ua:
+            return "Apple iPad"
+        if "Android" in ua:
+            if "Pixel" in ua:
+                return "Google Pixel"
+            if "Samsung" in ua or "SM-" in ua:
+                return "Samsung Galaxy"
+            return "Android Device"
+        if "Linux" in ua:
+            return "Linux Machine"
+        if "Macintosh" in ua:
+            return "MacBook"
+        if "Windows" in ua:
+            return "Windows PC"
+        return "Network Device"
+
+    def _notify(self, title: str, message: str):
+        try:
+            env = dict(os.environ)
+            runtime_dir = env.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+            bus_path = f"{runtime_dir}/bus"
+            if os.path.exists(bus_path):
+                env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={bus_path}"
+            subprocess.run([
+                "notify-send",
+                "-a", "Drap Security",
+                "-i", "security-medium",
+                f"💧 {title}",
+                message
+            ], env=env, timeout=1.5)
+        except Exception:
+            pass
+
+device_sec = DeviceSecurity()
 
 class ConnectionManager:
     def __init__(self):
@@ -126,6 +275,12 @@ def launch_video_continuity(url_or_path: str, start_time: float):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    client_ip = websocket.client.host if websocket.client else "unknown"
+    user_agent = websocket.headers.get("user-agent", "")
+    if not device_sec.check_access(client_ip, user_agent):
+        await websocket.close(code=1008, reason="Device not authorized")
+        return
+
     await manager.connect(websocket)
     try:
         while True:
@@ -166,11 +321,17 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.post("/api/upload")
 async def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     y: Optional[float] = Form(0.5),
     item_type: Optional[str] = Form("file")
 ):
     """Handle multipart file upload, save to ~/Downloads, and notify overlay."""
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+    if not device_sec.check_access(client_ip, user_agent):
+        raise HTTPException(status_code=403, detail="Device not authorized. Run 'drap allow <ip>' on desktop.")
+
     filename = Path(file.filename).name
     dest_path = DOWNLOADS_DIR / filename
 
@@ -338,10 +499,42 @@ async def send_to_localsend_peer_endpoint(payload: Dict[str, Any]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/devices")
+async def get_devices():
+    return {
+        "mode": device_sec.mode,
+        "devices": device_sec.get_all()
+    }
+
+@app.post("/api/devices/allow")
+async def allow_device(payload: Dict[str, Any]):
+    ip = payload.get("ip")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+    device_sec.allow(ip)
+    return {"status": "success", "ip": ip, "device_status": "allowed"}
+
+@app.post("/api/devices/block")
+async def block_device(payload: Dict[str, Any]):
+    ip = payload.get("ip")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+    device_sec.block(ip)
+    return {"status": "success", "ip": ip, "device_status": "blocked"}
+
+@app.post("/api/devices/mode")
+async def set_security_mode(payload: Dict[str, Any]):
+    mode = payload.get("mode")
+    if not mode or not device_sec.set_mode(mode):
+        raise HTTPException(status_code=400, detail="Invalid mode. Choose open, prompt, or strict.")
+    return {"status": "success", "mode": device_sec.mode}
+
 @app.get("/api/status")
 async def get_status():
     return {
         "status": "running",
+        "security_mode": device_sec.mode,
+        "active_devices_count": len(device_sec.devices),
         "active_ws_connections": len(manager.active_connections),
         "downloads_dir": str(DOWNLOADS_DIR),
         "host_ip": get_local_ip(),

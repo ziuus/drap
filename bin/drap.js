@@ -147,6 +147,77 @@ switch (command) {
     console.log("==================================================\n");
     break;
 
+  case "devices":
+    try {
+      const raw = execSync("curl -s --max-time 1.5 http://127.0.0.1:8080/api/devices").toString();
+      const data = JSON.parse(raw);
+      console.log("\n==================================================");
+      console.log(`  🔒 DRAP DEVICE ACCESS CONTROL (Mode: ${data.mode.toUpperCase()})`);
+      console.log("==================================================");
+      if (!data.devices || data.devices.length === 0) {
+        console.log("  No devices recorded yet.");
+      } else {
+        data.devices.forEach((d) => {
+          const statusIcon = d.status === "allowed" ? "🟢 ALLOWED" : (d.status === "blocked" ? "🔴 BLOCKED" : "🟡 PENDING");
+          console.log(`  • ${d.ip.padEnd(16)} | ${statusIcon.padEnd(12)} | ${d.name}`);
+        });
+      }
+      console.log("--------------------------------------------------");
+      console.log("  Manage devices:");
+      console.log("    drap allow <ip>     Allow device to transfer");
+      console.log("    drap block <ip>     Block device from connecting");
+      console.log("    drap security <mode> (open | prompt | strict)");
+      console.log("==================================================\n");
+    } catch (e) {
+      console.error("❌ Failed to query devices. Is Drap running? ('drap on')");
+    }
+    break;
+
+  case "allow":
+    const allowIp = args[1];
+    if (!allowIp) {
+      console.error("Usage: drap allow <device-ip>");
+      process.exit(1);
+    }
+    try {
+      execSync(`curl -s -X POST http://127.0.0.1:8080/api/devices/allow -H "Content-Type: application/json" -d '{"ip":"${allowIp}"}'`);
+      console.log(`✓ Device ${allowIp} is now ALLOWED.`);
+    } catch (e) {
+      console.error("❌ Failed to allow device. Is Drap running? ('drap on')");
+    }
+    break;
+
+  case "block":
+    const blockIp = args[1];
+    if (!blockIp) {
+      console.error("Usage: drap block <device-ip>");
+      process.exit(1);
+    }
+    try {
+      execSync(`curl -s -X POST http://127.0.0.1:8080/api/devices/block -H "Content-Type: application/json" -d '{"ip":"${blockIp}"}'`);
+      console.log(`✓ Device ${blockIp} is now BLOCKED.`);
+    } catch (e) {
+      console.error("❌ Failed to block device. Is Drap running? ('drap on')");
+    }
+    break;
+
+  case "security":
+    const secMode = subCommand;
+    if (!["open", "prompt", "strict"].includes(secMode)) {
+      console.log("Usage: drap security [open | prompt | strict]");
+      console.log("  open    : Anyone on Wi-Fi can transfer without friction");
+      console.log("  prompt  : Desktop notifies on new device, can allow/block");
+      console.log("  strict  : Whitelist only (unregistered devices blocked)");
+      process.exit(1);
+    }
+    try {
+      execSync(`curl -s -X POST http://127.0.0.1:8080/api/devices/mode -H "Content-Type: application/json" -d '{"mode":"${secMode}"}'`);
+      console.log(`✓ Drap security mode set to: ${secMode.toUpperCase()}`);
+    } catch (e) {
+      console.error("❌ Failed to set security mode. Is Drap running? ('drap on')");
+    }
+    break;
+
   case "theme":
     const chosenTheme = subCommand;
     if (!["aurora", "plasma", "solar", "liquid"].includes(chosenTheme)) {
@@ -183,16 +254,24 @@ switch (command) {
     console.log(`
 💧 Drap - Spatial Cross-Device Transfer & Continuity System
 
-Commands:
-  drap on              Turn Drap ON (starts background server & bezel overlay)
-  drap off             Turn Drap OFF (stops all processes)
-  drap restart         Restart all Drap services
-  drap status          Display system health, active phones, and network IPs
-  drap autostart on    Enable automatic launch when logging into Linux
-  drap autostart off   Disable automatic launch on login
-  drap theme <name>    Switch active shader palette (aurora, plasma, solar, liquid)
-  drap gui             Open native GTK4 Control Panel & pairing QR code
-  drap share <file>    Push any file from your laptop terminal to your phone
+Lifecycle:
+  drap on                 Turn Drap ON (starts background server & bezel overlay)
+  drap off                Turn Drap OFF (stops all processes)
+  drap restart            Restart all Drap services
+  drap status             Display system health, active phones, and network IPs
+  drap autostart on       Enable automatic launch when logging into Linux
+  drap autostart off      Disable automatic launch on login
+
+Security & Access Control:
+  drap devices            List connected, allowed, and blocked devices
+  drap allow <ip>         Authorize a phone / device IP
+  drap block <ip>         Block an untrusted device from connecting
+  drap security <mode>    Set policy: open | prompt (default) | strict
+
+Visuals & Tools:
+  drap theme <name>       Switch active shader palette (aurora, plasma, solar, liquid)
+  drap gui                Open native GTK4 Control Panel & pairing QR code
+  drap share <file>       Push any file from your laptop terminal to your phone
 `);
     break;
 }

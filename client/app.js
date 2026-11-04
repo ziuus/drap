@@ -55,11 +55,15 @@
         deferredInstallPrompt = null;
       } else {
         // Explanatory guidance for browser
+        const isBrave = (navigator.brave && typeof navigator.brave.isBrave === 'function') || navigator.userAgent.includes("Brave");
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         if (isIOS) {
-          showToast("Tap Share ⎋ below -> Add to Home Screen ⊕");
+          showToast("Tap Safari Share ⎋ -> Add to Home Screen ⊕");
+        } else if (isBrave) {
+          showToast("In Brave: Tap ⋮ -> 'Add to Home screen'");
+          alert("Brave Browser Installation:\n\n1. Tap the three dots (⋮) in Brave.\n2. Tap 'Add to Home screen' (installs standalone WebAPK).\n\nTip: To allow the browser native install prompt on LAN IP, open brave://flags/#unsafely-treat-insecure-origin-as-secure and add this IP.");
         } else {
-          showToast("Tap Chrome menu ⋮ (top right) -> Add to Home screen");
+          showToast("Tap Browser menu ⋮ -> Add to Home screen");
         }
       }
     });
@@ -228,11 +232,23 @@
     const theme = card.getAttribute("data-theme") || "blue";
     const fileUrl = card.getAttribute("data-file") || "";
 
+    function triggerPickupRipple(px, py) {
+      const ripple = document.createElement("div");
+      ripple.className = "pickup-ripple";
+      ripple.style.left = `${px}px`;
+      ripple.style.top = `${py}px`;
+      document.body.appendChild(ripple);
+      setTimeout(() => {
+        if (ripple && ripple.parentNode) ripple.parentNode.removeChild(ripple);
+      }, 550);
+    }
+
     function startActiveDrag(x, y) {
       isHoldLifted = true;
       card.classList.add("is-lifted", "is-dragging");
       document.body.classList.add("is-dragging-active");
       haptic(30);
+      triggerPickupRipple(x, y);
 
       // Extract preview thumbnail
       const img = card.querySelector("img");
