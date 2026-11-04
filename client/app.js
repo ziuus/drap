@@ -2,11 +2,12 @@
 (function () {
   'use strict';
 
-  // 1. PWA Registration & Install Prompt
+  // 1. Settings Sheet & PWA Installation
   let deferredInstallPrompt = null;
+  const openSettingsBtn = document.getElementById("openSettingsBtn");
+  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  const settingsModal = document.getElementById("settingsModal");
   const pwaInstallBtn = document.getElementById("pwaInstallBtn");
-  const installModal = document.getElementById("installModal");
-  const closeInstallModal = document.getElementById("closeInstallModal");
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -19,7 +20,28 @@
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
+    if (pwaInstallBtn) {
+      pwaInstallBtn.textContent = "Install drap App Now";
+    }
   });
+
+  if (openSettingsBtn && settingsModal) {
+    openSettingsBtn.addEventListener('click', () => {
+      settingsModal.classList.add('open');
+      haptic(15);
+    });
+  }
+
+  if (closeSettingsBtn && settingsModal) {
+    closeSettingsBtn.addEventListener('click', () => {
+      settingsModal.classList.remove('open');
+    });
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) {
+        settingsModal.classList.remove('open');
+      }
+    });
+  }
 
   if (pwaInstallBtn) {
     pwaInstallBtn.addEventListener('click', async () => {
@@ -28,34 +50,30 @@
         const choice = await deferredInstallPrompt.userChoice;
         if (choice.outcome === 'accepted') {
           pwaInstallBtn.style.display = 'none';
+          showToast("drap installed to Home Screen!");
         }
         deferredInstallPrompt = null;
       } else {
-        if (installModal) installModal.classList.add('open');
+        // Explanatory guidance for browser
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS) {
+          showToast("Tap Share ⎋ below -> Add to Home Screen ⊕");
+        } else {
+          showToast("Tap Chrome menu ⋮ (top right) -> Add to Home screen");
+        }
       }
-    });
-  }
-
-  if (closeInstallModal && installModal) {
-    closeInstallModal.addEventListener('click', () => {
-      installModal.classList.remove('open');
-    });
-    installModal.addEventListener('click', (e) => {
-      if (e.target === installModal) installModal.classList.remove('open');
     });
   }
 
   // 2. State & Mode Management
   let currentMode = 'browse'; // 'browse' | 'transfer'
-  let activeCategory = 'all';
-  let activeDrag = null; // { cardElem, title, itemType, size, payload, thumbUrl, theme }
+  let activeDrag = null;
   let holdTimer = null;
   let isHoldLifted = false;
 
   const body = document.body;
   const tabBrowse = document.getElementById("tabBrowse");
   const tabTransfer = document.getElementById("tabTransfer");
-  const modeHint = document.getElementById("modeHint");
   const mediaGrid = document.getElementById("mediaGrid");
   const leftBezelHalo = document.getElementById("leftBezelHalo");
   const leftBezelRim = document.getElementById("leftBezelRim");
@@ -70,15 +88,15 @@
     currentMode = mode;
     if (mode === 'transfer') {
       body.classList.add('mode-transfer');
-      tabTransfer.classList.add('active');
-      tabBrowse.classList.remove('active');
-      modeHint.textContent = "Flick cards directly toward left bezel";
+      if (tabTransfer) tabTransfer.classList.add('active');
+      if (tabBrowse) tabBrowse.classList.remove('active');
+      showToast("Transfer mode: Immediate swipe to bezel");
       haptic(20);
     } else {
       body.classList.remove('mode-transfer');
-      tabBrowse.classList.add('active');
-      tabTransfer.classList.remove('active');
-      modeHint.textContent = "Hold any item 250ms to lift & flick";
+      if (tabBrowse) tabBrowse.classList.add('active');
+      if (tabTransfer) tabTransfer.classList.remove('active');
+      showToast("Browse mode: Hold 200ms to lift & transfer");
       haptic(15);
     }
   }
@@ -88,17 +106,17 @@
 
   // Effect Theme Selector
   let activeTheme = localStorage.getItem("drap_effect_theme") || "aurora";
-  const themeBtns = document.querySelectorAll(".theme-btn");
+  const themePills = document.querySelectorAll(".theme-pill");
 
   function setTheme(theme) {
     activeTheme = theme;
     localStorage.setItem("drap_effect_theme", theme);
     document.body.setAttribute("data-theme", theme);
-    themeBtns.forEach(btn => {
-      if (btn.getAttribute("data-theme") === theme) {
-        btn.classList.add("active");
+    themePills.forEach(pill => {
+      if (pill.getAttribute("data-theme") === theme) {
+        pill.classList.add("active");
       } else {
-        btn.classList.remove("active");
+        pill.classList.remove("active");
       }
     });
     sendWS({ type: "set_effect", theme: theme });
@@ -107,15 +125,20 @@
 
   // Set initial theme attribute
   document.body.setAttribute("data-theme", activeTheme);
-
-  themeBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const t = btn.getAttribute("data-theme");
+  themePills.forEach(pill => {
+    if (pill.getAttribute("data-theme") === activeTheme) {
+      pill.classList.add("active");
+    } else {
+      pill.classList.remove("active");
+    }
+    pill.addEventListener("click", () => {
+      const t = pill.getAttribute("data-theme");
       if (t) setTheme(t);
     });
   });
 
   // Category Filtering
+  let activeCategory = 'all';
   document.querySelectorAll('.cat-pill').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
@@ -152,14 +175,16 @@
     ws.onopen = () => {
       if (statusPill) {
         statusPill.classList.add("connected");
-        statusPill.querySelector(".status-text").textContent = "Connected";
+        const txt = statusPill.querySelector(".status-text");
+        if (txt) txt.textContent = "Connected";
       }
     };
 
     ws.onclose = () => {
       if (statusPill) {
         statusPill.classList.remove("connected");
-        statusPill.querySelector(".status-text").textContent = "Reconnecting...";
+        const txt = statusPill.querySelector(".status-text");
+        if (txt) txt.textContent = "Reconnecting...";
       }
       setTimeout(connectWS, 2000);
     };

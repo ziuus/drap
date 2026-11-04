@@ -25,58 +25,23 @@
 
   <!-- Main View -->
   <main class="app-shell" id="appShell">
-    <!-- Header -->
+    <!-- Header: Ultra-Clean Minimalist Bar -->
     <header class="app-header">
       <div class="brand-row">
         <div class="brand-left">
           <div class="logo">drap</div>
-          <div class="connection-status" id="statusPill">
+          <div class="status-indicator connected" id="statusPill" title="Connected">
             <span class="status-dot"></span>
-            <span class="status-text">Connecting...</span>
           </div>
         </div>
 
-        <!-- PWA Install Button -->
-        <button id="pwaInstallBtn" class="btn-install" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Install
+        <!-- Sleek Settings Gear Button -->
+        <button id="openSettingsBtn" class="btn-settings" type="button" aria-label="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
         </button>
-      </div>
-
-      <!-- Mode Switcher: Intelligent solution to navigation vs dragging -->
-      <div class="mode-control-row">
-        <div class="mode-switcher" id="modeSwitcher">
-          <button class="mode-tab active" id="tabBrowse" type="button" data-mode="browse">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
-            Browse
-          </button>
-          <button class="mode-tab" id="tabTransfer" type="button" data-mode="transfer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Transfer
-          </button>
-        </div>
-        <div class="mode-hint" id="modeHint">
-          Hold any item 250ms to lift & flick
-        </div>
-      </div>
-
-      <!-- Effect Theme Selector -->
-      <div class="effect-theme-row">
-        <span class="theme-label">Effect:</span>
-        <div class="theme-pills" id="themePills">
-          <button class="theme-btn active" data-theme="aurora" type="button">🌌 Aurora</button>
-          <button class="theme-btn" data-theme="plasma" type="button">⚡ Plasma</button>
-          <button class="theme-btn" data-theme="solar" type="button">☀️ Solar</button>
-          <button class="theme-btn" data-theme="liquid" type="button">💧 Liquid</button>
-        </div>
-      </div>
-
-      <!-- Category Filter Pills -->
-      <div class="category-scroll">
-        <button class="cat-pill active" data-cat="all">All</button>
-        <button class="cat-pill" data-cat="photo">Photos</button>
-        <button class="cat-pill" data-cat="document">Documents</button>
-        <button class="cat-pill" data-cat="video">Videos</button>
       </div>
     </header>
 
@@ -89,7 +54,7 @@
         </div>
         <!-- Native File Picker Trigger -->
         <label for="customFileInput" class="btn-add">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
           Add Files
         </label>
         <input type="file" id="customFileInput" multiple accept="*/*" style="display: none;">
@@ -227,41 +192,94 @@
     </div>
   </div>
 
-  <!-- Install App Modal Guide -->
-  <div class="install-modal" id="installModal">
-    <div class="install-sheet">
+  <!-- Sleek Frosted Glass Settings Modal Sheet -->
+  <div class="settings-modal" id="settingsModal">
+    <div class="settings-sheet">
       <div class="sheet-handle"></div>
-      <div class="sheet-header">
-        <div class="sheet-icon">
-          <img src="/icon-192.png" alt="drap" width="48" height="48" style="border-radius: 12px;">
-        </div>
-        <div>
-          <h3>Install drap App</h3>
-          <p>Instant file access & fullscreen spatial transfer</p>
-        </div>
-      </div>
       
-      <div class="install-steps" id="iosSteps">
-        <div class="install-step">
-          <span class="step-num">1</span>
-          <span>Tap the <strong>Share</strong> button <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> in Safari toolbar</span>
-        </div>
-        <div class="install-step">
-          <span class="step-num">2</span>
-          <span>Scroll down and select <strong>Add to Home Screen ⊕</strong></span>
-        </div>
-        <div class="install-step">
-          <span class="step-num">3</span>
-          <span>Tap <strong>Add</strong> in the top-right corner</span>
+      <div class="sheet-top-row">
+        <h3>Preferences</h3>
+        <button class="sheet-close-btn" id="closeSettingsBtn" type="button" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Spatial Lighting Effect -->
+      <div class="settings-section">
+        <label class="settings-label">Spatial Light Glow</label>
+        <div class="theme-grid">
+          <button class="theme-pill active" data-theme="aurora" type="button">
+            <span class="theme-glow-dot aurora-dot"></span>
+            <span>Aurora</span>
+          </button>
+          <button class="theme-pill" data-theme="plasma" type="button">
+            <span class="theme-glow-dot plasma-dot"></span>
+            <span>Plasma</span>
+          </button>
+          <button class="theme-pill" data-theme="solar" type="button">
+            <span class="theme-glow-dot solar-dot"></span>
+            <span>Solar</span>
+          </button>
+          <button class="theme-pill" data-theme="liquid" type="button">
+            <span class="theme-glow-dot liquid-dot"></span>
+            <span>Liquid</span>
+          </button>
         </div>
       </div>
 
-      <div class="install-https-tip" id="httpsTip">
-        <p>On Android Chrome, install requires secure context. Tap to open HTTPS:</p>
-        <a id="httpsLink" href="https://10.25.254.201:8443" class="btn-https">Open Secure HTTPS (Port 8443)</a>
+      <!-- Gesture Transfer Mode -->
+      <div class="settings-section">
+        <label class="settings-label">Transfer Gesture Mode</label>
+        <div class="mode-toggle-group">
+          <button class="mode-pill active" id="tabBrowse" type="button" data-mode="browse">
+            <strong>Browse & Lift</strong>
+            <span>Hold 200ms to lift, flick to transfer</span>
+          </button>
+          <button class="mode-pill" id="tabTransfer" type="button" data-mode="transfer">
+            <strong>Direct Flick</strong>
+            <span>Immediate left swipe transfers card</span>
+          </button>
+        </div>
       </div>
 
-      <button class="btn-sheet-close" id="closeInstallModal" type="button">Close</button>
+      <!-- PWA Installation Section -->
+      <div class="settings-section install-section">
+        <label class="settings-label">Install Standalone App</label>
+        <div class="install-card">
+          <div class="install-card-info">
+            <img src="/icon-192.png" width="42" height="42" alt="drap" style="border-radius: 10px;">
+            <div>
+              <strong>Install drap App</strong>
+              <small>Fullscreen spatial gestures, no browser bars</small>
+            </div>
+          </div>
+          
+          <button id="pwaInstallBtn" class="btn-pwa-install" type="button">
+            Install App
+          </button>
+
+          <div class="install-guide-steps">
+            <div class="guide-row">
+              <span class="guide-tag">Android</span>
+              <span>Tap Chrome menu <strong>⋮</strong> &rarr; <strong>Add to Home screen</strong> (or Install app)</span>
+            </div>
+            <div class="guide-row">
+              <span class="guide-tag">iOS</span>
+              <span>Tap Safari <strong>Share ⎋</strong> &rarr; <strong>Add to Home Screen ⊕</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Details -->
+      <div class="settings-section">
+        <div class="conn-info-row">
+          <span>Connected Host</span>
+          <span class="conn-badge" id="hostBadge">10.25.254.201</span>
+        </div>
+        <div class="conn-info-row">
+          <span>Desktop Protocol</span>
+          <span class="conn-badge">Wayland Layer Shell (144Hz)</span>
+        </div>
+      </div>
     </div>
   </div>
 
