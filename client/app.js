@@ -76,6 +76,31 @@
   if (tabBrowse) tabBrowse.addEventListener('click', () => setMode('browse'));
   if (tabTransfer) tabTransfer.addEventListener('click', () => setMode('transfer'));
 
+  // Effect Theme Selector
+  let activeTheme = localStorage.getItem("drap_effect_theme") || "aurora";
+  const themeBtns = document.querySelectorAll(".theme-btn");
+
+  function setTheme(theme) {
+    activeTheme = theme;
+    localStorage.setItem("drap_effect_theme", theme);
+    themeBtns.forEach(btn => {
+      if (btn.getAttribute("data-theme") === theme) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+    sendWS({ type: "set_effect", theme: theme });
+    haptic(15);
+  }
+
+  themeBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const t = btn.getAttribute("data-theme");
+      if (t) setTheme(t);
+    });
+  });
+
   // Category Filtering
   document.querySelectorAll('.cat-pill').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -312,7 +337,7 @@
       title: activeDrag ? activeDrag.title : "",
       size: activeDrag ? activeDrag.size : "",
       item_type: activeDrag ? activeDrag.itemType : "photo",
-      theme: activeDrag ? activeDrag.theme : "blue"
+      theme: activeTheme
     });
   }
 
