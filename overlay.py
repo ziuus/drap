@@ -94,45 +94,59 @@ class DrapOverlay:
         self._start_ws_client()
 
     def _build_luts(self):
-        """Pre-compute high-resolution 512x512 volumetric lighting textures (sub-millisecond blitting)."""
+        """Pre-compute high-resolution 512x1024 volumetric lighting textures (sub-millisecond blitting, zero clipping)."""
         self.luts = {}
         self.water_luts = {}
-        lut_size = 512
+        lut_w = 512
+        lut_h = 1024
+        cx = lut_w
+        cy = lut_h / 2
+        max_r = lut_w  # Reaches top (cy - max_r = 0) and bottom (cy + max_r = lut_h) with smooth 0.0 fade
+
         for theme in ("aurora", "plasma", "solar", "liquid"):
-            surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_size, lut_size)
+            surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_w, lut_h)
             cr = cairo.Context(surf)
-            pat = cairo.RadialGradient(lut_size, lut_size / 2, 0, lut_size, lut_size / 2, lut_size)
+            pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
 
             if theme == "plasma":
                 # Electric violet & cyber indigo
-                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.90)
-                pat.add_color_stop_rgba(0.18, 0.85, 0.40, 1.00, 0.65)
-                pat.add_color_stop_rgba(0.48, 0.45, 0.20, 0.95, 0.28)
-                pat.add_color_stop_rgba(0.80, 0.20, 0.08, 0.60, 0.07)
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95)
+                pat.add_color_stop_rgba(0.12, 0.95, 0.40, 1.00, 0.80)
+                pat.add_color_stop_rgba(0.28, 0.75, 0.25, 0.98, 0.60)
+                pat.add_color_stop_rgba(0.50, 0.45, 0.15, 0.88, 0.32)
+                pat.add_color_stop_rgba(0.75, 0.22, 0.08, 0.60, 0.12)
+                pat.add_color_stop_rgba(0.92, 0.10, 0.04, 0.35, 0.02)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             elif theme == "solar":
                 # Warm golden hour & peach amber
-                pat.add_color_stop_rgba(0.00, 1.00, 0.99, 0.94, 0.92)
-                pat.add_color_stop_rgba(0.20, 1.00, 0.78, 0.38, 0.68)
-                pat.add_color_stop_rgba(0.52, 0.96, 0.45, 0.22, 0.28)
-                pat.add_color_stop_rgba(0.82, 0.80, 0.20, 0.10, 0.06)
+                pat.add_color_stop_rgba(0.00, 1.00, 0.99, 0.94, 0.95)
+                pat.add_color_stop_rgba(0.14, 1.00, 0.82, 0.35, 0.82)
+                pat.add_color_stop_rgba(0.32, 0.98, 0.55, 0.20, 0.58)
+                pat.add_color_stop_rgba(0.55, 0.90, 0.35, 0.15, 0.30)
+                pat.add_color_stop_rgba(0.78, 0.75, 0.18, 0.08, 0.10)
+                pat.add_color_stop_rgba(0.92, 0.50, 0.10, 0.04, 0.02)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             elif theme == "liquid":
                 # Crystalline oceanic cyan & aqua mist
-                pat.add_color_stop_rgba(0.00, 0.94, 1.00, 1.00, 0.92)
-                pat.add_color_stop_rgba(0.22, 0.20, 0.88, 0.98, 0.65)
-                pat.add_color_stop_rgba(0.55, 0.10, 0.58, 0.85, 0.26)
-                pat.add_color_stop_rgba(0.82, 0.05, 0.30, 0.60, 0.06)
+                pat.add_color_stop_rgba(0.00, 0.96, 1.00, 1.00, 0.95)
+                pat.add_color_stop_rgba(0.15, 0.25, 0.92, 1.00, 0.80)
+                pat.add_color_stop_rgba(0.34, 0.15, 0.75, 0.95, 0.58)
+                pat.add_color_stop_rgba(0.58, 0.08, 0.50, 0.80, 0.28)
+                pat.add_color_stop_rgba(0.80, 0.04, 0.28, 0.55, 0.09)
+                pat.add_color_stop_rgba(0.92, 0.02, 0.15, 0.30, 0.02)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             else: # "aurora" (Exact Tornike Drooop Pearlescent Volumetric Light)
-                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95)
-                pat.add_color_stop_rgba(0.16, 1.00, 0.98, 0.94, 0.72)
-                pat.add_color_stop_rgba(0.38, 0.62, 0.92, 0.98, 0.40)
-                pat.add_color_stop_rgba(0.65, 0.74, 0.58, 0.92, 0.18)
-                pat.add_color_stop_rgba(0.86, 0.45, 0.32, 0.75, 0.05)
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.96)
+                pat.add_color_stop_rgba(0.08, 0.98, 1.00, 1.00, 0.90)
+                pat.add_color_stop_rgba(0.18, 0.85, 0.96, 1.00, 0.78)
+                pat.add_color_stop_rgba(0.32, 0.38, 0.88, 0.98, 0.58)
+                pat.add_color_stop_rgba(0.48, 0.22, 0.65, 0.96, 0.38)
+                pat.add_color_stop_rgba(0.65, 0.45, 0.32, 0.92, 0.20)
+                pat.add_color_stop_rgba(0.82, 0.72, 0.22, 0.88, 0.08)
+                pat.add_color_stop_rgba(0.94, 0.90, 0.30, 0.65, 0.01)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             cr.set_source(pat)
@@ -140,9 +154,9 @@ class DrapOverlay:
             self.luts[theme] = surf
 
             # Robust Physical Water Wave Ripple LUT (Concentric wave crests with specular glint)
-            w_surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_size, lut_size)
+            w_surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_w, lut_h)
             w_cr = cairo.Context(w_surf)
-            w_pat = cairo.RadialGradient(lut_size, lut_size / 2, 0, lut_size, lut_size / 2, lut_size)
+            w_pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
             w_pat.add_color_stop_rgba(0.00, 0.0, 0.0, 0.0, 0.0)
             w_pat.add_color_stop_rgba(0.22, 0.0, 0.0, 0.0, 0.0)
 
@@ -480,47 +494,53 @@ class DrapOverlay:
 
     def _draw_drooop_ethereal_light(self, cr, width, height, y_pos, active_intensity, t_sec):
         """
-        Authentic Drooop Atmospheric Light:
-        - Sub-millisecond precomputed 512x512 bilinear LUT blit (300+ FPS capability).
-        - Pure seamless volumetric diffusion blooming from the right bezel.
-        - Dynamic vertical stretch, shear, and directional bezel wake responding to up/down motion.
+        Authentic Drooop Atmospheric Light & Tactile Touch-Height Indicator:
+        - Sub-millisecond precomputed 512x1024 bilinear LUT blit (300+ FPS capability, zero clipping).
+        - Proportional volumetric bloom anchored to finger height (no vertical screen flooding).
+        - Horizontal Energy Horizon & Laser Sightline tracking finger Y coordinates 1:1 in real time.
+        - Acute incandescent focal bead & OLED bezel jewel providing immediate tactile height feedback.
+        - Dynamic vertical stretch, shear, and directional trailing bezel liquid wake.
         """
         surf = self.luts.get(self.effect_theme, self.luts["aurora"])
-        lut_size = 512
+        lut_w = 512
+        lut_h = 1024
 
-        pressure_scale = 0.80 + self.current_pressure * 0.90
-        radius_x = (360 + active_intensity * 540) * pressure_scale
+        pressure_scale = 0.85 + self.current_pressure * 0.65
+        radius_x = (280 + active_intensity * 380) * pressure_scale
         
         # Vertical stretch responding dynamically to drag velocity
         v_stretch = 1.0 + min(0.60, abs(self.current_vy) * 0.45)
-        radius_y = radius_x * 1.55 * v_stretch
+        # Proportionally calibrated radius_y (~280px - 500px) so vertical position is distinct
+        radius_y = (240 + active_intensity * 240) * pressure_scale * v_stretch
 
         # 1. Directional Bezel Liquid Wake (trailing fluid streak along screen edge)
-        if abs(self.current_vy) > 0.06:
-            wake_len = min(360, abs(self.current_vy) * 220)
+        if abs(self.current_vy) > 0.05:
+            wake_len = min(280, abs(self.current_vy) * 180)
             wake_dir = -1 if self.current_vy < 0 else 1  # Trail extends opposite to motion
             wake_y0 = y_pos
             wake_y1 = max(0, min(height, y_pos - wake_dir * wake_len))
 
             cr.save()
-            wake_pat = cairo.LinearGradient(width - 8, wake_y0, width, wake_y1)
-            wake_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.90 * active_intensity)
+            wake_pat = cairo.LinearGradient(width - 12, wake_y0, width, wake_y1)
+            wake_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * active_intensity)
             if self.effect_theme == "plasma":
-                wake_pat.add_color_stop_rgba(0.40, 0.85, 0.40, 1.00, 0.60 * active_intensity)
+                wake_pat.add_color_stop_rgba(0.35, 0.90, 0.35, 1.00, 0.75 * active_intensity)
             elif self.effect_theme == "solar":
-                wake_pat.add_color_stop_rgba(0.40, 1.00, 0.70, 0.30, 0.60 * active_intensity)
-            else: # aurora / liquid
-                wake_pat.add_color_stop_rgba(0.40, 0.40, 0.90, 1.00, 0.60 * active_intensity)
+                wake_pat.add_color_stop_rgba(0.35, 1.00, 0.75, 0.25, 0.75 * active_intensity)
+            elif self.effect_theme == "liquid":
+                wake_pat.add_color_stop_rgba(0.35, 0.20, 0.95, 0.90, 0.75 * active_intensity)
+            else: # aurora
+                wake_pat.add_color_stop_rgba(0.35, 0.22, 0.74, 0.98, 0.75 * active_intensity)
             wake_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             cr.set_source(wake_pat)
-            cr.set_line_width(6.0)
-            cr.move_to(width - 2, wake_y0)
-            cr.line_to(width - 2, wake_y1)
+            cr.set_line_width(8.0)
+            cr.move_to(width - 3, wake_y0)
+            cr.line_to(width - 3, wake_y1)
             cr.stroke()
             cr.restore()
 
-        # 2. Skewed / Stretched Volumetric Fluid Bloom
+        # 2. Skewed / Stretched Volumetric Fluid Bloom (Seamlessly blended, zero clipping)
         cr.save()
         cr.translate(width, y_pos)
         
@@ -529,13 +549,120 @@ class DrapOverlay:
         skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
         cr.transform(skew_mat)
 
-        cr.scale(radius_x / lut_size, radius_y / (lut_size / 2))
-        cr.translate(-lut_size, -lut_size / 2)
+        cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
+        cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.Filter.BILINEAR)
         cr.set_source(pat)
-        cr.paint_with_alpha(active_intensity)
+        cr.paint_with_alpha(active_intensity * 0.88)
+        cr.restore()
+
+        # 3. Horizontal Energy Horizon / Laser Sightline (Direct Visual Lock on Touch Height)
+        # Emanates horizontally from bezel at y_pos inwards across the desktop
+        cr.save()
+        beam_len = (150 + active_intensity * 240) * pressure_scale
+        beam_lag_y = y_pos - self.current_vy * 35.0  # slight organic fluid lag on rapid vertical motion
+
+        beam_pat = cairo.LinearGradient(width, y_pos, width - beam_len, beam_lag_y)
+        beam_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * active_intensity)
+        if self.effect_theme == "plasma":
+            beam_pat.add_color_stop_rgba(0.12, 0.95, 0.35, 1.00, 0.90 * active_intensity)
+            beam_pat.add_color_stop_rgba(0.45, 0.55, 0.15, 0.95, 0.45 * active_intensity)
+        elif self.effect_theme == "solar":
+            beam_pat.add_color_stop_rgba(0.12, 1.00, 0.78, 0.25, 0.90 * active_intensity)
+            beam_pat.add_color_stop_rgba(0.45, 0.95, 0.35, 0.12, 0.45 * active_intensity)
+        elif self.effect_theme == "liquid":
+            beam_pat.add_color_stop_rgba(0.12, 0.20, 0.92, 1.00, 0.90 * active_intensity)
+            beam_pat.add_color_stop_rgba(0.45, 0.10, 0.75, 0.65, 0.45 * active_intensity)
+        else: # aurora
+            beam_pat.add_color_stop_rgba(0.12, 0.22, 0.85, 1.00, 0.88 * active_intensity)
+            beam_pat.add_color_stop_rgba(0.45, 0.85, 0.35, 1.00, 0.45 * active_intensity)
+        beam_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+
+        # A. Soft glowing flare corridor around filament
+        cr.set_line_width(9.0)
+        cr.set_source(beam_pat)
+        cr.move_to(width, y_pos)
+        cr.curve_to(width - beam_len * 0.4, y_pos, width - beam_len * 0.7, beam_lag_y, width - beam_len, beam_lag_y)
+        cr.stroke()
+
+        # B. Core razor-sharp laser guide
+        cr.set_line_width(2.5)
+        cr.set_source(beam_pat)
+        cr.move_to(width, y_pos)
+        cr.curve_to(width - beam_len * 0.4, y_pos, width - beam_len * 0.7, beam_lag_y, width - beam_len, beam_lag_y)
+        cr.stroke()
+        cr.restore()
+
+        # 4. Acute Luminous Focal Bead / Touch Meniscus Droplet directly at (width, y_pos)
+        # Provides an unmistakable, high-contrast glowing beacon right where the finger is holding
+        cr.save()
+        focal_rx = 46 + active_intensity * 34
+        focal_ry = (56 + active_intensity * 38) * (1.0 + abs(self.current_vy) * 0.35)
+
+        cr.translate(width, y_pos)
+        cr.scale(focal_rx, focal_ry)
+
+        focal_pat = cairo.RadialGradient(0, 0, 0, 0, 0, 1.0)
+        focal_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00 * active_intensity)  # Pure white-hot core
+        if self.effect_theme == "plasma":
+            focal_pat.add_color_stop_rgba(0.20, 0.98, 0.45, 1.00, 0.95 * active_intensity) # Neon fuchsia
+            focal_pat.add_color_stop_rgba(0.50, 0.65, 0.20, 0.95, 0.80 * active_intensity) # Deep ultraviolet
+            focal_pat.add_color_stop_rgba(0.78, 0.35, 0.10, 0.80, 0.45 * active_intensity) # Cyber indigo
+        elif self.effect_theme == "solar":
+            focal_pat.add_color_stop_rgba(0.20, 1.00, 0.88, 0.45, 0.95 * active_intensity) # Sun gold
+            focal_pat.add_color_stop_rgba(0.50, 1.00, 0.55, 0.20, 0.80 * active_intensity) # Blazing amber
+            focal_pat.add_color_stop_rgba(0.78, 0.90, 0.25, 0.10, 0.45 * active_intensity) # Fiery coral
+        elif self.effect_theme == "liquid":
+            focal_pat.add_color_stop_rgba(0.20, 0.40, 0.95, 1.00, 0.95 * active_intensity) # Crystalline cyan
+            focal_pat.add_color_stop_rgba(0.50, 0.15, 0.80, 0.95, 0.80 * active_intensity) # Oceanic azure
+            focal_pat.add_color_stop_rgba(0.78, 0.10, 0.65, 0.70, 0.45 * active_intensity) # Seafoam teal
+        else: # aurora
+            focal_pat.add_color_stop_rgba(0.20, 0.80, 0.95, 1.00, 0.95 * active_intensity) # Crisp cyan glow
+            focal_pat.add_color_stop_rgba(0.48, 0.20, 0.75, 1.00, 0.80 * active_intensity) # Deep electric blue
+            focal_pat.add_color_stop_rgba(0.75, 0.85, 0.25, 0.95, 0.45 * active_intensity) # Magenta fringe
+        focal_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+
+        cr.set_source(focal_pat)
+        cr.arc(0, 0, 1.0, 0, 2 * math.pi)
+        cr.fill()
+        cr.restore()
+
+        # 5. Crisp OLED Bezel Jewel Indicator (High-Contrast Vertical Pill along the edge)
+        cr.save()
+        pill_w = 6.0
+        pill_h = 46.0 * (1.0 + abs(self.current_vy) * 0.40)
+        pill_x = width - pill_w - 1.0
+        pill_y = y_pos - pill_h / 2.0
+
+        r = pill_w / 2.0
+        cr.new_sub_path()
+        cr.arc(pill_x + r, pill_y + r, r, math.pi, 1.5 * math.pi)
+        cr.arc(pill_x + pill_w - r, pill_y + r, r, 1.5 * math.pi, 2 * math.pi)
+        cr.arc(pill_x + pill_w - r, pill_y + pill_h - r, r, 0, 0.5 * math.pi)
+        cr.arc(pill_x + r, pill_y + pill_h - r, r, 0.5 * math.pi, math.pi)
+        cr.close_path()
+
+        pill_pat = cairo.LinearGradient(pill_x, pill_y, pill_x, pill_y + pill_h)
+        if self.effect_theme == "plasma":
+            pill_pat.add_color_stop_rgba(0.00, 0.85, 0.35, 1.00, 0.90 * active_intensity)
+            pill_pat.add_color_stop_rgba(0.50, 1.00, 1.00, 1.00, 1.00 * active_intensity)
+            pill_pat.add_color_stop_rgba(1.00, 0.85, 0.35, 1.00, 0.90 * active_intensity)
+        elif self.effect_theme == "solar":
+            pill_pat.add_color_stop_rgba(0.00, 1.00, 0.65, 0.20, 0.90 * active_intensity)
+            pill_pat.add_color_stop_rgba(0.50, 1.00, 1.00, 1.00, 1.00 * active_intensity)
+            pill_pat.add_color_stop_rgba(1.00, 1.00, 0.65, 0.20, 0.90 * active_intensity)
+        elif self.effect_theme == "liquid":
+            pill_pat.add_color_stop_rgba(0.00, 0.20, 0.85, 1.00, 0.90 * active_intensity)
+            pill_pat.add_color_stop_rgba(0.50, 1.00, 1.00, 1.00, 1.00 * active_intensity)
+            pill_pat.add_color_stop_rgba(1.00, 0.20, 0.85, 1.00, 0.90 * active_intensity)
+        else: # aurora
+            pill_pat.add_color_stop_rgba(0.00, 0.40, 0.88, 1.00, 0.90 * active_intensity)
+            pill_pat.add_color_stop_rgba(0.50, 1.00, 1.00, 1.00, 1.00 * active_intensity)
+            pill_pat.add_color_stop_rgba(1.00, 0.40, 0.88, 1.00, 0.90 * active_intensity)
+        cr.set_source(pill_pat)
+        cr.fill()
         cr.restore()
 
     def _draw_fullscreen_confirm_wave(self, cr, width, height, y_pos, progress):
@@ -545,7 +672,8 @@ class DrapOverlay:
         - Concentric wave crests with specular glint and natural quadratic water damping.
         """
         surf = self.water_luts.get(self.effect_theme, self.water_luts["aurora"])
-        lut_size = 512
+        lut_w = 512
+        lut_h = 1024
 
         # Physics: wave expands smoothly and naturally dissipates as it spreads
         max_r = 1800
@@ -558,8 +686,8 @@ class DrapOverlay:
         cr.save()
         cr.translate(width, y_pos)
         # Organic liquid wave proportions
-        cr.scale(radius / lut_size, (radius * 1.08) / (lut_size / 2))
-        cr.translate(-lut_size, -lut_size / 2)
+        cr.scale(radius / lut_w, (radius * 1.08) / (lut_h / 2))
+        cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.Filter.BILINEAR)
@@ -570,7 +698,8 @@ class DrapOverlay:
     def _draw_video_portal_shockwave(self, cr, width, height, y_pos, progress):
         """High-speed physical portal water ripple expanding on video handoff."""
         surf = self.water_luts.get(self.effect_theme, self.water_luts["aurora"])
-        lut_size = 512
+        lut_w = 512
+        lut_h = 1024
 
         max_r = 950
         radius = progress * max_r
@@ -581,8 +710,8 @@ class DrapOverlay:
 
         cr.save()
         cr.translate(width, y_pos)
-        cr.scale(radius / lut_size, radius / (lut_size / 2))
-        cr.translate(-lut_size, -lut_size / 2)
+        cr.scale(radius / lut_w, radius / (lut_h / 2))
+        cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.Filter.BILINEAR)
