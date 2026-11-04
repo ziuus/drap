@@ -230,6 +230,7 @@ def trigger_overlay_drop(filename: str, size: int):
                 "size": size,
                 "y": 0.5
             }))
+            ws.send(json.dumps({"type": "drag_edge_leave"}))
     except Exception:
         pass
 

@@ -29,7 +29,7 @@ from gi.repository import Gtk, Gdk, Gtk4LayerShell, GLib, Pango, PangoCairo
 import cairo
 from websockets.sync.client import connect
 
-OVERLAY_WIDTH = 950
+OVERLAY_WIDTH = 550
 WS_URL = "ws://127.0.0.1:8080/ws"
 
 def rounded_rectangle(cr, x, y, width, height, radius):
@@ -242,22 +242,23 @@ class DrooopOverlay:
         dt = max(0.001, min(0.1, now - self.last_tick))
         self.last_tick = now
 
-        # Inactivity watchdog: if no drag_move received for > 0.35s and not in special drop/ripple animation, reset target_intensity
-        if self.is_interacting and (now - self.last_interaction_time > 0.35):
-            self.is_interacting = False
+        # Unconditional inactivity watchdog:
+        # If no touch/drag packets arrived for > 0.25s, the user released. Reset immediately!
+        if (now - self.last_interaction_time > 0.25):
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
+            self.is_interacting = False
 
         # Butter-smooth critically damped tracking
         self.current_y += (self.target_y - self.current_y) * 0.45
         
         if self.target_intensity <= 0.001:
-            # Quick decay to zero when idle/released
-            self.current_intensity *= 0.80
+            # Fast, crisp decay to zero when idle/released
+            self.current_intensity *= 0.68
             if self.current_intensity < 0.005:
                 self.current_intensity = 0.0
         else:
-            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.25
+            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.35
 
         self.current_pressure += (self.target_pressure - self.current_pressure) * 0.22
 
@@ -440,41 +441,40 @@ class DrooopOverlay:
             cr.restore()
 
     def _draw_ambient_sink(self, cr, width, height, y_pos, active_intensity, t_sec):
-        """Massive volumetric ambient wash sinking deep into the display wallpaper."""
+        """Soft, ethereal, translucent ambient edge wash."""
         cr.save()
         t_slow = t_sec * 0.85
-        pressure_scale = 0.70 + self.current_pressure * 1.60
-        sink_reach = min(width - 15, int(400 + active_intensity * 500 * pressure_scale))
+        pressure_scale = 0.70 + self.current_pressure * 1.20
+        sink_reach = min(width - 20, int(180 + active_intensity * 200 * pressure_scale))
 
-        # Giant Volumetric Soft Ambient Radiance (sweeping up to 900px across the desktop)
+        # Soft volumetric ambient glow centered on the touch point
         cr.save()
         cr.translate(width, y_pos)
-        cr.scale(1.0, 1.85)
+        cr.scale(1.0, 1.65)
 
         vol_radius = sink_reach * 0.95
         vol_pat = cairo.RadialGradient(0, 0, 15, 0, 0, vol_radius)
 
         if self.effect_theme == "liquid":
-            # Rich oceanic teal & luminous cyan fluid radiance
-            vol_pat.add_color_stop_rgba(0.00, 0.15, 0.96, 0.90, 0.52 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.25, 0.08, 0.78, 0.88, 0.38 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.55, 0.04, 0.50, 0.75, 0.22 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.85, 0.02, 0.25, 0.45, 0.08 * active_intensity)
+            # Translucent seafoam & soft cyan mist (never blinding or opaque)
+            vol_pat.add_color_stop_rgba(0.00, 0.15, 0.96, 0.90, 0.22 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.35, 0.08, 0.78, 0.88, 0.14 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.70, 0.04, 0.50, 0.75, 0.06 * active_intensity)
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
         elif self.effect_theme == "plasma":
-            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.55 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.38 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.65, 0.20, 0.40, 0.75, 0.18 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.22 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.35, 0.65, 0.25, 0.90, 0.14 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.70, 0.20, 0.40, 0.75, 0.06 * active_intensity)
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
         elif self.effect_theme == "solar":
-            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.55 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.40 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.65, 0.75, 0.18, 0.05, 0.18 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.22 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.35, 0.98, 0.48, 0.12, 0.14 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.70, 0.75, 0.18, 0.05, 0.06 * active_intensity)
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
         else: # aurora
-            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.55 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.28, 0.85, 0.40, 0.92, 0.38 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.60, 0.25, 0.65, 0.85, 0.20 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.22 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.35, 0.85, 0.40, 0.92, 0.14 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.70, 0.25, 0.65, 0.85, 0.06 * active_intensity)
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
 
         cr.set_source(vol_pat)
@@ -487,17 +487,17 @@ class DrooopOverlay:
         cr.save()
         t_slow = t_sec * 0.85
         cr.translate(width, y_pos)
-        cr.scale(1.0, 1.85)
+        cr.scale(1.0, 1.70)
 
-        pressure_scale = 0.70 + self.current_pressure * 1.60
-        outer_radius = (140 + active_intensity * 380) * pressure_scale + math.sin(t_slow * 2.8) * 12
+        pressure_scale = 0.70 + self.current_pressure * 1.20
+        outer_radius = (80 + active_intensity * 170) * pressure_scale + math.sin(t_slow * 2.8) * 8
         radial_pat = cairo.RadialGradient(0, 0, 5, 0, 0, outer_radius)
 
-        radial_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.75 * active_intensity)
-        radial_pat.add_color_stop_rgba(0.12, 1.0, 0.85, 0.35, 0.65 * active_intensity)
-        radial_pat.add_color_stop_rgba(0.30, 0.95, 0.35, 0.75, 0.55 * active_intensity)
-        radial_pat.add_color_stop_rgba(0.55, 0.55, 0.45, 0.98, 0.38 * active_intensity)
-        radial_pat.add_color_stop_rgba(0.80, 0.08, 0.80, 0.95, 0.20 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.65 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.15, 1.0, 0.85, 0.35, 0.50 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.35, 0.95, 0.35, 0.75, 0.35 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.60, 0.55, 0.45, 0.98, 0.20 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.85, 0.08, 0.80, 0.95, 0.08 * active_intensity)
         radial_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
 
         cr.set_source(radial_pat)
@@ -510,27 +510,27 @@ class DrooopOverlay:
         rim_pat.add_color_stop_rgba(0.0, 0.2, 0.8, 1.0, 0.0)
         rim_pat.add_color_stop_rgba(1.0, 1.0, 1.0, 1.0, 0.85 * active_intensity)
         cr.set_source(rim_pat)
-        rim_h = 240 * pressure_scale
+        rim_h = 200 * pressure_scale
         cr.rectangle(width - 3, y_pos - rim_h / 2, 3, rim_h)
         cr.fill()
 
     def _draw_liquid_effect(self, cr, width, y_pos, active_intensity, t_sec):
-        """Alive, organic fluid bubble with lively surface tension wobble and massive desktop reach."""
+        """Alive, organic fluid bubble with lively surface tension wobble, scaled appropriately to bezel."""
         cr.save()
-        pressure_scale = 0.70 + self.current_pressure * 1.60
-        base_radius = (150 + active_intensity * 440) * pressure_scale
+        pressure_scale = 0.70 + self.current_pressure * 1.20
+        base_radius = (80 + active_intensity * 180) * pressure_scale
 
         # 1. Lively organic fluid meniscus path with harmonious liquid wobble
         cr.save()
         cr.translate(width, y_pos)
         cr.new_path()
-        steps = 64
+        steps = 48
         for i in range(steps + 1):
             theta = (math.pi / 2.0) + (math.pi * i / steps)
-            # Three harmonic ripples creating an organic living liquid wave (alive without chaotic jitter)
-            w1 = 0.075 * math.sin(theta * 2.5 + t_sec * 3.4)
-            w2 = 0.040 * math.sin(theta * 4.5 - t_sec * 2.1)
-            w3 = 0.025 * math.cos(theta * 1.5 + t_sec * 1.2)
+            # Three harmonic ripples creating an organic living liquid wave
+            w1 = 0.065 * math.sin(theta * 2.5 + t_sec * 3.4)
+            w2 = 0.035 * math.sin(theta * 4.5 - t_sec * 2.1)
+            w3 = 0.020 * math.cos(theta * 1.5 + t_sec * 1.2)
             wobble = (w1 + w2 + w3) * (0.35 + 0.65 * active_intensity)
             r = base_radius * (1.0 + wobble)
             x = r * math.cos(theta)
@@ -545,21 +545,21 @@ class DrooopOverlay:
 
         # Viscous, vibrant cyan-teal liquid gradient
         liquid_pat = cairo.RadialGradient(0, 0, 8, 0, 0, base_radius * 1.15)
-        liquid_pat.add_color_stop_rgba(0.00, 0.98, 1.00, 1.00, 0.75 * active_intensity)
-        liquid_pat.add_color_stop_rgba(0.20, 0.25, 0.95, 0.88, 0.62 * active_intensity)
-        liquid_pat.add_color_stop_rgba(0.48, 0.08, 0.75, 0.92, 0.45 * active_intensity)
-        liquid_pat.add_color_stop_rgba(0.78, 0.03, 0.45, 0.75, 0.22 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.00, 0.98, 1.00, 1.00, 0.65 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.22, 0.25, 0.95, 0.88, 0.50 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.50, 0.08, 0.75, 0.92, 0.32 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.80, 0.03, 0.45, 0.75, 0.12 * active_intensity)
         liquid_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
 
         cr.set_source(liquid_pat)
         cr.fill()
 
         # Specular 3D fluid core highlight
-        core_r = base_radius * 0.52
+        core_r = base_radius * 0.48
         core_pat = cairo.RadialGradient(-core_r * 0.35, 0, 5, 0, 0, core_r)
-        core_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.85 * active_intensity)
-        core_pat.add_color_stop_rgba(0.22, 0.60, 1.0, 0.95, 0.70 * active_intensity)
-        core_pat.add_color_stop_rgba(0.58, 0.12, 0.85, 0.80, 0.32 * active_intensity)
+        core_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.75 * active_intensity)
+        core_pat.add_color_stop_rgba(0.25, 0.60, 1.0, 0.95, 0.55 * active_intensity)
+        core_pat.add_color_stop_rgba(0.60, 0.12, 0.85, 0.80, 0.20 * active_intensity)
         core_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
         cr.set_source(core_pat)
         cr.scale(1.0, 1.35)
@@ -569,12 +569,12 @@ class DrooopOverlay:
 
         # 2. Glowing rim meniscus along bezel
         cr.save()
-        rim_pat = cairo.LinearGradient(width - 5, 0, width, 0)
+        rim_pat = cairo.LinearGradient(width - 4, 0, width, 0)
         rim_pat.add_color_stop_rgba(0.0, 0.1, 0.9, 0.8, 0.0)
-        rim_pat.add_color_stop_rgba(1.0, 0.95, 1.0, 1.0, 0.90 * active_intensity)
+        rim_pat.add_color_stop_rgba(1.0, 0.95, 1.0, 1.0, 0.85 * active_intensity)
         cr.set_source(rim_pat)
-        rim_h = 240 * pressure_scale
-        cr.rectangle(width - 4, y_pos - rim_h / 2, 4, rim_h)
+        rim_h = 200 * pressure_scale
+        cr.rectangle(width - 3, y_pos - rim_h / 2, 3, rim_h)
         cr.fill()
         cr.restore()
 

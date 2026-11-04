@@ -158,8 +158,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        await manager.broadcast({"type": "drag_edge_leave"})
     except Exception:
         manager.disconnect(websocket)
+        await manager.broadcast({"type": "drag_edge_leave"})
 
 @app.post("/api/upload")
 async def upload_file(
@@ -374,8 +376,8 @@ async def get_shared_files():
     return files
 
 # Mount static shared files and media
-app.mount("/shared", StaticFiles(directory=str(SHARED_DIR)), name="shared")
-app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+app.mount("/shared", StaticFiles(directory=str(SHARED_DIR), follow_symlink=True), name="shared")
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR), follow_symlink=True), name="media")
 
 # Serve client web assets
 if CLIENT_DIR.exists():

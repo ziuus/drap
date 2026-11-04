@@ -482,6 +482,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const crossedThreshold = clientX <= 45;
 
+    // Immediately clear edge glow on laptop upon finger release / drop
+    sendWS({ type: "drag_edge_leave" });
+
     if (crossedThreshold) {
       triggerHaptics([50, 30, 80]);
 
