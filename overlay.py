@@ -149,17 +149,15 @@ class DrapOverlay:
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             else: # "aurora" (Exact Chromatic Dispersion matching Tornike Drooop Demo Photo)
-                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)  # Pure incandescent white origin
-                pat.add_color_stop_rgba(0.20, 1.00, 1.00, 1.00, 0.98)
-                pat.add_color_stop_rgba(0.32, 1.00, 0.98, 0.96, 0.92)
-                pat.add_color_stop_rgba(0.42, 1.00, 0.90, 0.88, 0.85)  # Warm blush cream
-                pat.add_color_stop_rgba(0.50, 1.00, 0.72, 0.78, 0.78)  # Soft rose pink
-                pat.add_color_stop_rgba(0.58, 0.88, 0.70, 0.98, 0.65)  # Ethereal lilac/violet
-                pat.add_color_stop_rgba(0.66, 0.70, 0.88, 0.75, 0.50)  # Golden amber & chartreuse lime
-                pat.add_color_stop_rgba(0.74, 0.40, 0.85, 0.98, 0.35)  # Vivid sky cyan
-                pat.add_color_stop_rgba(0.84, 0.20, 0.65, 0.90, 0.20)  # Oceanic azure
-                pat.add_color_stop_rgba(0.92, 0.10, 0.45, 0.70, 0.08)  # Deep teal mist
-                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)  # Seamless transparent fade
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Pure incandescent core
+                pat.add_color_stop_rgba(0.48, 1.00, 1.00, 1.00, 0.99) # Expansive white core
+                pat.add_color_stop_rgba(0.56, 1.00, 0.95, 0.88, 0.95) # Warm cream
+                pat.add_color_stop_rgba(0.64, 1.00, 0.82, 0.55, 0.88) # Golden amber / peach
+                pat.add_color_stop_rgba(0.72, 1.00, 0.58, 0.68, 0.78) # Rose coral / pink
+                pat.add_color_stop_rgba(0.80, 0.78, 0.55, 0.98, 0.60) # Ethereal lilac / violet
+                pat.add_color_stop_rgba(0.88, 0.25, 0.75, 0.98, 0.40) # Luminous sky cyan
+                pat.add_color_stop_rgba(0.95, 0.08, 0.50, 0.85, 0.15) # Oceanic azure mist
+                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00) # Transparent fade
 
             cr.set_source(pat)
             cr.paint()
@@ -568,11 +566,11 @@ class DrapOverlay:
         lut_w = 512
         lut_h = 1024
 
-        pressure_scale = 0.80 + self.current_pressure * 1.05
-        # Expansive desktop reach matching the photo
-        radius_x = (420 + active_intensity * 500) * pressure_scale
-        v_stretch = 1.0 + min(0.50, abs(self.current_vy) * 0.40)
-        radius_y = radius_x * 1.62 * v_stretch
+        pressure_scale = 0.85 + self.current_pressure * 0.45
+        # Expansive desktop reach matching Tornike Drooop photo
+        radius_x = (360 + active_intensity * 400) * pressure_scale
+        v_stretch = 1.0 + min(0.35, abs(self.current_vy) * 0.30)
+        radius_y = radius_x * 1.52 * v_stretch
 
         cr.save()
         edge = getattr(self, "active_edge", "right")

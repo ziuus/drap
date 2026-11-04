@@ -49,15 +49,34 @@
     <section class="content-section">
       <div class="section-header">
         <div class="section-title-wrap">
-          <h2>Device Library</h2>
-          <span class="file-count" id="fileCountBadge">7 items</span>
+          <h2>Local Device Library</h2>
+          <span class="file-count" id="fileCountBadge">Loading...</span>
         </div>
-        <!-- Native File Picker Trigger -->
-        <label for="customFileInput" class="btn-add">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-          Add Files
+      </div>
+
+      <!-- Device Media & Files Action Bar -->
+      <div class="local-media-toolbar">
+        <label for="pickerPhotos" class="btn-picker-pill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Photos & Media</span>
         </label>
-        <input type="file" id="customFileInput" multiple accept="*/*" style="display: none;">
+        <input type="file" id="pickerPhotos" multiple accept="image/*,video/*" style="display: none;">
+
+        <label for="pickerFiles" class="btn-picker-pill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>All Files</span>
+        </label>
+        <input type="file" id="pickerFiles" multiple accept="*/*" style="display: none;">
+
+        <label for="pickerFolder" class="btn-picker-pill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Folder</span>
+        </label>
+        <input type="file" id="pickerFolder" webkitdirectory directory multiple style="display: none;">
+
+        <button id="btnClearLibrary" class="btn-picker-icon" type="button" title="Clear Added Local Media">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
       </div>
 
       <div class="media-grid" id="mediaGrid">
@@ -170,12 +189,15 @@
     <div style="height: 60px;"></div>
   </main>
 
+  <!-- Prismatic Chromatic Dispersion Aura (Exact Match to Droop Phone Photo) -->
+  <div class="drag-aura" id="dragAura"></div>
+
   <!-- Clean Floating Drag Ghost -->
   <div class="drag-ghost" id="dragGhost">
     <div class="ghost-thumb" id="ghostThumb"></div>
     <div class="ghost-info">
       <span class="ghost-title" id="ghostTitle">File</span>
-      <span class="ghost-sub">Flick towards left bezel</span>
+      <span class="ghost-sub">Flick towards screen edge</span>
     </div>
   </div>
 
@@ -200,6 +222,52 @@
       <div class="sheet-top-row">
         <h3>Preferences</h3>
         <button class="sheet-close-btn" id="closeSettingsBtn" type="button" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Target Desktop / Destination Section -->
+      <div class="settings-section">
+        <label class="settings-label">Target Destination Desktop</label>
+        <div class="target-device-card" id="targetDeviceCard">
+          <div class="target-device-header">
+            <div class="target-device-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="target-device-meta">
+              <strong id="targetDeviceName">Desktop (Hyprland)</strong>
+              <small id="targetDeviceIp">Connecting...</small>
+            </div>
+            <span class="target-status-dot connected" id="targetStatusDot"></span>
+          </div>
+
+          <!-- Discovered LAN Peers List -->
+          <div class="peers-box" id="peersBox">
+            <div class="peers-box-title">Discovered Devices on Network:</div>
+            <div class="peers-list" id="peersList">
+              <div class="peer-item active">
+                <span>🖥️ Connected Host Gateway</span>
+                <span class="peer-tag">Active</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Destination IP / Port -->
+          <div class="custom-target-row">
+            <input type="text" id="inputCustomTarget" class="input-target-ip" placeholder="Target Host:Port (e.g. 10.176.13.201:8080)">
+            <button type="button" id="btnApplyTarget" class="btn-apply-target">Set Target</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target Bezel Edge Override -->
+      <div class="settings-section">
+        <label class="settings-label">Desktop Screen Alignment</label>
+        <select id="selectTargetEdge" class="settings-select">
+          <option value="auto">🧭 Auto (Flick in any direction: Left, Right, Up, Down)</option>
+          <option value="right">👉 Force Right Bezel (Phone on right side of laptop)</option>
+          <option value="left">👈 Force Left Bezel (Phone on left side of laptop)</option>
+          <option value="bottom">👆 Force Bottom Bezel (Phone below/in front of laptop)</option>
+          <option value="top">👇 Force Top Bezel (Phone above laptop screen)</option>
+        </select>
       </div>
 
       <!-- Spatial Lighting Effect -->

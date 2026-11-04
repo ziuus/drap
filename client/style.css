@@ -51,36 +51,74 @@ body[data-theme="liquid"] .phone-ambient-perimeter {
   box-shadow: inset 0 0 36px rgba(20, 184, 166, 0.55);
 }
 
-/* Fluid Meniscus Bulb on Phone Edge (Adapts to All 4 Edges) */
+/* Fluid Meniscus Bulb on Phone Edge (Expansive incandescent spill matching Tornike Drooop photo) */
 .phone-edge-bulb {
   position: fixed;
   left: 0;
   top: 50%;
   transform-origin: center center;
-  transform: translateY(-50%) translateX(-30%);
-  width: 220px;
-  height: 380px;
-  border-radius: 0 190px 190px 0;
-  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 22%, rgba(254, 215, 226, 0.88) 38%, rgba(216, 180, 254, 0.72) 52%, rgba(253, 230, 138, 0.60) 64%, rgba(56, 189, 248, 0.45) 76%, rgba(14, 165, 233, 0.20) 88%, transparent 100%);
+  transform: translateY(-50%) translateX(-25%);
+  width: 290px;
+  height: 480px;
+  border-radius: 0 240px 240px 0;
+  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.99) 32%, rgba(255, 243, 196, 0.92) 46%, rgba(255, 175, 150, 0.78) 58%, rgba(208, 132, 252, 0.62) 70%, rgba(56, 189, 248, 0.42) 82%, rgba(14, 165, 233, 0.16) 94%, transparent 100%);
   filter: blur(14px);
   opacity: 0;
   pointer-events: none;
   z-index: 920;
-  box-shadow: 0 0 45px rgba(255, 255, 255, 0.7), 0 0 80px rgba(56, 189, 248, 0.5);
-  transition: opacity 0.15s ease-out, transform 0.08s ease-out;
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.8), 0 0 100px rgba(56, 189, 248, 0.45);
+  transition: opacity 0.12s ease-out, transform 0.06s ease-out;
 }
 
 body[data-theme="plasma"] .phone-edge-bulb {
-  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 22%, rgba(244, 114, 182, 0.88) 38%, rgba(192, 132, 252, 0.72) 52%, rgba(147, 51, 234, 0.50) 70%, rgba(59, 130, 246, 0.25) 86%, transparent 100%);
-  box-shadow: 0 0 45px rgba(255, 255, 255, 0.7), 0 0 80px rgba(217, 70, 239, 0.5);
+  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 28%, rgba(244, 114, 182, 0.88) 44%, rgba(192, 132, 252, 0.72) 60%, rgba(147, 51, 234, 0.50) 75%, rgba(59, 130, 246, 0.25) 88%, transparent 100%);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.8), 0 0 100px rgba(217, 70, 239, 0.45);
 }
 body[data-theme="solar"] .phone-edge-bulb {
-  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 22%, rgba(254, 240, 138, 0.88) 38%, rgba(251, 146, 60, 0.72) 52%, rgba(239, 68, 68, 0.50) 70%, rgba(185, 28, 28, 0.25) 86%, transparent 100%);
-  box-shadow: 0 0 45px rgba(255, 255, 255, 0.7), 0 0 80px rgba(245, 158, 11, 0.5);
+  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 28%, rgba(254, 240, 138, 0.88) 44%, rgba(251, 146, 60, 0.72) 60%, rgba(239, 68, 68, 0.50) 75%, rgba(185, 28, 28, 0.25) 88%, transparent 100%);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.8), 0 0 100px rgba(245, 158, 11, 0.45);
 }
 body[data-theme="liquid"] .phone-edge-bulb {
-  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 22%, rgba(153, 246, 228, 0.88) 38%, rgba(45, 212, 191, 0.72) 52%, rgba(14, 165, 233, 0.50) 70%, rgba(2, 132, 199, 0.25) 86%, transparent 100%);
-  box-shadow: 0 0 45px rgba(255, 255, 255, 0.7), 0 0 80px rgba(20, 184, 166, 0.5);
+  background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 0.98) 28%, rgba(153, 246, 228, 0.88) 44%, rgba(45, 212, 191, 0.72) 60%, rgba(14, 165, 233, 0.50) 75%, rgba(2, 132, 199, 0.25) 88%, transparent 100%);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.8), 0 0 100px rgba(20, 184, 166, 0.45);
+}
+
+/* Finger Drag Chromatic Dispersion Aura (Centered on Thumb/Card) */
+.drag-aura {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 440px;
+  height: 440px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 915;
+  transform: translate(-50%, -50%) scale(0.65);
+  opacity: 0;
+  background: radial-gradient(
+    circle at center,
+    #ffffff 0%,
+    rgba(255, 255, 255, 0.99) 30%,
+    rgba(255, 243, 196, 0.90) 45%,
+    rgba(255, 175, 150, 0.76) 58%,
+    rgba(208, 132, 252, 0.60) 70%,
+    rgba(56, 189, 248, 0.40) 82%,
+    rgba(14, 165, 233, 0.15) 94%,
+    transparent 100%
+  );
+  filter: blur(14px);
+  will-change: transform, opacity;
+  transition: opacity 0.12s ease-out;
+}
+
+body[data-theme="plasma"] .drag-aura {
+  background: radial-gradient(circle at center, #ffffff 0%, rgba(255, 255, 255, 0.98) 26%, rgba(244, 114, 182, 0.88) 42%, rgba(192, 132, 252, 0.72) 58%, rgba(147, 51, 234, 0.50) 74%, rgba(59, 130, 246, 0.25) 88%, transparent 100%);
+}
+body[data-theme="solar"] .drag-aura {
+  background: radial-gradient(circle at center, #ffffff 0%, rgba(255, 255, 255, 0.98) 26%, rgba(254, 240, 138, 0.88) 42%, rgba(251, 146, 60, 0.72) 58%, rgba(239, 68, 68, 0.50) 74%, rgba(185, 28, 28, 0.25) 88%, transparent 100%);
+}
+body[data-theme="liquid"] .drag-aura {
+  background: radial-gradient(circle at center, #ffffff 0%, rgba(255, 255, 255, 0.98) 26%, rgba(153, 246, 228, 0.88) 42%, rgba(45, 212, 191, 0.72) 58%, rgba(14, 165, 233, 0.50) 74%, rgba(2, 132, 199, 0.25) 88%, transparent 100%);
 }
 
 /* Card Drag Initial Pickup Ripple */
@@ -399,6 +437,117 @@ body.is-dragging-active .drag-scrim {
   background: rgba(255, 255, 255, 0.14);
 }
 
+/* Local Device Media Toolbar */
+.local-media-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.local-media-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-picker-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f4f4f5;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-picker-pill:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: #38bdf8;
+}
+
+.btn-picker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #a1a1aa;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: all 0.15s;
+}
+
+.btn-picker-icon:active {
+  transform: scale(0.92);
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Empty Library State */
+.empty-library-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-lg);
+  margin-top: 10px;
+}
+
+.empty-library-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.empty-library-state h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.empty-library-state p {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 260px;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.empty-actions-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 /* Media Grid */
 .media-grid {
   display: grid;
@@ -630,6 +779,31 @@ body.mode-transfer .card-item {
   transition: transform 0.05s ease-out, border-color 0.2s;
 }
 
+/* Floating Photo Card Ghost (Matching Droop photo thumbnail drag) */
+.drag-ghost.is-photo-ghost {
+  padding: 0;
+  border-radius: 18px;
+  min-width: unset;
+  max-width: unset;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+}
+
+.drag-ghost.is-photo-ghost .ghost-thumb {
+  width: 124px;
+  height: 124px;
+  border-radius: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.90);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65), 0 0 35px rgba(255, 255, 255, 0.40);
+}
+
+.drag-ghost.is-photo-ghost .ghost-info {
+  display: none;
+}
+
 .ghost-thumb {
   width: 54px;
   height: 54px;
@@ -846,6 +1020,182 @@ body.mode-transfer .card-item {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-bottom: 10px;
+}
+
+/* Target Device Card */
+.target-device-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.target-device-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.target-device-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.target-device-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.target-device-meta strong {
+  display: block;
+  font-size: 14px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.target-device-meta small {
+  display: block;
+  font-size: 11px;
+  color: #a1a1aa;
+  margin-top: 2px;
+}
+
+.target-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #71717a;
+  flex-shrink: 0;
+}
+
+.target-status-dot.connected {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* Discovered Peers List */
+.peers-box {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.peers-box-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.peers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.peer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  font-size: 12px;
+  color: #e4e4e7;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.peer-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.peer-item.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.peer-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+/* Custom Target Row */
+.custom-target-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.input-target-ip {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fff;
+  outline: none;
+  font-family: inherit;
+}
+
+.input-target-ip:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.btn-apply-target {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-apply-target:active {
+  transform: scale(0.96);
+  background: #38bdf8;
+  color: #000;
+}
+
+/* Settings Select */
+.settings-select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-select option {
+  background: #18181b;
+  color: #fff;
 }
 
 /* Theme Grid */

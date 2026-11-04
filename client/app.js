@@ -81,6 +81,7 @@
   const mediaGrid = document.getElementById("mediaGrid");
   const leftBezelHalo = document.getElementById("leftBezelHalo");
   const leftBezelRim = document.getElementById("leftBezelRim");
+  const dragAura = document.getElementById("dragAura");
   const dragGhost = document.getElementById("dragGhost");
   const ghostThumb = document.getElementById("ghostThumb");
   const ghostTitle = document.getElementById("ghostTitle");
@@ -167,14 +168,24 @@
     if (fileCountBadge) fileCountBadge.textContent = `${visibleCount} item${visibleCount !== 1 ? 's' : ''}`;
   }
 
-  // 3. WebSocket Real-Time Gateway
+  // 3. WebSocket Real-Time Gateway & Target Destination
   let ws = null;
   const statusPill = document.getElementById("statusPill");
+  let targetHost = localStorage.getItem("drap_target_host") || window.location.host;
+  let targetEdgePref = localStorage.getItem("drap_target_edge") || "auto";
 
   function connectWS() {
+    if (ws) {
+      try { ws.close(); } catch (e) {}
+    }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    ws = new WebSocket(`${protocol}//${host}/ws`);
+    try {
+      ws = new WebSocket(`${protocol}//${targetHost}/ws`);
+    } catch (e) {
+      console.warn("WebSocket init failed:", e);
+    }
+
+    if (!ws) return;
 
     ws.onopen = () => {
       if (statusPill) {
@@ -182,6 +193,9 @@
         const txt = statusPill.querySelector(".status-text");
         if (txt) txt.textContent = "Connected";
       }
+      const targetDot = document.getElementById("targetStatusDot");
+      if (targetDot) targetDot.classList.add("connected");
+      fetchDeviceInfo();
     };
 
     ws.onclose = () => {
@@ -190,7 +204,9 @@
         const txt = statusPill.querySelector(".status-text");
         if (txt) txt.textContent = "Reconnecting...";
       }
-      setTimeout(connectWS, 2000);
+      const targetDot = document.getElementById("targetStatusDot");
+      if (targetDot) targetDot.classList.remove("connected");
+      setTimeout(connectWS, 2500);
     };
 
     ws.onerror = () => {
@@ -267,15 +283,30 @@
 
       if (dragGhost) {
         dragGhost.style.display = "flex";
-        ghostTitle.textContent = title;
-        if (thumbUrl) {
+        if (itemType === 'photo' && thumbUrl) {
+          dragGhost.classList.add("is-photo-ghost");
           ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
           ghostThumb.style.display = "block";
         } else {
-          ghostThumb.style.backgroundImage = "none";
-          ghostThumb.style.display = "none";
+          dragGhost.classList.remove("is-photo-ghost");
+          ghostTitle.textContent = title;
+          if (thumbUrl) {
+            ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
+            ghostThumb.style.display = "block";
+          } else {
+            ghostThumb.style.backgroundImage = "none";
+            ghostThumb.style.display = "none";
+          }
         }
         updateGhostPosition(x, y);
+      }
+
+      if (dragAura) {
+        dragAura.style.display = "block";
+        dragAura.style.left = `${x}px`;
+        dragAura.style.top = `${y}px`;
+        dragAura.style.opacity = "0.85";
+        dragAura.style.transform = "translate(-50%, -50%) scale(0.70)";
       }
     }
 
@@ -355,9 +386,14 @@
   }
 
   function updateGhostPosition(x, y) {
-    if (!dragGhost) return;
-    dragGhost.style.left = `${x}px`;
-    dragGhost.style.top = `${y}px`;
+    if (dragGhost) {
+      dragGhost.style.left = `${x}px`;
+      dragGhost.style.top = `${y}px`;
+    }
+    if (dragAura) {
+      dragAura.style.left = `${x}px`;
+      dragAura.style.top = `${y}px`;
+    }
   }
 
   let lastClientX = null;
@@ -421,6 +457,10 @@
       desktopEdge = "top";
       normCoord = normX;
       reach = screenH * 0.38;
+    }
+
+    if (targetEdgePref && targetEdgePref !== "auto") {
+      desktopEdge = targetEdgePref;
     }
 
     const proximity = Math.max(0.0, Math.min(1.0, (reach - minDist) / (reach * 0.80)));
@@ -518,6 +558,15 @@
       dragGhost.style.transform = `translate(-50%, -50%) rotate(${totalTilt.toFixed(1)}deg) scaleX(${(1.06 * squeezeX).toFixed(3)}) scaleY(${(1.06 * squeezeY).toFixed(3)})`;
     }
 
+    if (dragAura) {
+      const auraScale = 0.85 + proximity * 0.45;
+      const auraOpacity = Math.min(1.0, 0.75 + proximity * 0.25);
+      dragAura.style.left = `${clientX}px`;
+      dragAura.style.top = `${clientY}px`;
+      dragAura.style.transform = `translate(-50%, -50%) scale(${auraScale.toFixed(2)})`;
+      dragAura.style.opacity = auraOpacity.toFixed(2);
+    }
+
     // Send spatial coordinate packet to desktop
     sendWS({
       type: "drag_move",
@@ -555,7 +604,16 @@
     if (leftBezelRim) leftBezelRim.style.opacity = "0";
     const bulb = document.getElementById("phoneEdgeBulb");
     if (bulb) bulb.style.opacity = "0";
-    if (dragGhost) dragGhost.style.display = "none";
+    if (dragGhost) {
+      dragGhost.style.display = "none";
+      dragGhost.classList.remove("is-photo-ghost");
+    }
+    if (dragAura) {
+      dragAura.style.opacity = "0";
+      setTimeout(() => {
+        if (!activeDrag && dragAura) dragAura.style.display = "none";
+      }, 150);
+    }
     lastClientX = null;
     lastClientY = null;
     lastTouchTime = null;
@@ -613,6 +671,10 @@
       waveY = screenH;
     }
 
+    if (targetEdgePref && targetEdgePref !== "auto") {
+      dropDesktopEdge = targetEdgePref;
+    }
+
     if (crossedThreshold) {
       triggerMobileWaterWave(waveX, waveY);
       haptic([30, 40, 80]);
@@ -650,7 +712,8 @@
             formData.append("file", blob, drag.title);
           }
 
-          fetch("/api/upload", { method: "POST", body: formData });
+          const uploadEndpoint = (targetHost === window.location.host) ? "/api/upload" : `http://${targetHost}/api/upload`;
+          fetch(uploadEndpoint, { method: "POST", body: formData });
         } catch (e) {
           console.error(e);
         }
@@ -658,69 +721,355 @@
     }
   }
 
-  // 5. System File Picker & Dynamic Card Generation
-  const customFileInput = document.getElementById("customFileInput");
-  if (customFileInput) {
-    customFileInput.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
+  // 5. IndexedDB Persistent Local Media Vault & File Pickers
+  const DB_NAME = "drap_local_vault";
+  const STORE_NAME = "media_items";
 
-      files.forEach(file => {
-        const isImg = file.type.startsWith("image/");
-        const isVid = file.type.startsWith("video/");
-        const cat = isImg ? "photo" : (isVid ? "video" : "document");
-        const sizeStr = file.size >= 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.round(file.size / 1024)} KB`;
-
-        const card = document.createElement("div");
-        card.className = "card-item";
-        card.setAttribute("data-cat", cat);
-        card.setAttribute("data-item-type", cat);
-        card.setAttribute("data-title", file.name);
-        card.setAttribute("data-size", sizeStr);
-        card.setAttribute("data-theme", "blue");
-        card._customFile = file;
-
-        if (isImg) {
-          const url = URL.createObjectURL(file);
-          card.innerHTML = `
-            <div class="card-thumb"><img src="${url}" alt="${file.name}"></div>
-            <div class="card-meta">
-              <span class="title">${file.name}</span>
-              <span class="sub">${sizeStr} • Added</span>
-            </div>
-            <div class="card-lift-indicator"></div>
-          `;
-          card.setAttribute("data-file", url);
-        } else {
-          card.innerHTML = `
-            <div class="card-thumb doc-thumb doc-blue">
-              <div class="doc-icon-badge">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              </div>
-              <div class="doc-key-tag">${file.name.split('.').pop().toUpperCase()}</div>
-            </div>
-            <div class="card-meta">
-              <span class="title">${file.name}</span>
-              <span class="sub">${sizeStr} • Added</span>
-            </div>
-            <div class="card-lift-indicator"></div>
-          `;
+  function openMediaDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: "id" });
         }
-
-        mediaGrid.insertBefore(card, mediaGrid.firstChild);
-        initCardGestures(card);
-      });
-
-      showToast(`Added ${files.length} file${files.length > 1 ? 's' : ''}`);
-      filterGrid();
-      customFileInput.value = "";
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
     });
   }
 
-  // Attach gestures to all initial cards
-  document.querySelectorAll(".card-item").forEach(card => initCardGestures(card));
+  async function saveMediaToDB(item) {
+    try {
+      const db = await openMediaDB();
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).put(item);
+      return new Promise((res) => { tx.oncomplete = res; });
+    } catch (e) {
+      console.warn("IndexedDB save failed:", e);
+    }
+  }
 
-  // 6. Lightbox Preview
+  async function getAllMediaFromDB() {
+    try {
+      const db = await openMediaDB();
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      return new Promise((res) => { req.onsuccess = () => res(req.result || []); });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function clearMediaDB() {
+    try {
+      const db = await openMediaDB();
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).clear();
+      return new Promise((res) => { tx.oncomplete = res; });
+    } catch (e) {}
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return "0 KB";
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+
+  function renderCardFromRecord(record, prepend = false) {
+    if (!mediaGrid) return;
+    const isImg = record.type && record.type.startsWith("image/");
+    const isVid = record.type && record.type.startsWith("video/");
+    const cat = isImg ? "photo" : (isVid ? "video" : "document");
+    const sizeStr = formatFileSize(record.size);
+
+    const card = document.createElement("div");
+    card.className = "card-item";
+    card.setAttribute("data-cat", cat);
+    card.setAttribute("data-item-type", cat);
+    card.setAttribute("data-title", record.name);
+    card.setAttribute("data-size", sizeStr);
+    card.setAttribute("data-theme", "blue");
+    card._customFile = record.blob;
+
+    let blobUrl = "";
+    if (record.blob) {
+      try {
+        blobUrl = URL.createObjectURL(record.blob);
+      } catch (e) {}
+    } else if (record.url) {
+      blobUrl = record.url;
+    }
+
+    if (isImg && blobUrl) {
+      card.setAttribute("data-file", blobUrl);
+      card.innerHTML = `
+        <div class="card-thumb"><img src="${blobUrl}" alt="${record.name}" loading="lazy"></div>
+        <div class="card-meta">
+          <span class="title">${record.name}</span>
+          <span class="sub">${sizeStr} • Photo</span>
+        </div>
+        <div class="card-lift-indicator"></div>
+      `;
+    } else if (isVid && blobUrl) {
+      card.setAttribute("data-file", blobUrl);
+      card.innerHTML = `
+        <div class="card-thumb" style="background: #000; display: flex; align-items: center; justify-content: center; position: relative;">
+          <video src="${blobUrl}" style="width: 100%; height: 100%; object-fit: cover;" preload="metadata" muted></video>
+          <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.35);">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        </div>
+        <div class="card-meta">
+          <span class="title">${record.name}</span>
+          <span class="sub">${sizeStr} • Video</span>
+        </div>
+        <div class="card-lift-indicator"></div>
+      `;
+    } else {
+      const ext = record.name.split('.').pop().toUpperCase() || "DOC";
+      card.innerHTML = `
+        <div class="card-thumb doc-thumb doc-blue">
+          <div class="doc-icon-badge">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="doc-key-tag">${ext}</div>
+        </div>
+        <div class="card-meta">
+          <span class="title">${record.name}</span>
+          <span class="sub">${sizeStr} • File</span>
+        </div>
+        <div class="card-lift-indicator"></div>
+      `;
+    }
+
+    if (prepend && mediaGrid.firstChild) {
+      mediaGrid.insertBefore(card, mediaGrid.firstChild);
+    } else {
+      mediaGrid.appendChild(card);
+    }
+    initCardGestures(card);
+  }
+
+  function renderEmptyLibraryState() {
+    if (!mediaGrid) return;
+    mediaGrid.innerHTML = `
+      <div class="empty-library-state">
+        <div class="empty-library-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <h3>No Media Added Yet</h3>
+        <p>Select photos, videos, or full folders on your device to flick and drop across devices.</p>
+        <div class="empty-actions-row">
+          <label for="pickerPhotos" class="btn-picker-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Open Photos</span>
+          </label>
+          <label for="pickerFiles" class="btn-picker-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Open Files</span>
+          </label>
+        </div>
+      </div>
+    `;
+    if (fileCountBadge) fileCountBadge.textContent = "0 items";
+  }
+
+  async function handleFilesSelected(files) {
+    if (!files || !files.length) return;
+    const emptyState = document.querySelector(".empty-library-state");
+    if (emptyState) emptyState.remove();
+
+    for (const file of files) {
+      const record = {
+        id: "file_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6),
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        blob: file,
+        mtime: file.lastModified || Date.now()
+      };
+      await saveMediaToDB(record);
+      renderCardFromRecord(record, true);
+    }
+    showToast(`Added ${files.length} item${files.length > 1 ? 's' : ''} to library`);
+    filterGrid();
+  }
+
+  // Hook up file pickers
+  ["pickerPhotos", "pickerFiles", "pickerFolder"].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        handleFilesSelected(files);
+        input.value = "";
+      });
+    }
+  });
+
+  const btnClearLibrary = document.getElementById("btnClearLibrary");
+  if (btnClearLibrary) {
+    btnClearLibrary.addEventListener("click", async () => {
+      if (confirm("Clear all added local media from this device?")) {
+        await clearMediaDB();
+        renderEmptyLibraryState();
+        showToast("Local Library Cleared");
+      }
+    });
+  }
+
+  // Load Saved Library from IndexedDB & Laptop Shares
+  async function loadLibrary() {
+    const saved = await getAllMediaFromDB();
+    if (saved && saved.length > 0) {
+      mediaGrid.innerHTML = "";
+      saved.forEach((item) => renderCardFromRecord(item, false));
+    } else {
+      renderEmptyLibraryState();
+    }
+
+    // Also fetch files shared from laptop
+    try {
+      const res = await fetch(`http://${targetHost}/api/shared_files`);
+      if (res.ok) {
+        const sharedFiles = await res.json();
+        if (sharedFiles && sharedFiles.length > 0) {
+          const emptyState = document.querySelector(".empty-library-state");
+          if (emptyState) emptyState.remove();
+          sharedFiles.forEach((sf) => {
+            const card = document.createElement("div");
+            const cat = sf.is_image ? "photo" : (sf.is_video ? "video" : "document");
+            card.className = "card-item";
+            card.setAttribute("data-cat", cat);
+            card.setAttribute("data-item-type", cat);
+            card.setAttribute("data-title", sf.filename);
+            card.setAttribute("data-size", formatFileSize(sf.size));
+            card.setAttribute("data-file", sf.url);
+
+            if (sf.is_image) {
+              card.innerHTML = `
+                <div class="card-thumb"><img src="${sf.url}" alt="${sf.filename}" loading="lazy"></div>
+                <div class="card-meta">
+                  <span class="title">${sf.filename}</span>
+                  <span class="sub">${formatFileSize(sf.size)} • Laptop Share</span>
+                </div>
+                <div class="card-lift-indicator"></div>
+              `;
+            } else {
+              card.innerHTML = `
+                <div class="card-thumb doc-thumb doc-violet">
+                  <div class="doc-icon-badge">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </div>
+                  <div class="doc-key-tag">SHARE</div>
+                </div>
+                <div class="card-meta">
+                  <span class="title">${sf.filename}</span>
+                  <span class="sub">${formatFileSize(sf.size)} • Laptop Share</span>
+                </div>
+                <div class="card-lift-indicator"></div>
+              `;
+            }
+            mediaGrid.insertBefore(card, mediaGrid.firstChild);
+            initCardGestures(card);
+          });
+        }
+      }
+    } catch (e) {}
+
+    filterGrid();
+  }
+
+  loadLibrary();
+
+  // 6. Target Device Controller in Settings
+  const targetDeviceName = document.getElementById("targetDeviceName");
+  const targetDeviceIp = document.getElementById("targetDeviceIp");
+  const peersList = document.getElementById("peersList");
+  const inputCustomTarget = document.getElementById("inputCustomTarget");
+  const btnApplyTarget = document.getElementById("btnApplyTarget");
+  const selectTargetEdge = document.getElementById("selectTargetEdge");
+
+  if (selectTargetEdge) {
+    selectTargetEdge.value = targetEdgePref;
+    selectTargetEdge.addEventListener("change", (e) => {
+      targetEdgePref = e.target.value;
+      localStorage.setItem("drap_target_edge", targetEdgePref);
+      showToast(`Desktop alignment: ${targetEdgePref.toUpperCase()}`);
+    });
+  }
+
+  if (inputCustomTarget) {
+    inputCustomTarget.value = targetHost;
+  }
+
+  if (btnApplyTarget && inputCustomTarget) {
+    btnApplyTarget.addEventListener("click", () => {
+      const val = inputCustomTarget.value.trim();
+      if (!val) return;
+      targetHost = val;
+      localStorage.setItem("drap_target_host", targetHost);
+      showToast(`Target set to ${targetHost}`);
+      connectWS();
+      fetchDeviceInfo();
+    });
+  }
+
+  async function fetchDeviceInfo() {
+    try {
+      const res = await fetch(`http://${targetHost}/api/device_info`);
+      if (res.ok) {
+        const info = await res.json();
+        if (targetDeviceName) targetDeviceName.textContent = info.alias || "Desktop (Hyprland)";
+        if (targetDeviceIp) targetDeviceIp.textContent = `${info.ip || targetHost}:${info.port || 8080} • Connected 🟢`;
+      }
+    } catch (e) {
+      if (targetDeviceIp) targetDeviceIp.textContent = `${targetHost} (Direct)`;
+    }
+    fetchPeers();
+  }
+
+  async function fetchPeers() {
+    if (!peersList) return;
+    try {
+      const res = await fetch(`http://${targetHost}/api/localsend/peers`);
+      if (res.ok) {
+        const peers = await res.json();
+        peersList.innerHTML = `
+          <div class="peer-item active">
+            <span>🖥️ ${targetDeviceName ? targetDeviceName.textContent : 'Target Desktop'}</span>
+            <span class="peer-tag">Active</span>
+          </div>
+        `;
+        if (peers && peers.length > 0) {
+          peers.forEach((p) => {
+            const peerHost = `${p.ip}:${p.port || 53317}`;
+            if (peerHost !== targetHost) {
+              const item = document.createElement("div");
+              item.className = "peer-item";
+              item.innerHTML = `
+                <span>📱 ${p.alias || p.device_model || p.ip}</span>
+                <span class="peer-tag" style="background: rgba(255,255,255,0.1); color: #fff;">Connect</span>
+              `;
+              item.addEventListener("click", () => {
+                targetHost = `${p.ip}:8080`;
+                localStorage.setItem("drap_target_host", targetHost);
+                if (inputCustomTarget) inputCustomTarget.value = targetHost;
+                showToast(`Switched target to ${p.alias || p.ip}`);
+                connectWS();
+                fetchDeviceInfo();
+              });
+              peersList.appendChild(item);
+            }
+          });
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 7. Lightbox Preview
   const lightbox = document.getElementById("lightbox");
   const lightboxImg = document.getElementById("lightboxImg");
   const lightboxTitle = document.getElementById("lightboxTitle");
