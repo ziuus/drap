@@ -57,7 +57,7 @@ class DrapOverlay:
         self.target_pressure = 0.5
         self.current_pressure = 0.5
         self.edge_proximity = 0.0
-        self.effect_theme = "aurora"
+        self.effect_theme = "liquid"  # Options: "liquid", "aurora", "plasma", "solar"
 
         # Time & Inactivity Watchdog
         self.start_time = time.time()
@@ -476,9 +476,18 @@ class DrapOverlay:
         y_pos = self.current_y * height
         active_intensity = self.current_intensity
 
-        # 2. Draw Authentic Drooop Ethereal Atmospheric Light (LUT Bilinear, 300+ FPS, Zero lag)
+        # 2. Draw Authentic Drooop Meniscus & Ambient Wash
         if active_intensity > 0.004:
-            self._draw_drooop_ethereal_light(cr, width, height, y_pos, active_intensity, t_sec)
+            self._draw_ambient_sink(cr, width, height, y_pos, active_intensity, t_sec)
+
+            if self.effect_theme == "liquid":
+                self._draw_liquid_effect(cr, width, y_pos, active_intensity, t_sec)
+            elif self.effect_theme == "plasma":
+                self._draw_plasma_effect(cr, width, y_pos, active_intensity, t_sec)
+            elif self.effect_theme == "solar":
+                self._draw_solar_effect(cr, width, y_pos, active_intensity, t_sec)
+            else: # aurora
+                self._draw_aurora_effect(cr, width, y_pos, active_intensity, t_sec)
 
         # 3. Full-Screen Confirmation Radiance Wave (On file drop)
         if self.confirm_active:
@@ -492,41 +501,216 @@ class DrapOverlay:
         if self.card_active:
             self._draw_drop_card(cr, width, height)
 
-    def _draw_drooop_ethereal_light(self, cr, width, height, y_pos, active_intensity, t_sec):
-        """
-        Pure Ethereal Drooop Atmospheric Light:
-        - Pure seamless volumetric diffusion blooming softly from the bezel at finger height.
-        - ZERO wireframe stroke lines, zero artificial target circles, zero laser beams.
-        - Soft incandescent white core fading into ultra-subtle ethereal pearlescent pastel radiance.
-        - Rendered in a single hardware-accelerated bilinear LUT pass (< 1.5ms, 400+ FPS).
-        """
-        surf = self.luts.get(self.effect_theme, self.luts["aurora"])
-        lut_w = 512
-        lut_h = 1024
+    def _draw_ambient_sink(self, cr, width, height, y_pos, active_intensity, t_sec):
+        """Massive volumetric ambient wash sinking deep into the display wallpaper."""
+        cr.save()
+        t_slow = t_sec * 0.85
+        pressure_scale = 0.70 + self.current_pressure * 1.60
+        sink_reach = min(width - 15, int(400 + active_intensity * 500 * pressure_scale))
 
-        pressure_scale = 0.85 + self.current_pressure * 0.65
-        radius_x = (320 + active_intensity * 380) * pressure_scale
-        
-        # Vertical stretch responding smoothly to drag velocity
-        v_stretch = 1.0 + min(0.60, abs(self.current_vy) * 0.45)
-        # Proportionally calibrated radius_y (~260px - 440px) so vertical position is distinct and elegant
-        radius_y = (260 + active_intensity * 200) * pressure_scale * v_stretch
-
+        # Giant Volumetric Soft Ambient Radiance (sweeping up to 900px across the desktop)
         cr.save()
         cr.translate(width, y_pos)
-        
-        # Soft fluid shear matrix: tilts naturally in the direction of movement
-        skew_y = max(-0.20, min(0.20, -self.current_vy * 0.16))
-        skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
-        cr.transform(skew_mat)
+        cr.scale(1.0, 1.85)
 
-        cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
-        cr.translate(-lut_w, -lut_h / 2)
+        vol_radius = sink_reach * 0.95
+        vol_pat = cairo.RadialGradient(0, 0, 15, 0, 0, vol_radius)
 
-        pat = cairo.SurfacePattern(surf)
-        pat.set_filter(cairo.Filter.BILINEAR)
-        cr.set_source(pat)
-        cr.paint_with_alpha(active_intensity * 0.92)
+        if self.effect_theme == "liquid":
+            # Rich oceanic teal & luminous cyan fluid radiance
+            vol_pat.add_color_stop_rgba(0.00, 0.15, 0.96, 0.90, 0.52 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.25, 0.08, 0.78, 0.88, 0.38 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.55, 0.04, 0.50, 0.75, 0.22 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.85, 0.02, 0.25, 0.45, 0.08 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        elif self.effect_theme == "plasma":
+            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.55 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.38 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.65, 0.20, 0.40, 0.75, 0.18 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        elif self.effect_theme == "solar":
+            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.55 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.40 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.65, 0.75, 0.18, 0.05, 0.18 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        else: # aurora
+            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.55 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.28, 0.85, 0.40, 0.92, 0.38 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.60, 0.25, 0.65, 0.85, 0.20 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+
+        cr.set_source(vol_pat)
+        cr.arc(0, 0, vol_radius, 0, 2 * math.pi)
+        cr.fill()
+        cr.restore()
+        cr.restore()
+
+    def _draw_liquid_effect(self, cr, width, y_pos, active_intensity, t_sec):
+        """Alive, organic fluid bubble with lively surface tension wobble and massive desktop reach."""
+        cr.save()
+        pressure_scale = 0.70 + self.current_pressure * 1.60
+        base_radius = (150 + active_intensity * 440) * pressure_scale
+
+        # 1. Lively organic fluid meniscus path with harmonious liquid wobble
+        cr.save()
+        cr.translate(width, y_pos)
+        cr.new_path()
+        steps = 64
+        for i in range(steps + 1):
+            theta = (math.pi / 2.0) + (math.pi * i / steps)
+            # Three harmonic ripples creating an organic living liquid wave (alive without chaotic jitter)
+            w1 = 0.075 * math.sin(theta * 2.5 + t_sec * 3.4)
+            w2 = 0.040 * math.sin(theta * 4.5 - t_sec * 2.1)
+            w3 = 0.025 * math.cos(theta * 1.5 + t_sec * 1.2)
+            wobble = (w1 + w2 + w3) * (0.35 + 0.65 * active_intensity)
+            r = base_radius * (1.0 + wobble)
+            x = r * math.cos(theta)
+            # Dynamic vertical stretch flexing with movement
+            y = r * math.sin(theta) * (1.45 + 0.12 * math.sin(t_sec * 2.4))
+            if i == 0:
+                cr.move_to(x, y)
+            else:
+                cr.line_to(x, y)
+        cr.line_to(0, base_radius * 1.55)
+        cr.close_path()
+
+        # Viscous, vibrant cyan-teal liquid gradient
+        liquid_pat = cairo.RadialGradient(0, 0, 8, 0, 0, base_radius * 1.15)
+        liquid_pat.add_color_stop_rgba(0.00, 0.98, 1.00, 1.00, 0.75 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.20, 0.25, 0.95, 0.88, 0.62 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.48, 0.08, 0.75, 0.92, 0.45 * active_intensity)
+        liquid_pat.add_color_stop_rgba(0.78, 0.03, 0.45, 0.75, 0.22 * active_intensity)
+        liquid_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+
+        cr.set_source(liquid_pat)
+        cr.fill()
+
+        # Specular 3D fluid core highlight
+        core_r = base_radius * 0.52
+        core_pat = cairo.RadialGradient(-core_r * 0.35, 0, 5, 0, 0, core_r)
+        core_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.85 * active_intensity)
+        core_pat.add_color_stop_rgba(0.22, 0.60, 1.0, 0.95, 0.70 * active_intensity)
+        core_pat.add_color_stop_rgba(0.58, 0.12, 0.85, 0.80, 0.32 * active_intensity)
+        core_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        cr.set_source(core_pat)
+        cr.scale(1.0, 1.35)
+        cr.arc(0, 0, core_r, 0, 2 * math.pi)
+        cr.fill()
+        cr.restore()
+
+        # 2. Glowing rim meniscus along bezel
+        cr.save()
+        rim_pat = cairo.LinearGradient(width - 5, 0, width, 0)
+        rim_pat.add_color_stop_rgba(0.0, 0.1, 0.9, 0.8, 0.0)
+        rim_pat.add_color_stop_rgba(1.0, 0.95, 1.0, 1.0, 0.90 * active_intensity)
+        cr.set_source(rim_pat)
+        rim_h = 240 * pressure_scale
+        cr.rectangle(width - 4, y_pos - rim_h / 2, 4, rim_h)
+        cr.fill()
+        cr.restore()
+
+        cr.restore()
+
+    def _draw_aurora_effect(self, cr, width, y_pos, active_intensity, t_sec):
+        cr.save()
+        t_slow = t_sec * 0.85
+        cr.translate(width, y_pos)
+        cr.scale(1.0, 1.85)
+
+        pressure_scale = 0.70 + self.current_pressure * 1.60
+        outer_radius = (140 + active_intensity * 380) * pressure_scale + math.sin(t_slow * 2.8) * 12
+        radial_pat = cairo.RadialGradient(0, 0, 5, 0, 0, outer_radius)
+
+        radial_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.75 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.12, 1.0, 0.85, 0.35, 0.65 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.30, 0.95, 0.35, 0.75, 0.55 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.55, 0.55, 0.45, 0.98, 0.38 * active_intensity)
+        radial_pat.add_color_stop_rgba(0.80, 0.08, 0.80, 0.95, 0.20 * active_intensity)
+        radial_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+
+        cr.set_source(radial_pat)
+        cr.arc(0, 0, outer_radius, 0, 2 * math.pi)
+        cr.fill()
+        cr.restore()
+
+        # Dynamic Bezel rim light
+        rim_pat = cairo.LinearGradient(width - 4, 0, width, 0)
+        rim_pat.add_color_stop_rgba(0.0, 0.2, 0.8, 1.0, 0.0)
+        rim_pat.add_color_stop_rgba(1.0, 1.0, 1.0, 1.0, 0.85 * active_intensity)
+        cr.set_source(rim_pat)
+        rim_h = 240 * pressure_scale
+        cr.rectangle(width - 3, y_pos - rim_h / 2, 3, rim_h)
+        cr.fill()
+
+    def _draw_plasma_effect(self, cr, width, y_pos, active_intensity, t_sec):
+        """Cyberpunk Neon Plasma / High-Voltage Lightning Arcs with wide reach."""
+        cr.save()
+        cr.translate(width, y_pos)
+
+        pressure_scale = 0.70 + self.current_pressure * 1.60
+        r_aura = (130 + active_intensity * 380) * pressure_scale
+        plasma_pat = cairo.RadialGradient(0, 0, 5, 0, 0, r_aura)
+        plasma_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.98 * active_intensity)
+        plasma_pat.add_color_stop_rgba(0.22, 0.72, 0.35, 0.98, 0.88 * active_intensity)
+        plasma_pat.add_color_stop_rgba(0.55, 0.98, 0.28, 0.60, 0.65 * active_intensity)
+        plasma_pat.add_color_stop_rgba(1.00, 0.10, 0.05, 0.20, 0.0)
+        cr.set_source(plasma_pat)
+        cr.scale(1.0, 1.65)
+        cr.arc(0, 0, r_aura, 0, 2 * math.pi)
+        cr.fill()
+        cr.restore()
+
+        # Crackling electric lightning tendrils
+        cr.save()
+        cr.set_line_cap(cairo.LineCap.ROUND)
+        for branch in range(5):
+            cr.new_path()
+            cr.move_to(width, y_pos)
+            curr_x = width
+            curr_y = y_pos
+            length = (120 + active_intensity * 260) * (0.7 + 0.3 * math.sin(t_sec * 12.0 + branch * 1.5)) * pressure_scale
+            segs = 10
+            for s in range(segs):
+                curr_x -= length / segs
+                jitter = math.sin(t_sec * 25.0 + s * 4.0 + branch * 3.0) * 22.0 * pressure_scale
+                curr_y += jitter
+                cr.line_to(curr_x, curr_y)
+
+            cr.set_line_width((2.4 + (branch == 0) * 1.8) * pressure_scale)
+            cr.set_source_rgba(0.35, 0.96, 1.0, 0.92 * active_intensity)
+            cr.stroke()
+        cr.restore()
+
+    def _draw_solar_effect(self, cr, width, y_pos, active_intensity, t_sec):
+        """Molten Solar Flare & Thermonuclear Embers."""
+        cr.save()
+        cr.translate(width, y_pos)
+        cr.scale(1.0, 1.75)
+
+        pressure_scale = 0.70 + self.current_pressure * 1.60
+        r_solar = (130 + active_intensity * 380) * pressure_scale + math.sin(t_sec * 5.0) * 15
+        solar_pat = cairo.RadialGradient(0, 0, 5, 0, 0, r_solar)
+        solar_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 0.90, 0.98 * active_intensity)
+        solar_pat.add_color_stop_rgba(0.18, 1.0, 0.78, 0.12, 0.92 * active_intensity)
+        solar_pat.add_color_stop_rgba(0.45, 0.96, 0.38, 0.06, 0.82 * active_intensity)
+        solar_pat.add_color_stop_rgba(0.75, 0.72, 0.12, 0.05, 0.52 * active_intensity)
+        solar_pat.add_color_stop_rgba(1.00, 0.15, 0.02, 0.02, 0.0)
+
+        cr.set_source(solar_pat)
+        cr.arc(0, 0, r_solar, 0, 2 * math.pi)
+        cr.fill()
+        cr.restore()
+
+        # Rising embers
+        cr.save()
+        for idx in range(8):
+            phase = idx * 1.1
+            ember_y = y_pos - ((t_sec * 70 + phase * 40) % 220) + 50
+            ember_x = width - (20 + idx * 16 + math.sin(t_sec * 3.0 + phase) * 14) * active_intensity * pressure_scale
+            ember_r = (2.2 + (idx % 3)) * active_intensity * pressure_scale
+            cr.arc(ember_x, ember_y, ember_r, 0, 2 * math.pi)
+            cr.set_source_rgba(1.0, 0.88, 0.35, 0.95 * active_intensity)
+            cr.fill()
         cr.restore()
 
     def _draw_fullscreen_confirm_wave(self, cr, width, height, y_pos, progress):

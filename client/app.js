@@ -105,7 +105,7 @@
   if (tabTransfer) tabTransfer.addEventListener('click', () => setMode('transfer'));
 
   // Effect Theme Selector
-  let activeTheme = localStorage.getItem("drap_effect_theme") || "aurora";
+  let activeTheme = localStorage.getItem("drap_effect_theme") || "liquid";
   const themePills = document.querySelectorAll(".theme-pill");
 
   function setTheme(theme) {
