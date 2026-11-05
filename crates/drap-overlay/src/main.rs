@@ -9,7 +9,7 @@ use std::time::Instant;
 use cairo::{Context, Filter, SurfacePattern};
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, DrawingArea};
-use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 use luts::Luts;
 use ws::{start_ws_client, WsMessage};
@@ -323,6 +323,22 @@ fn main() {
         .build();
 
     app.connect_activate(|app| {
+        // 0. Transparent CSS for overlay canvas (prevents opaque dark window background)
+        let css_provider = gtk4::CssProvider::new();
+        css_provider.load_from_data("
+            window {
+                background-color: transparent;
+                background: none;
+            }
+        ");
+        if let Some(display) = gtk4::gdk::Display::default() {
+            gtk4::style_context_add_provider_for_display(
+                &display,
+                &css_provider,
+                gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
+
         let window = ApplicationWindow::builder()
             .application(app)
             .title("Drap Rust Overlay")
@@ -337,14 +353,8 @@ fn main() {
         window.set_anchor(Edge::Bottom, true);
         window.set_anchor(Edge::Left, true);
         window.set_anchor(Edge::Right, true);
-        window.set_exclusive_zone(-1);
-
-        // Realize window and set 100% click-through input region
-        WidgetExt::realize(&window);
-        if let Some(surface) = window.surface() {
-            let empty_region = cairo::Region::create();
-            surface.set_input_region(&empty_region);
-        }
+        window.set_exclusive_zone(0);
+        window.set_keyboard_mode(KeyboardMode::None);
 
         // 2. Pre-computed high-speed LUT textures
         let luts = Rc::new(Luts::new());
@@ -380,6 +390,20 @@ fn main() {
         });
 
         window.set_child(Some(&drawing_area));
+
+        // Realize window and guarantee 100% click-through input region
+        WidgetExt::realize(&window);
+        if let Some(surface) = window.surface() {
+            let empty_region = cairo::Region::create();
+            surface.set_input_region(&empty_region);
+        }
+
+        window.connect_map(|win| {
+            if let Some(surface) = win.surface() {
+                let empty_region = cairo::Region::create();
+                surface.set_input_region(&empty_region);
+            }
+        });
 
         // 4. Connect WebSocket client via mpsc channel
         let (tx, rx) = mpsc::channel::<WsMessage>();
@@ -525,6 +549,10 @@ fn main() {
         });
 
         window.present();
+        if let Some(surface) = window.surface() {
+            let empty_region = cairo::Region::create();
+            surface.set_input_region(&empty_region);
+        }
     });
 
     app.run();
