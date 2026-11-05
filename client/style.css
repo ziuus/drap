@@ -34,17 +34,18 @@ body {
   top: 50%;
   transform-origin: center center;
   transform: translate3d(0, -50%, 0) translateX(-20%);
-  width: 180px;
-  height: 350px;
-  border-radius: 0 175px 175px 0;
+  width: 220px;
+  height: 440px;
+  border-radius: 0 220px 220px 0;
   background: radial-gradient(ellipse at 0% 50%, #ffffff 0%, rgba(255, 255, 255, 1.0) 48%, rgba(255, 239, 184, 0.95) 62%, rgba(255, 166, 192, 0.85) 72%, rgba(210, 158, 255, 0.60) 80%, rgba(96, 197, 255, 0.35) 89%, rgba(38, 153, 230, 0.10) 95%, transparent 100%);
-  filter: blur(12px);
+  filter: blur(14px);
   opacity: 0;
   display: none;
   pointer-events: none;
   z-index: 920;
   will-change: transform, opacity;
   transition: opacity 0.10s ease-out;
+  animation: livingLightBreathe 2.4s ease-in-out infinite alternate;
 }
 
 body[data-theme="plasma"] .phone-edge-bulb {
@@ -60,43 +61,44 @@ body[data-theme="liquid"] .phone-edge-bulb {
 /* Fluid Corner Meniscus Bulb on Phone (Appears dynamically at 2-side corner junctions) */
 .phone-corner-bulb {
   position: fixed;
-  width: 220px;
-  height: 220px;
+  width: 280px;
+  height: 280px;
   pointer-events: none;
   z-index: 920;
   display: none;
   opacity: 0;
   will-change: transform, opacity;
   transition: opacity 0.12s ease-out;
-  filter: blur(12px);
+  filter: blur(14px);
+  animation: livingLightBreathe 2.4s ease-in-out infinite alternate;
 }
 
 .phone-corner-bulb.corner-top-left {
-  top: -30px;
-  left: -30px;
+  top: -40px;
+  left: -40px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30px 30px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
+  background: radial-gradient(circle at 40px 40px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
 }
 
 .phone-corner-bulb.corner-bottom-left {
-  bottom: -30px;
-  left: -30px;
+  bottom: -40px;
+  left: -40px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30px 190px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
+  background: radial-gradient(circle at 40px 240px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
 }
 
 .phone-corner-bulb.corner-top-right {
-  top: -30px;
-  right: -30px;
+  top: -40px;
+  right: -40px;
   border-radius: 50%;
-  background: radial-gradient(circle at 190px 30px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
+  background: radial-gradient(circle at 240px 40px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
 }
 
 .phone-corner-bulb.corner-bottom-right {
-  bottom: -30px;
-  right: -30px;
+  bottom: -40px;
+  right: -40px;
   border-radius: 50%;
-  background: radial-gradient(circle at 190px 190px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
+  background: radial-gradient(circle at 240px 240px, #ffffff 0%, rgba(255, 255, 255, 1.0) 36%, rgba(255, 239, 184, 0.95) 52%, rgba(255, 166, 192, 0.85) 66%, rgba(210, 158, 255, 0.60) 78%, rgba(96, 197, 255, 0.35) 88%, transparent 100%);
 }
 
 body[data-theme="plasma"] .phone-corner-bulb {
@@ -109,17 +111,26 @@ body[data-theme="liquid"] .phone-corner-bulb {
   background: radial-gradient(circle, #ffffff 0%, rgba(255, 255, 255, 0.98) 28%, rgba(153, 246, 228, 0.88) 46%, rgba(45, 212, 191, 0.70) 62%, rgba(14, 165, 233, 0.48) 76%, rgba(2, 132, 199, 0.20) 88%, transparent 100%);
 }
 
+@keyframes livingLightBreathe {
+  0% {
+    filter: blur(13px) brightness(1.0);
+  }
+  100% {
+    filter: blur(17px) brightness(1.18);
+  }
+}
+
 /* Finger Drag Chromatic Dispersion Aura (Snug & Lightweight under Thumb) */
 .drag-aura {
   position: fixed;
   left: 0;
   top: 0;
-  width: 260px;
-  height: 260px;
+  width: 290px;
+  height: 290px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 915;
-  transform: translate3d(-50%, -50%, 0) scale(0.70);
+  transform: translate3d(-50%, -50%, 0) scale(0.72);
   opacity: 0;
   background: radial-gradient(
     circle at center,
@@ -132,9 +143,10 @@ body[data-theme="liquid"] .phone-corner-bulb {
     rgba(38, 153, 230, 0.10) 96%,
     transparent 100%
   );
-  filter: blur(10px);
+  filter: blur(12px);
   will-change: transform, opacity;
   transition: opacity 0.10s ease-out;
+  animation: livingLightBreathe 2.6s ease-in-out infinite alternate;
 }
 
 body[data-theme="plasma"] .drag-aura {

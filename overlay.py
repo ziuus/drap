@@ -602,24 +602,30 @@ class DrapOverlay:
 
     def _draw_drooop_photo_ambience(self, cr, width, height, active_intensity, t_sec):
         """
-        Exact Drooop Chromatic Dispersion Ambience (Matching photo):
-        - Maximum blinding incandescent white core at the touch point on ANY edge.
-        - Prismatic rainbow dispersion ring (peach, rose, lilac, golden amber, sky cyan).
-        - Deep atmospheric oceanic teal mist sweeping up to 900px+ across desktop.
-        - Naturally enlargens and brightens with touch pressure and edge proximity.
+        Magnificent Expansive Drooop Chromatic Dispersion Ambience:
+        - Sweeps deep across the display (over 1000px-1500px reach).
+        - Alive harmonic breathing waves (organic fluid undulations, alive without jitter).
+        - Tier 1: Living deep atmospheric wash tinting the desktop wallpaper.
+        - Tier 2: Prismatic rainbow dispersion ring with chromatic refraction.
+        - Tier 3: Molten incandescent white-hot core flare along the glass bezel.
         """
         surf = self.luts.get(self.effect_theme, self.luts["aurora"])
         lut_w = 512
         lut_h = 1024
 
-        pressure_scale = 0.90 + self.current_pressure * 0.45
+        pressure_scale = 0.92 + self.current_pressure * 0.45
         edge = getattr(self, "active_edge", "right")
         corner = getattr(self, "active_corner", "")
         coord = getattr(self, "current_coord", 0.5)
 
+        # Living harmonic breathing undulation (organic, fluid, alive without chaotic jitter)
+        breathe = 1.0 + 0.055 * math.sin(t_sec * 2.6) + 0.025 * math.sin(t_sec * 5.2)
+        breathe_y = 1.0 + 0.035 * math.cos(t_sec * 2.2)
+        pulse_alpha = 1.0 + 0.060 * math.sin(t_sec * 3.2)
+
         if corner:
-            # Dual-Bezel Corner Drooop Aurora Atmosphere
-            radius = (720 + active_intensity * 650) * pressure_scale
+            # Dual-Bezel Corner Drooop Aurora Atmosphere (Massive corner immersion spanning both bezels)
+            radius = (950 + active_intensity * 850) * pressure_scale * breathe
             cr.save()
             if corner == "top-right":
                 cr.translate(width, 0)
@@ -634,34 +640,58 @@ class DrapOverlay:
                 cr.translate(0, height)
                 cr.rotate(-math.pi / 4)
 
+            # 1. Soft atmospheric corner wash sweeping deep into screen
+            wash_r = radius * 1.30
+            vol_pat = cairo.RadialGradient(0, 0, 15, 0, 0, wash_r)
+            if self.effect_theme == "plasma":
+                vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.44 * active_intensity)
+                vol_pat.add_color_stop_rgba(0.35, 0.55, 0.20, 0.88, 0.24 * active_intensity)
+                vol_pat.add_color_stop_rgba(0.70, 0.25, 0.10, 0.50, 0.09 * active_intensity)
+                vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+            elif self.effect_theme == "solar":
+                vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.44 * active_intensity)
+                vol_pat.add_color_stop_rgba(0.35, 0.98, 0.45, 0.15, 0.24 * active_intensity)
+                vol_pat.add_color_stop_rgba(0.70, 0.60, 0.15, 0.05, 0.09 * active_intensity)
+                vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+            else: # aurora / liquid
+                vol_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.46 * active_intensity)
+                vol_pat.add_color_stop_rgba(0.35, 0.55, 0.35, 0.95, 0.26 * active_intensity)
+                vol_pat.add_color_stop_rgba(0.70, 0.05, 0.45, 0.70, 0.11 * active_intensity)
+                vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+            cr.set_source(vol_pat)
+            cr.arc(0, 0, wash_r, 0, 2 * math.pi)
+            cr.fill()
+
+            # 2. Primary Chromatic Prismatic Corner Flare
             cr.scale(radius / lut_w, radius / (lut_h / 2))
             cr.translate(-lut_w, -lut_h / 2)
 
             pat = cairo.SurfacePattern(surf)
             pat.set_filter(cairo.Filter.BILINEAR)
             cr.set_source(pat)
-            glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.05)
+            glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.06 * pulse_alpha)
             cr.paint_with_alpha(glow_alpha)
             cr.restore()
             return
 
-        # Massive volumetric ambience matching Drooop (spans across 45%+ of display width and 90%+ height)
+        # Massive volumetric ambience sweeping across the desktop (up to 75%+ screen width and 100%+ height)
         if edge in ("top", "bottom"):
-            radius_x = (540 + active_intensity * 600) * pressure_scale
-            v_stretch = 1.0 + min(0.30, abs(self.current_vy) * 0.25)
-            radius_y = max(700.0, width * (0.65 + active_intensity * 0.35)) * v_stretch
+            radius_x = (750 + active_intensity * 750) * pressure_scale * breathe
+            v_stretch = (1.0 + min(0.35, abs(self.current_vy) * 0.25)) * breathe_y
+            radius_y = max(900.0, width * (0.85 + active_intensity * 0.45)) * v_stretch
         else: # "left", "right"
-            radius_x = (640 + active_intensity * 680) * pressure_scale
-            v_stretch = 1.0 + min(0.30, abs(self.current_vy) * 0.25)
-            radius_y = max(800.0, height * (0.85 + active_intensity * 0.35)) * v_stretch
+            radius_x = (880 + active_intensity * 920) * pressure_scale * breathe
+            v_stretch = (1.0 + min(0.35, abs(self.current_vy) * 0.25)) * breathe_y
+            radius_y = max(1000.0, height * (1.05 + active_intensity * 0.45)) * v_stretch
 
         cr.save()
 
+        # Transformation for positioning & orientation
         if edge == "left":
             y_pos = coord * height
             cr.translate(0, y_pos)
             cr.rotate(math.pi)
-            skew_y = max(-0.20, min(0.20, self.current_vy * 0.16))
+            skew_y = max(-0.22, min(0.22, self.current_vy * 0.18))
             skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
             cr.transform(skew_mat)
         elif edge == "top":
@@ -675,63 +705,62 @@ class DrapOverlay:
         else: # "right" (default)
             y_pos = coord * height
             cr.translate(width, y_pos)
-            skew_y = max(-0.20, min(0.20, -self.current_vy * 0.16))
+            skew_y = max(-0.22, min(0.22, -self.current_vy * 0.18))
             skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
             cr.transform(skew_mat)
 
+        # Tier 1: Living Deep Atmospheric Ambient Wash (Sinks deep into the wallpaper)
+        cr.save()
+        wash_rx = radius_x * 1.30
+        wash_ry = radius_y * 1.15
+        cr.scale(wash_rx, wash_ry)
+        vol_pat = cairo.RadialGradient(0, 0, 0.02, 0, 0, 1.0)
+        if self.effect_theme == "plasma":
+            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.26 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.10 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        elif self.effect_theme == "solar":
+            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.45 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.26 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.10 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        else: # aurora / liquid
+            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.48 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.28 * active_intensity)
+            vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.12 * active_intensity)
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        cr.set_source(vol_pat)
+        cr.arc(0, 0, 1.0, math.pi / 2, 3 * math.pi / 2)
+        cr.fill()
+        cr.restore()
+
+        # Tier 2: Magnificent Incandescent Chromatic Dispersion Core
+        cr.save()
         cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
         cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.Filter.BILINEAR)
         cr.set_source(pat)
-        # Smooth perceptual gamma curve for incandescent radiance matching Drooop
-        glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.02)
+        glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.05 * pulse_alpha)
         cr.paint_with_alpha(glow_alpha)
         cr.restore()
 
-    def _draw_ambient_sink(self, cr, width, height, y_pos, active_intensity, t_sec):
-        """Massive volumetric ambient wash sinking deep into the display wallpaper."""
+        # Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
         cr.save()
-        t_slow = t_sec * 0.85
-        pressure_scale = 0.70 + self.current_pressure * 1.60
-        sink_reach = min(width - 15, int(400 + active_intensity * 500 * pressure_scale))
-
-        # Giant Volumetric Soft Ambient Radiance (sweeping up to 900px across the desktop)
-        cr.save()
-        cr.translate(width, y_pos)
-        cr.scale(1.0, 1.85)
-
-        vol_radius = sink_reach * 0.95
-        vol_pat = cairo.RadialGradient(0, 0, 15, 0, 0, vol_radius)
-
-        if self.effect_theme == "liquid":
-            # Rich oceanic teal & luminous cyan fluid radiance
-            vol_pat.add_color_stop_rgba(0.00, 0.15, 0.96, 0.90, 0.52 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.25, 0.08, 0.78, 0.88, 0.38 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.55, 0.04, 0.50, 0.75, 0.22 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.85, 0.02, 0.25, 0.45, 0.08 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        elif self.effect_theme == "plasma":
-            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.55 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.38 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.65, 0.20, 0.40, 0.75, 0.18 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        elif self.effect_theme == "solar":
-            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.55 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.40 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.65, 0.75, 0.18, 0.05, 0.18 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        else: # aurora
-            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.55 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.28, 0.85, 0.40, 0.92, 0.38 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.60, 0.25, 0.65, 0.85, 0.20 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-
-        cr.set_source(vol_pat)
-        cr.arc(0, 0, vol_radius, 0, 2 * math.pi)
+        core_r = (180 + active_intensity * 260) * pressure_scale * (1.0 + 0.08 * math.sin(t_sec * 4.2))
+        cr.scale(core_r * 0.75, core_r * 1.55)
+        spec_pat = cairo.RadialGradient(0, 0, 0.02, 0, 0, 1.0)
+        spec_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.95 * active_intensity)
+        spec_pat.add_color_stop_rgba(0.25, 1.0, 1.0, 1.0, 0.75 * active_intensity)
+        spec_pat.add_color_stop_rgba(0.60, 0.95, 0.85, 1.0, 0.35 * active_intensity)
+        spec_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
+        cr.set_source(spec_pat)
+        cr.arc(0, 0, 1.0, math.pi / 2, 3 * math.pi / 2)
         cr.fill()
         cr.restore()
+
         cr.restore()
 
     def _draw_liquid_effect(self, cr, width, y_pos, active_intensity, t_sec):
