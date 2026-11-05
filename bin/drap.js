@@ -347,29 +347,35 @@ switch (command) {
 
   case "help":
   case "--help":
+  case "-h":
   default:
     console.log(`
 💧 Drap - Spatial Cross-Device Transfer & Continuity System
+
+Pairing & Mobile Access:
+  drap qr                 Display pairing QR code in terminal for mobile pairing
+  drap gui                Open native GTK4 Control Panel & high-res pairing QR code
+  drap status             Display system health, active phones, and network IPs
+  drap share <file>       Push any file from your laptop terminal to your phone
 
 Lifecycle:
   drap install            Install Drap command, desktop entry & systemd service
   drap on                 Turn Drap ON (starts background server & bezel overlay)
   drap off                Turn Drap OFF (stops all processes)
   drap restart            Restart all Drap services
-  drap status             Display system health, active phones, and network IPs
+  drap update             Pull latest updates from GitHub and refresh system installation
   drap autostart on       Enable automatic launch when logging into Linux
   drap autostart off      Disable automatic launch on login
 
 Security & Access Control:
-  drap devices            List connected, allowed, and blocked devices
-  drap allow <ip>         Authorize a phone / device IP
+  drap devices            List connected, allowed, trusted, and blocked devices
+  drap trust <ip>         Permanently allow a device (Always Allowed without prompt)
+  drap allow <ip>         Authorize a phone / device IP for this session
   drap block <ip>         Block an untrusted device from connecting
   drap security <mode>    Set policy: open | prompt (default) | strict
 
-Visuals & Tools:
+Visuals & Themes:
   drap theme <name>       Switch active shader palette (aurora, plasma, solar, liquid)
-  drap gui                Open native GTK4 Control Panel & pairing QR code
-  drap share <file>       Push any file from your laptop terminal to your phone
 `);
     break;
 }
