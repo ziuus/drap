@@ -36,7 +36,7 @@ function isSystemdEnabled() {
 function areProcessesRunning() {
   try {
     const s = execSync("pgrep -f 'server.py' 2>/dev/null").toString().trim();
-    const o = execSync("pgrep -f 'overlay.py' 2>/dev/null").toString().trim();
+    const o = execSync("pgrep -E 'overlay.py|drap-overlay' 2>/dev/null").toString().trim();
     return Boolean(s && o);
   } catch (e) {
     return false;
@@ -69,6 +69,7 @@ function stopServices() {
   try {
     execSync("pkill -f 'server.py' || true");
     execSync("pkill -f 'overlay.py' || true");
+    execSync("pkill -f 'drap-overlay' || true");
     console.log("✓ Drap stopped.");
   } catch (e) {
     console.log("Nothing to stop.");

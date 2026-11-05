@@ -4,5 +4,8 @@ __pycache__/
 *.log
 .DS_Store
 node_modules/
+target/
+crates/**/target/
+bin/drap-overlay
 shared_to_phone/*
 !shared_to_phone/.gitkeep

@@ -130,6 +130,7 @@ class DrapOverlay:
     def _build_luts(self):
         """Pre-compute high-resolution 512x1024 volumetric lighting textures (sub-millisecond blitting, zero clipping)."""
         self.luts = {}
+        self.surge_luts = {}
         lut_w = 512
         lut_h = 1024
         cx = lut_w
@@ -184,6 +185,47 @@ class DrapOverlay:
             cr.set_source(pat)
             cr.paint()
             self.luts[theme] = surf
+
+            # Pre-baked Full-Screen Atmospheric Surge Texture (Sub-millisecond blit)
+            s_surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_w, lut_h)
+            s_cr = cairo.Context(s_surf)
+            s_pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
+            if theme == "plasma":
+                s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
+                s_pat.add_color_stop_rgba(0.08, 1.00, 0.90, 1.00, 0.95)
+                s_pat.add_color_stop_rgba(0.22, 0.92, 0.45, 1.00, 0.82)
+                s_pat.add_color_stop_rgba(0.45, 0.70, 0.22, 0.95, 0.58)
+                s_pat.add_color_stop_rgba(0.70, 0.40, 0.12, 0.75, 0.32)
+                s_pat.add_color_stop_rgba(0.90, 0.20, 0.05, 0.45, 0.12)
+                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            elif theme == "solar":
+                s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
+                s_pat.add_color_stop_rgba(0.10, 1.00, 0.95, 0.85, 0.95)
+                s_pat.add_color_stop_rgba(0.28, 1.00, 0.70, 0.25, 0.85)
+                s_pat.add_color_stop_rgba(0.50, 0.98, 0.45, 0.12, 0.55)
+                s_pat.add_color_stop_rgba(0.75, 0.80, 0.25, 0.06, 0.28)
+                s_pat.add_color_stop_rgba(0.92, 0.45, 0.10, 0.02, 0.10)
+                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            elif theme == "liquid":
+                s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
+                s_pat.add_color_stop_rgba(0.12, 0.90, 1.00, 1.00, 0.95)
+                s_pat.add_color_stop_rgba(0.30, 0.35, 0.95, 0.98, 0.80)
+                s_pat.add_color_stop_rgba(0.55, 0.15, 0.75, 0.90, 0.50)
+                s_pat.add_color_stop_rgba(0.78, 0.06, 0.45, 0.70, 0.25)
+                s_pat.add_color_stop_rgba(0.92, 0.02, 0.25, 0.45, 0.08)
+                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            else: # "aurora"
+                s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Incandescent core
+                s_pat.add_color_stop_rgba(0.20, 1.00, 0.98, 0.92, 0.98) # Expansive white dome
+                s_pat.add_color_stop_rgba(0.40, 1.00, 0.88, 0.70, 0.88) # Golden peach
+                s_pat.add_color_stop_rgba(0.60, 1.00, 0.60, 0.78, 0.72) # Coral rose
+                s_pat.add_color_stop_rgba(0.78, 0.75, 0.55, 0.98, 0.52) # Lilac violet
+                s_pat.add_color_stop_rgba(0.90, 0.25, 0.70, 0.98, 0.28) # Sky cyan
+                s_pat.add_color_stop_rgba(0.97, 0.10, 0.40, 0.75, 0.10) # Cosmic mist
+                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00) # Seamless transparent fade
+            s_cr.set_source(s_pat)
+            s_cr.paint()
+            self.surge_luts[theme] = s_surf
 
     def _ensure_ticking(self):
         """Wake up render loop on interaction; sleeps completely (0.00% CPU) when idle."""
@@ -923,7 +965,7 @@ class DrapOverlay:
         edge = getattr(self, "confirm_edge", "right")
         coord = getattr(self, "confirm_coord", 0.5)
 
-        surf = self.luts.get(self.effect_theme, self.luts["aurora"])
+        surf = self.surge_luts.get(self.effect_theme, self.surge_luts["aurora"])
         lut_w = 512
         lut_h = 1024
 
@@ -936,14 +978,6 @@ class DrapOverlay:
         max_reach = math.hypot(width, height) * 1.18
         radius_x = 350.0 + ease * (max_reach - 350.0)
         radius_y = max(radius_x * 1.15, height * 1.6)
-
-        # Palette colors for atmospheric wash
-        if self.effect_theme == "plasma":
-            tr, tg, tb = 0.65, 0.25, 0.95
-        elif self.effect_theme == "solar":
-            tr, tg, tb = 1.00, 0.55, 0.15
-        else: # aurora / liquid
-            tr, tg, tb = 0.25, 0.75, 0.98
 
         cr.save()
 
@@ -974,37 +1008,14 @@ class DrapOverlay:
         else: # "right"
             cr.translate(width, coord * height)
 
-        # Tier 1: Full-Screen Ethereal Atmospheric Flood Wash
-        wash_r = radius_x * 1.08
-        wash_pat = cairo.RadialGradient(0, 0, 10, 0, 0, wash_r)
-        wash_pat.add_color_stop_rgba(0.00, tr, tg, tb, 0.38 * damping)
-        wash_pat.add_color_stop_rgba(0.35, tr, tg, tb, 0.20 * damping)
-        wash_pat.add_color_stop_rgba(0.70, tr, tg, tb, 0.08 * damping)
-        wash_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        cr.set_source(wash_pat)
-        cr.arc(0, 0, wash_r, 0, 2 * math.pi)
-        cr.fill()
-
-        # Tier 2: Massive Chromatic Volumetric Ambience Texture (Sub-millisecond blit)
-        cr.save()
+        # Ultra-Fast Hardware-Composited Bilinear Texture Blit (Sub-millisecond, ZERO CPU Gradients)
         cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
         cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.Filter.BILINEAR)
         cr.set_source(pat)
-        cr.paint_with_alpha(damping * 0.95)
-        cr.restore()
-
-        # Tier 3: Incandescent Origin Core Flash
-        core_r = max(20.0, 180.0 * (1.0 - progress))
-        core_pat = cairo.RadialGradient(0, 0, 0, 0, 0, core_r)
-        core_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.95 * damping)
-        core_pat.add_color_stop_rgba(0.45, 1.0, 0.95, 0.85, 0.65 * damping)
-        core_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        cr.set_source(core_pat)
-        cr.arc(0, 0, core_r, 0, 2 * math.pi)
-        cr.fill()
+        cr.paint_with_alpha(damping * 0.98)
 
         cr.restore()
 
