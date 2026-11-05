@@ -102,7 +102,7 @@ class DrapOverlay:
         self.dirty_rect = None  # (x, y, w, h) to clear
         self._load_config()
         try:
-            GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self._on_sigusr1)
+            signal.signal(signal.SIGUSR1, lambda *_: GLib.idle_add(self._on_sigusr1))
         except Exception:
             pass
 

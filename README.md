@@ -115,12 +115,14 @@ drap block <ip>          # Block an untrusted device from connecting
 drap security <mode>     # Set policy: open | prompt (default) | strict
 ```
 
-### Visual Themes
+### Visual Themes & Liquid Glass FX
 ```bash
-drap theme aurora        # Photorealistic chromatic dispersion (Default)
-drap theme liquid        # Crystalline oceanic cyan & fluid wobble
-drap theme plasma        # High-voltage cyberpunk violet & neon lightning
-drap theme solar         # Warm golden hour amber & thermonuclear embers
+drap config liquid_glass on     # Enable ultra-realistic optical liquid water ripple (caustics & specular glints)
+drap config liquid_glass off    # Disable water ripple FX (Default lightweight baseline)
+drap theme aurora               # Photorealistic chromatic dispersion (Default)
+drap theme liquid               # Crystalline oceanic cyan & fluid wobble
+drap theme plasma               # High-voltage cyberpunk violet & neon lightning
+drap theme solar                # Warm golden hour amber & thermonuclear embers
 ```
 
 ---
