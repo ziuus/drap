@@ -43,6 +43,7 @@ struct OverlayState {
     card_progress: f64,
     card_start_time: Option<Instant>,
     card_edge: String,
+    card_coord: f64,
     // Full-screen surge wave state
     confirm_active: bool,
     confirm_progress: f64,
@@ -56,8 +57,26 @@ struct OverlayState {
 
 impl OverlayState {
     fn new() -> Self {
+        let theme = if let Ok(home) = std::env::var("HOME") {
+            let cfg_path = std::path::PathBuf::from(home).join(".config/drap/config.json");
+            if let Ok(content) = std::fs::read_to_string(cfg_path) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
+                    v.get("theme")
+                        .and_then(|t| t.as_str())
+                        .map(|s| s.to_lowercase())
+                        .unwrap_or_else(|| "aurora".to_string())
+                } else {
+                    "aurora".to_string()
+                }
+            } else {
+                "aurora".to_string()
+            }
+        } else {
+            "aurora".to_string()
+        };
+
         Self {
-            theme: "aurora".to_string(),
+            theme,
             active_edge: "".to_string(),
             active_corner: "".to_string(),
             current_coord: 0.5,
@@ -71,6 +90,7 @@ impl OverlayState {
             card_progress: 0.0,
             card_start_time: None,
             card_edge: "right".to_string(),
+            card_coord: 0.5,
             confirm_active: false,
             confirm_progress: 0.0,
             confirm_start_time: None,
@@ -120,9 +140,22 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let intensity = state.current_intensity;
 
     let elapsed = state.start_time.elapsed().as_secs_f64();
-    let breathe = 1.0 + (elapsed * 3.2).sin() * 0.04;
-    let radius = (880.0 + intensity * 920.0) * breathe;
-    let radius_y = height.max(1000.0) * (1.05 + intensity * 0.45);
+    let breathe = 1.0 + 0.055 * (elapsed * 2.6).sin() + 0.025 * (elapsed * 5.2).sin();
+    let breathe_y = 1.0 + 0.035 * (elapsed * 2.2).cos();
+    let pulse_alpha = 1.0 + 0.060 * (elapsed * 3.2).sin();
+
+    let (radius, radius_y) = if edge.starts_with("corner-") {
+        let r = (950.0 + intensity * 850.0) * breathe;
+        (r, r)
+    } else if edge == "top" || edge == "bottom" {
+        let rx = (750.0 + intensity * 750.0) * breathe;
+        let ry = (width * (0.85 + intensity * 0.45)).max(900.0) * breathe_y;
+        (rx, ry)
+    } else {
+        let rx = (880.0 + intensity * 920.0) * breathe;
+        let ry = (height * (1.05 + intensity * 0.45)).max(1000.0) * breathe_y;
+        (rx, ry)
+    };
 
     cr.save().expect("Cairo save");
 
@@ -166,13 +199,69 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
         }
     }
 
+    // Tier 1: Living Deep Atmospheric Ambient Wash (Sinks deep into wallpaper)
+    cr.save().expect("Cairo save");
+    let wash_rx = radius * 1.30;
+    let wash_ry = radius_y * 1.15;
+    cr.scale(wash_rx, wash_ry);
+    let vol_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
+    match state.theme.as_str() {
+        "plasma" => {
+            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45 * intensity);
+            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.26 * intensity);
+            vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.10 * intensity);
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
+        }
+        "solar" => {
+            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.45 * intensity);
+            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.26 * intensity);
+            vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.10 * intensity);
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
+        }
+        _ => { // aurora / liquid
+            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.48 * intensity);
+            vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.28 * intensity);
+            vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.12 * intensity);
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+    let _ = cr.set_source(&vol_pat);
+    if edge.starts_with("corner-") {
+        cr.arc(0.0, 0.0, 1.0, 0.0, 2.0 * std::f64::consts::PI);
+    } else {
+        cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+    }
+    let _ = cr.fill();
+    let _ = cr.restore();
+
+    // Tier 2: Magnificent Incandescent Chromatic Dispersion Core
+    cr.save().expect("Cairo save");
     cr.scale(radius / lut_w, radius_y / (lut_h / 2.0));
     cr.translate(-lut_w, -lut_h / 2.0);
-
     let pat = SurfacePattern::create(surf);
     pat.set_filter(Filter::Bilinear);
     let _ = cr.set_source(&pat);
-    let _ = cr.paint_with_alpha(intensity * 0.95);
+    let glow_alpha = (intensity.sqrt() * 1.05 * pulse_alpha).min(1.0);
+    let _ = cr.paint_with_alpha(glow_alpha);
+    let _ = cr.restore();
+
+    // Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
+    cr.save().expect("Cairo save");
+    let core_r = (180.0 + intensity * 260.0) * (1.0 + 0.08 * (elapsed * 4.2).sin());
+    cr.scale(core_r * 0.75, core_r * 1.55);
+    let spec_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
+    spec_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.95 * intensity);
+    spec_pat.add_color_stop_rgba(0.25, 1.0, 1.0, 1.0, 0.75 * intensity);
+    spec_pat.add_color_stop_rgba(0.60, 0.95, 0.85, 1.0, 0.35 * intensity);
+    spec_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
+    let _ = cr.set_source(&spec_pat);
+    if edge.starts_with("corner-") {
+        cr.arc(0.0, 0.0, 1.0, 0.0, 2.0 * std::f64::consts::PI);
+    } else {
+        cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+    }
+    let _ = cr.fill();
+    let _ = cr.restore();
 
     let _ = cr.restore();
 }
@@ -260,12 +349,24 @@ fn draw_drop_card(cr: &Context, width: f64, height: f64, state: &OverlayState) {
     let card_w = 280.0;
     let card_h = 74.0;
     let edge = &state.card_edge;
+    let coord = state.card_coord;
+
+    let offset = if state.card_progress < 0.18 {
+        let t = 1.0 - (state.card_progress / 0.18);
+        1.0 - (t * t)
+    } else {
+        1.0
+    };
 
     let (card_x, card_y) = match edge.as_str() {
-        "left" => (50.0, (height - card_h) / 2.0),
-        "top" => ((width - card_w) / 2.0, 50.0),
-        "bottom" => ((width - card_w) / 2.0, height - card_h - 50.0),
-        _ => (width - card_w - 50.0, (height - card_h) / 2.0),
+        "corner-top-right" => (width - (offset * 320.0), offset * 140.0),
+        "corner-bottom-right" => (width - (offset * 320.0), height - (offset * 140.0) - card_h),
+        "corner-top-left" => ((offset * 320.0) - 280.0, offset * 140.0),
+        "corner-bottom-left" => ((offset * 320.0) - 280.0, height - (offset * 140.0) - card_h),
+        "left" => ((offset * 320.0) - 280.0, (coord * height - card_h / 2.0).clamp(50.0, height - card_h - 50.0)),
+        "top" => ((coord * width - card_w / 2.0).clamp(40.0, width - card_w - 40.0), (offset * 120.0) - card_h),
+        "bottom" => ((coord * width - card_w / 2.0).clamp(40.0, width - card_w - 40.0), height - (offset * 120.0)),
+        _ => (width - (offset * 320.0), (coord * height - card_h / 2.0).clamp(50.0, height - card_h - 50.0)),
     };
 
     let alpha = if state.card_progress > 0.78 {
@@ -276,32 +377,62 @@ fn draw_drop_card(cr: &Context, width: f64, height: f64, state: &OverlayState) {
 
     cr.save().expect("Cairo save");
 
-    // Card background (Dark translucent frosted glass)
-    rounded_rect(cr, card_x, card_y, card_w, card_h, 18.0);
-    cr.set_source_rgba(0.08, 0.09, 0.12, 0.88 * alpha);
+    // 1. Soft Ambient Radial Drop Shadow
+    let shadow_cx = card_x + card_w / 2.0;
+    let shadow_cy = card_y + card_h / 2.0 + 8.0;
+    let shadow_pat = cairo::RadialGradient::new(
+        shadow_cx, shadow_cy, 20.0,
+        shadow_cx, shadow_cy, card_w / 1.4,
+    );
+    shadow_pat.add_color_stop_rgba(0.0, 0.0, 0.0, 0.0, 0.40 * alpha);
+    shadow_pat.add_color_stop_rgba(1.0, 0.0, 0.0, 0.0, 0.0);
+    let _ = cr.set_source(&shadow_pat);
+    cr.rectangle(card_x - 30.0, card_y - 20.0, card_w + 60.0, card_h + 60.0);
+    let _ = cr.fill();
+
+    // 2. Frosted Glass Card Body (Deep dark translucent obsidian)
+    rounded_rect(cr, card_x, card_y, card_w, card_h, 16.0);
+    let card_bg = cairo::LinearGradient::new(card_x, card_y, card_x + card_w, card_y + card_h);
+    card_bg.add_color_stop_rgba(0.0, 0.08, 0.12, 0.18, 0.92 * alpha);
+    card_bg.add_color_stop_rgba(1.0, 0.04, 0.07, 0.12, 0.96 * alpha);
+    let _ = cr.set_source(&card_bg);
     let _ = cr.fill_preserve();
 
-    // Specular border
-    cr.set_source_rgba(1.0, 1.0, 1.0, 0.22 * alpha);
-    cr.set_line_width(1.4);
+    // 3. Subtle Chromatic Prismatic Edge Border
+    let border_pat = cairo::LinearGradient::new(card_x, card_y, card_x + card_w, card_y + card_h);
+    border_pat.add_color_stop_rgba(0.0, 0.35, 0.85, 1.0, 0.80 * alpha);
+    border_pat.add_color_stop_rgba(0.5, 0.75, 0.45, 0.95, 0.60 * alpha);
+    border_pat.add_color_stop_rgba(1.0, 0.95, 0.80, 0.40, 0.70 * alpha);
+    let _ = cr.set_source(&border_pat);
+    cr.set_line_width(1.5);
     let _ = cr.stroke();
 
-    // Accent icon bead
-    let icon_cx = card_x + 36.0;
-    let icon_cy = card_y + 37.0;
-    cr.arc(icon_cx, icon_cy, 18.0, 0.0, 2.0 * std::f64::consts::PI);
-    cr.set_source_rgba(0.22, 0.74, 0.98, 0.35 * alpha);
+    // 4. Emerald/Cyan Success Icon Circle
+    let icon_cx = card_x + 30.0;
+    let icon_cy = card_y + card_h / 2.0;
+    let icon_r = 18.0;
+    cr.arc(icon_cx, icon_cy, icon_r, 0.0, 2.0 * std::f64::consts::PI);
+    let icon_bg = cairo::LinearGradient::new(icon_cx - icon_r, icon_cy - icon_r, icon_cx + icon_r, icon_cy + icon_r);
+    icon_bg.add_color_stop_rgba(0.0, 0.0, 0.85, 0.60, 0.90 * alpha);
+    icon_bg.add_color_stop_rgba(1.0, 0.0, 0.55, 0.95, 0.90 * alpha);
+    let _ = cr.set_source(&icon_bg);
     let _ = cr.fill();
 
-    cr.arc(icon_cx, icon_cy, 8.0, 0.0, 2.0 * std::f64::consts::PI);
+    // 5. Crisp Rounded Vector Checkmark
     cr.set_source_rgba(1.0, 1.0, 1.0, 0.95 * alpha);
-    let _ = cr.fill();
+    cr.set_line_width(2.4);
+    cr.set_line_cap(cairo::LineCap::Round);
+    cr.set_line_join(cairo::LineJoin::Round);
+    cr.move_to(icon_cx - 6.0, icon_cy);
+    cr.line_to(icon_cx - 2.0, icon_cy + 5.0);
+    cr.line_to(icon_cx + 7.0, icon_cy - 5.0);
+    let _ = cr.stroke();
 
-    // Typography
-    cr.set_source_rgba(1.0, 1.0, 1.0, 0.96 * alpha);
+    // 6. Typography: Filename (Bold)
+    cr.set_source_rgba(0.95, 0.97, 1.0, 0.98 * alpha);
     cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
-    cr.set_font_size(15.0);
-    cr.move_to(card_x + 66.0, card_y + 33.0);
+    cr.set_font_size(14.0);
+    cr.move_to(card_x + 60.0, card_y + 32.0);
     let display_title = if state.card_filename.len() > 22 {
         format!("{}...", &state.card_filename[..19])
     } else {
@@ -309,10 +440,12 @@ fn draw_drop_card(cr: &Context, width: f64, height: f64, state: &OverlayState) {
     };
     let _ = cr.show_text(&display_title);
 
-    cr.set_source_rgba(0.70, 0.75, 0.85, 0.80 * alpha);
-    cr.set_font_size(12.0);
-    cr.move_to(card_x + 66.0, card_y + 53.0);
-    let _ = cr.show_text(&format!("Received • {}", state.card_size_str));
+    // 7. Typography: Subtitle
+    cr.set_source_rgba(0.60, 0.70, 0.85, 0.85 * alpha);
+    cr.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Normal);
+    cr.set_font_size(11.0);
+    cr.move_to(card_x + 60.0, card_y + 52.0);
+    let _ = cr.show_text(&format!("Saved to ~/Downloads • {}", state.card_size_str));
 
     let _ = cr.restore();
 }
@@ -480,9 +613,10 @@ fn main() {
                                     s.card_filename = filename;
                                     s.card_size_str = format_bytes(size_bytes);
                                     s.card_edge = edge;
+                                    s.card_coord = coord;
                                     s.target_intensity = 0.0;
                                 }
-                                "set_effect" => {
+                                "set_effect" | "set_config" => {
                                     if let Some(t) = msg.theme {
                                         s.theme = t.to_lowercase();
                                     }
