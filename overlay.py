@@ -456,23 +456,23 @@ class DrapOverlay:
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
 
-        # Silky spring tracking & velocity damping (Instantaneous responsiveness)
+        # Silky smooth spring tracking & organic liquid damping (>= 60 FPS minimum)
         prev_coord = self.current_coord
-        self.current_coord += (self.target_coord - self.current_coord) * 0.65
+        self.current_coord += (self.target_coord - self.current_coord) * 0.38
         self.current_y = self.current_coord
         self.current_x = self.current_coord
         calculated_vy = (self.current_coord - prev_coord) / dt
-        self.current_vy += ((self.target_vy * 3.5 + calculated_vy * 0.15) - self.current_vy) * 0.45
+        self.current_vy += ((self.target_vy * 2.0 + calculated_vy * 0.15) - self.current_vy) * 0.35
         self.target_vy *= 0.85
 
         if self.target_intensity <= 0.001:
-            self.current_intensity *= 0.70
+            self.current_intensity *= 0.82
             if self.current_intensity < 0.004:
                 self.current_intensity = 0.0
         else:
-            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.55
+            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.35
 
-        self.current_pressure += (self.target_pressure - self.current_pressure) * 0.45
+        self.current_pressure += (self.target_pressure - self.current_pressure) * 0.35
 
         needs_draw = False
 
@@ -486,15 +486,15 @@ class DrapOverlay:
         # Full-Screen Confirmation Radiance Wave Progress
         if self.confirm_active:
             needs_draw = True
-            self.confirm_progress += dt * 1.3
+            self.confirm_progress += dt * 0.95
             if self.confirm_progress >= 1.0:
                 self.confirm_active = False
                 self.confirm_progress = 0.0
 
-        # Video continuity shockwave
+        # Video / Drag start ripple progress (gentle fluid expansion, reduced speed)
         if self.ripple_active:
             needs_draw = True
-            self.ripple_progress += dt * 1.5
+            self.ripple_progress += dt * 0.85
             if self.ripple_progress >= 1.0:
                 self.ripple_active = False
                 self.ripple_progress = 0.0
@@ -898,8 +898,9 @@ class DrapOverlay:
         lut_h = 1024
 
         max_r = 950
-        radius = progress * max_r
-        damping = math.pow(max(0.0, 1.0 - progress), 1.15)
+        ease = 1.0 - math.pow(max(0.0, 1.0 - progress), 2.2)
+        radius = ease * max_r
+        damping = math.pow(max(0.0, 1.0 - progress), 1.25)
 
         if radius <= 10 or damping <= 0.005:
             return

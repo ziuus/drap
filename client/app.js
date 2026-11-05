@@ -275,7 +275,7 @@
       document.body.appendChild(ripple);
       setTimeout(() => {
         if (ripple && ripple.parentNode) ripple.parentNode.removeChild(ripple);
-      }, 550);
+      }, 900);
     }
 
     function startActiveDrag(x, y) {
