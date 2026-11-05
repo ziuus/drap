@@ -197,7 +197,7 @@
     <div class="ghost-thumb" id="ghostThumb"></div>
     <div class="ghost-info">
       <span class="ghost-title" id="ghostTitle">File</span>
-      <span class="ghost-sub">Flick towards screen edge</span>
+      <span class="ghost-sub" id="ghostSub">Flick towards screen edge</span>
     </div>
   </div>
 
@@ -268,6 +268,21 @@
           <option value="bottom">👆 Force Bottom Bezel (Phone below/in front of laptop)</option>
           <option value="top">👇 Force Top Bezel (Phone above laptop screen)</option>
         </select>
+      </div>
+
+      <!-- Multi-Side Spatial Send Toggle -->
+      <div class="settings-section">
+        <label class="settings-label">Directional Gestures</label>
+        <div class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-title">Multi-Side Send</span>
+            <span class="toggle-subtitle" id="multiSideSubtitle">Flick towards any bezel (Left, Right, Up, Down)</span>
+          </div>
+          <label class="switch-toggle">
+            <input type="checkbox" id="toggleMultiSide" checked>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- Spatial Lighting Effect -->

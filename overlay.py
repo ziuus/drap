@@ -566,15 +566,21 @@ class DrapOverlay:
         lut_w = 512
         lut_h = 1024
 
-        pressure_scale = 0.85 + self.current_pressure * 0.45
-        # Expansive desktop reach matching Tornike Drooop photo
-        radius_x = (360 + active_intensity * 400) * pressure_scale
-        v_stretch = 1.0 + min(0.35, abs(self.current_vy) * 0.30)
-        radius_y = radius_x * 1.52 * v_stretch
-
-        cr.save()
+        pressure_scale = 0.90 + self.current_pressure * 0.45
         edge = getattr(self, "active_edge", "right")
         coord = getattr(self, "current_coord", 0.5)
+
+        # Massive volumetric ambience matching Drooop (spans across 60%+ of the display)
+        if edge in ("top", "bottom"):
+            radius_x = (440 + active_intensity * 520) * pressure_scale
+            v_stretch = 1.0 + min(0.30, abs(self.current_vy) * 0.25)
+            radius_y = radius_x * 1.85 * v_stretch
+        else: # "left", "right"
+            radius_x = (580 + active_intensity * 680) * pressure_scale
+            v_stretch = 1.0 + min(0.30, abs(self.current_vy) * 0.25)
+            radius_y = radius_x * 1.62 * v_stretch
+
+        cr.save()
 
         if edge == "left":
             y_pos = coord * height
@@ -604,7 +610,9 @@ class DrapOverlay:
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.Filter.BILINEAR)
         cr.set_source(pat)
-        cr.paint_with_alpha(active_intensity * 0.98)
+        # Smooth perceptual gamma curve for incandescent radiance matching Drooop
+        glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.02)
+        cr.paint_with_alpha(glow_alpha)
         cr.restore()
 
     def _draw_ambient_sink(self, cr, width, height, y_pos, active_intensity, t_sec):

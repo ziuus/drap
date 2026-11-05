@@ -85,6 +85,7 @@
   const dragGhost = document.getElementById("dragGhost");
   const ghostThumb = document.getElementById("ghostThumb");
   const ghostTitle = document.getElementById("ghostTitle");
+  const ghostSub = document.getElementById("ghostSub");
   const toast = document.getElementById("toast");
   const fileCountBadge = document.getElementById("fileCountBadge");
 
@@ -173,6 +174,7 @@
   const statusPill = document.getElementById("statusPill");
   let targetHost = localStorage.getItem("drap_target_host") || window.location.host;
   let targetEdgePref = localStorage.getItem("drap_target_edge") || "auto";
+  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false";
 
   function connectWS() {
     if (ws) {
@@ -290,6 +292,14 @@
         } else {
           dragGhost.classList.remove("is-photo-ghost");
           ghostTitle.textContent = title;
+          if (ghostSub) {
+            if (isMultiSideSend) {
+              ghostSub.textContent = "Flick towards any screen edge";
+            } else {
+              const edgeName = targetEdgePref === 'auto' ? 'left' : (targetEdgePref === 'left' ? 'right' : (targetEdgePref === 'bottom' ? 'top' : (targetEdgePref === 'top' ? 'bottom' : 'left')));
+              ghostSub.textContent = `Flick towards ${edgeName} bezel`;
+            }
+          }
           if (thumbUrl) {
             ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
             ghostThumb.style.display = "block";
@@ -424,46 +434,80 @@
     lastClientY = clientY;
     lastTouchTime = now;
 
-    // Distances in physical pixels to the 4 phone screen borders
-    const distLeft = clientX;
-    const distRight = screenW - clientX;
-    const distTop = clientY;
-    const distBottom = screenH - clientY;
-
-    // Find the closest border physically
-    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
     let phoneEdge = "left";
     let desktopEdge = "right";
     let normCoord = normY;
     let reach = screenW * 0.65;
+    let proximity = 0.0;
 
-    if (minDist === distLeft) {
-      phoneEdge = "left";
-      desktopEdge = "right";
-      normCoord = normY;
-      reach = screenW * 0.65;
-    } else if (minDist === distRight) {
-      phoneEdge = "right";
-      desktopEdge = "left";
-      normCoord = normY;
-      reach = screenW * 0.65;
-    } else if (minDist === distTop) {
-      phoneEdge = "top";
-      desktopEdge = "bottom";
-      normCoord = normX;
-      reach = screenH * 0.38;
+    if (isMultiSideSend) {
+      // Find the closest border physically among all 4 edges
+      const distLeft = clientX;
+      const distRight = screenW - clientX;
+      const distTop = clientY;
+      const distBottom = screenH - clientY;
+      const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+      if (minDist === distLeft) {
+        phoneEdge = "left";
+        desktopEdge = "right";
+        normCoord = normY;
+        reach = screenW * 0.65;
+      } else if (minDist === distRight) {
+        phoneEdge = "right";
+        desktopEdge = "left";
+        normCoord = normY;
+        reach = screenW * 0.65;
+      } else if (minDist === distTop) {
+        phoneEdge = "top";
+        desktopEdge = "bottom";
+        normCoord = normX;
+        reach = screenH * 0.38;
+      } else {
+        phoneEdge = "bottom";
+        desktopEdge = "top";
+        normCoord = normX;
+        reach = screenH * 0.38;
+      }
+
+      if (targetEdgePref && targetEdgePref !== "auto") {
+        desktopEdge = targetEdgePref;
+      }
+
+      proximity = Math.max(0.0, Math.min(1.0, (reach - minDist) / (reach * 0.80)));
     } else {
-      phoneEdge = "bottom";
-      desktopEdge = "top";
-      normCoord = normX;
-      reach = screenH * 0.38;
+      // Locked to Single Edge Mode: only primary edge activates
+      if (targetEdgePref === "left") {
+        phoneEdge = "right";
+        desktopEdge = "left";
+        normCoord = normY;
+        reach = screenW * 0.65;
+        const dist = screenW - clientX;
+        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+      } else if (targetEdgePref === "bottom") {
+        phoneEdge = "top";
+        desktopEdge = "bottom";
+        normCoord = normX;
+        reach = screenH * 0.38;
+        const dist = clientY;
+        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+      } else if (targetEdgePref === "top") {
+        phoneEdge = "bottom";
+        desktopEdge = "top";
+        normCoord = normX;
+        reach = screenH * 0.38;
+        const dist = screenH - clientY;
+        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+      } else {
+        // Default single edge: Phone Left Bezel -> Desktop Right Bezel
+        phoneEdge = "left";
+        desktopEdge = "right";
+        normCoord = normY;
+        reach = screenW * 0.65;
+        const dist = clientX;
+        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+      }
     }
-
-    if (targetEdgePref && targetEdgePref !== "auto") {
-      desktopEdge = targetEdgePref;
-    }
-
-    const proximity = Math.max(0.0, Math.min(1.0, (reach - minDist) / (reach * 0.80)));
     const pressure = 0.5 + (proximity * 0.5);
 
     // Haptic detent feedback every 80px of travel
@@ -633,42 +677,77 @@
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
     const edgeThreshold = 55;
-    const crossedLeft = clientX <= edgeThreshold;
-    const crossedRight = clientX >= screenW - edgeThreshold;
-    const crossedTop = clientY <= edgeThreshold;
-    const crossedBottom = clientY >= screenH - edgeThreshold;
-    const crossedThreshold = crossedLeft || crossedRight || crossedTop || crossedBottom;
-
+    let crossedThreshold = false;
     let dropPhoneEdge = drag.phoneEdge || "left";
     let dropDesktopEdge = drag.desktopEdge || "right";
     let dropCoord = drag.normCoord || 0.5;
     let waveX = 0;
     let waveY = clientY;
 
-    if (crossedLeft) {
-      dropPhoneEdge = "left";
-      dropDesktopEdge = "right";
-      dropCoord = clientY / screenH;
-      waveX = 0;
-      waveY = clientY;
-    } else if (crossedRight) {
-      dropPhoneEdge = "right";
-      dropDesktopEdge = "left";
-      dropCoord = clientY / screenH;
-      waveX = screenW;
-      waveY = clientY;
-    } else if (crossedTop) {
-      dropPhoneEdge = "top";
-      dropDesktopEdge = "bottom";
-      dropCoord = clientX / screenW;
-      waveX = clientX;
-      waveY = 0;
-    } else if (crossedBottom) {
-      dropPhoneEdge = "bottom";
-      dropDesktopEdge = "top";
-      dropCoord = clientX / screenW;
-      waveX = clientX;
-      waveY = screenH;
+    if (isMultiSideSend) {
+      const crossedLeft = clientX <= edgeThreshold;
+      const crossedRight = clientX >= screenW - edgeThreshold;
+      const crossedTop = clientY <= edgeThreshold;
+      const crossedBottom = clientY >= screenH - edgeThreshold;
+      crossedThreshold = crossedLeft || crossedRight || crossedTop || crossedBottom;
+
+      if (crossedLeft) {
+        dropPhoneEdge = "left";
+        dropDesktopEdge = "right";
+        dropCoord = clientY / screenH;
+        waveX = 0;
+        waveY = clientY;
+      } else if (crossedRight) {
+        dropPhoneEdge = "right";
+        dropDesktopEdge = "left";
+        dropCoord = clientY / screenH;
+        waveX = screenW;
+        waveY = clientY;
+      } else if (crossedTop) {
+        dropPhoneEdge = "top";
+        dropDesktopEdge = "bottom";
+        dropCoord = clientX / screenW;
+        waveX = clientX;
+        waveY = 0;
+      } else if (crossedBottom) {
+        dropPhoneEdge = "bottom";
+        dropDesktopEdge = "top";
+        dropCoord = clientX / screenW;
+        waveX = clientX;
+        waveY = screenH;
+      }
+    } else {
+      // Single-edge locked: verify only the configured primary border was crossed
+      if (drag.phoneEdge === "right") {
+        crossedThreshold = clientX >= screenW - edgeThreshold;
+        dropPhoneEdge = "right";
+        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "left";
+        dropCoord = clientY / screenH;
+        waveX = screenW;
+        waveY = clientY;
+      } else if (drag.phoneEdge === "top") {
+        crossedThreshold = clientY <= edgeThreshold;
+        dropPhoneEdge = "top";
+        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "bottom";
+        dropCoord = clientX / screenW;
+        waveX = clientX;
+        waveY = 0;
+      } else if (drag.phoneEdge === "bottom") {
+        crossedThreshold = clientY >= screenH - edgeThreshold;
+        dropPhoneEdge = "bottom";
+        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "top";
+        dropCoord = clientX / screenW;
+        waveX = clientX;
+        waveY = screenH;
+      } else {
+        // Default: Phone left edge
+        crossedThreshold = clientX <= edgeThreshold;
+        dropPhoneEdge = "left";
+        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "right";
+        dropCoord = clientY / screenH;
+        waveX = 0;
+        waveY = clientY;
+      }
     }
 
     if (targetEdgePref && targetEdgePref !== "auto") {
@@ -991,12 +1070,40 @@
   const inputCustomTarget = document.getElementById("inputCustomTarget");
   const btnApplyTarget = document.getElementById("btnApplyTarget");
   const selectTargetEdge = document.getElementById("selectTargetEdge");
+  const toggleMultiSide = document.getElementById("toggleMultiSide");
+  const multiSideSubtitle = document.getElementById("multiSideSubtitle");
+
+  function updateMultiSideUI() {
+    if (toggleMultiSide) {
+      toggleMultiSide.checked = isMultiSideSend;
+    }
+    if (multiSideSubtitle) {
+      if (isMultiSideSend) {
+        multiSideSubtitle.textContent = "Flick towards any bezel (Left, Right, Up, Down)";
+      } else {
+        const primary = targetEdgePref === 'auto' ? 'Left' : (targetEdgePref === 'left' ? 'Right' : (targetEdgePref === 'bottom' ? 'Top' : (targetEdgePref === 'top' ? 'Bottom' : 'Left')));
+        multiSideSubtitle.textContent = `Single Edge Only: Flick towards ${primary} bezel`;
+      }
+    }
+  }
+
+  updateMultiSideUI();
+
+  if (toggleMultiSide) {
+    toggleMultiSide.addEventListener("change", (e) => {
+      isMultiSideSend = e.target.checked;
+      localStorage.setItem("drap_multi_side_send", isMultiSideSend);
+      updateMultiSideUI();
+      showToast(isMultiSideSend ? "Multi-Side Send: Enabled (All Edges)" : "Multi-Side Send: Disabled (Single Edge)");
+    });
+  }
 
   if (selectTargetEdge) {
     selectTargetEdge.value = targetEdgePref;
     selectTargetEdge.addEventListener("change", (e) => {
       targetEdgePref = e.target.value;
       localStorage.setItem("drap_target_edge", targetEdgePref);
+      updateMultiSideUI();
       showToast(`Desktop alignment: ${targetEdgePref.toUpperCase()}`);
     });
   }
