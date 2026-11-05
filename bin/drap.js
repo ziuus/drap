@@ -135,6 +135,16 @@ switch (command) {
     console.log(`  State:        ${active ? "🟢 ON (Running)" : "🔴 OFF (Stopped)"}`);
     console.log(`  Autostart:    ${autostart ? "✅ Enabled on login" : "⚪ Disabled"}`);
 
+    const configPath = path.join(process.env.HOME, ".config/drap/config.json");
+    let isLiquidGlass = false;
+    try {
+      if (fs.existsSync(configPath)) {
+        const cfg = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        isLiquidGlass = Boolean(cfg.liquid_glass);
+      }
+    } catch (e) {}
+    console.log(`  Liquid Glass: ${isLiquidGlass ? "🌊 ENABLED (Real water optical caustics)" : "⚪ DISABLED (Default lightweight)"}`);
+
     if (active) {
       try {
         const raw = execSync("curl -s --max-time 1.5 http://127.0.0.1:8080/api/status").toString();
@@ -329,6 +339,56 @@ switch (command) {
     }
     break;
 
+  case "config":
+    const key = (args[1] || "").toLowerCase();
+    const val = (args[2] || "").toLowerCase();
+    const configDir = path.join(process.env.HOME, ".config/drap");
+    const cfgFile = path.join(configDir, "config.json");
+    if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+    let currentConfig = { liquid_glass: false };
+    try {
+      if (fs.existsSync(cfgFile)) {
+        currentConfig = JSON.parse(fs.readFileSync(cfgFile, "utf-8"));
+      }
+    } catch (e) {}
+
+    if (key === "liquid_glass" || key === "liquidglass" || key === "water") {
+      if (val === "on" || val === "true" || val === "enable" || val === "1") {
+        currentConfig.liquid_glass = true;
+        fs.writeFileSync(cfgFile, JSON.stringify(currentConfig, null, 2));
+        try {
+          execSync("curl -s -X POST http://127.0.0.1:8080/api/config -H 'Content-Type: application/json' -d '{\"liquid_glass\":true}' 2>/dev/null");
+        } catch (e) {}
+        try {
+          execSync("pkill -SIGUSR1 -f 'python3.*overlay.py' 2>/dev/null");
+        } catch (e) {}
+        console.log("💧 Liquid Glass Water FX: ENABLED (Ultra-realistic optical water caustics)");
+      } else if (val === "off" || val === "false" || val === "disable" || val === "0") {
+        currentConfig.liquid_glass = false;
+        fs.writeFileSync(cfgFile, JSON.stringify(currentConfig, null, 2));
+        try {
+          execSync("curl -s -X POST http://127.0.0.1:8080/api/config -H 'Content-Type: application/json' -d '{\"liquid_glass\":false}' 2>/dev/null");
+        } catch (e) {}
+        try {
+          execSync("pkill -SIGUSR1 -f 'python3.*overlay.py' 2>/dev/null");
+        } catch (e) {}
+        console.log("💧 Liquid Glass Water FX: DISABLED (Clean lightweight baseline)");
+      } else {
+        console.log(`Liquid Glass Water FX is currently: ${currentConfig.liquid_glass ? "ENABLED" : "DISABLED"}`);
+        console.log("Usage: drap config liquid_glass on | off");
+      }
+    } else {
+      console.log("\n==================================================");
+      console.log("  💧 DRAP CONFIGURATION");
+      console.log("==================================================");
+      console.log(`  Liquid Glass Water FX: ${currentConfig.liquid_glass ? "ENABLED" : "DISABLED"}`);
+      console.log("\nUsage:");
+      console.log("  drap config liquid_glass on     # Enable ultra-realistic water ripples");
+      console.log("  drap config liquid_glass off    # Disable (Default lightweight)");
+      console.log("==================================================\n");
+    }
+    break;
+
   case "hub":
   case "gui":
     console.log("🚀 Launching Drap Desktop Hub...");
@@ -375,7 +435,8 @@ Security & Access Control:
   drap security <mode>    Set policy: open | prompt (default) | strict
 
 Visuals & Themes:
-  drap theme <name>       Switch active shader palette (aurora, plasma, solar, liquid)
+  drap config liquid_glass on|off   Enable or disable ultra-realistic water ripple FX (default: off)
+  drap theme <name>                 Switch active shader palette (aurora, plasma, solar, liquid)
 `);
     break;
 }

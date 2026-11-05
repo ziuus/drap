@@ -17,6 +17,7 @@ import json
 import time
 import math
 import threading
+import signal
 from pathlib import Path
 
 # Ensure GTK4 Layer Shell preload is active
@@ -99,10 +100,32 @@ class DrapOverlay:
         # Dynamic Tick Callback & Bounding Box Optimization
         self.tick_id = None
         self.dirty_rect = None  # (x, y, w, h) to clear
+        self._load_config()
+        try:
+            GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self._on_sigusr1)
+        except Exception:
+            pass
+
         self._build_luts()
 
         self._setup_window()
         self._start_ws_client()
+
+    def _load_config(self):
+        config_path = Path.home() / ".config" / "drap" / "config.json"
+        self.liquid_glass_enabled = False
+        if config_path.exists():
+            try:
+                data = json.loads(config_path.read_text())
+                self.liquid_glass_enabled = bool(data.get("liquid_glass", False))
+                if "theme" in data:
+                    self.effect_theme = data["theme"]
+            except Exception:
+                pass
+
+    def _on_sigusr1(self):
+        self._load_config()
+        return True
 
     def _build_luts(self):
         """Pre-compute high-resolution 512x1024 volumetric lighting textures (sub-millisecond blitting, zero clipping)."""
@@ -400,6 +423,15 @@ class DrapOverlay:
                 self.current_intensity = 0.85
                 self.last_interaction_time = time.time()
                 self.drawing_area.queue_draw()
+
+        elif msg_type == "set_config":
+            if "liquid_glass" in data:
+                self.liquid_glass_enabled = bool(data["liquid_glass"])
+            if "theme" in data:
+                theme = data["theme"].lower()
+                if theme in ("aurora", "plasma", "solar", "liquid"):
+                    self.effect_theme = theme
+            self.drawing_area.queue_draw()
 
         elif msg_type == "drag_drop" or msg_type == "file_uploaded":
             if "corner" in data and data["corner"]:

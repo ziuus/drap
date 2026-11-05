@@ -674,8 +674,46 @@ async def set_security_mode(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Invalid mode. Choose open, prompt, or strict.")
     return {"status": "success", "mode": device_sec.mode}
 
+@app.get("/api/config")
+async def get_config():
+    cfg_file = Path.home() / ".config" / "drap" / "config.json"
+    if cfg_file.exists():
+        try:
+            return json.loads(cfg_file.read_text())
+        except Exception:
+            pass
+    return {"liquid_glass": False, "theme": "aurora"}
+
+@app.post("/api/config")
+async def update_config(payload: Dict[str, Any]):
+    cfg_dir = Path.home() / ".config" / "drap"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    cfg_file = cfg_dir / "config.json"
+    cur = {"liquid_glass": False, "theme": "aurora"}
+    if cfg_file.exists():
+        try:
+            cur.update(json.loads(cfg_file.read_text()))
+        except Exception:
+            pass
+    cur.update(payload)
+    cfg_file.write_text(json.dumps(cur, indent=2))
+    # Broadcast to all connected WebSockets (including overlay.py)
+    await manager.broadcast({
+        "type": "set_config",
+        **cur
+    })
+    return {"status": "success", "config": cur}
+
 @app.get("/api/status")
 async def get_status():
+    cfg_file = Path.home() / ".config" / "drap" / "config.json"
+    liquid_glass_active = False
+    if cfg_file.exists():
+        try:
+            liquid_glass_active = bool(json.loads(cfg_file.read_text()).get("liquid_glass", False))
+        except Exception:
+            pass
+
     return {
         "status": "running",
         "security_mode": device_sec.mode,
@@ -683,7 +721,8 @@ async def get_status():
         "active_ws_connections": len(manager.active_connections),
         "downloads_dir": str(DOWNLOADS_DIR),
         "host_ip": get_local_ip(),
-        "port": 8080
+        "port": 8080,
+        "liquid_glass": liquid_glass_active
     }
 
 @app.post("/api/share_to_phone")
