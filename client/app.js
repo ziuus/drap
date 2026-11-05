@@ -224,6 +224,25 @@
     }
   }
 
+  // 120Hz/60Hz Hardware V-Sync Dispatcher (Zero Network Congestion & 0ms Frame Jitter)
+  let pendingSpatialPacket = null;
+  let rafSpatialId = null;
+
+  function dispatchSpatialPacket() {
+    if (pendingSpatialPacket) {
+      sendWS(pendingSpatialPacket);
+      pendingSpatialPacket = null;
+    }
+    rafSpatialId = null;
+  }
+
+  function queueSpatialPacket(packet) {
+    pendingSpatialPacket = packet;
+    if (!rafSpatialId) {
+      rafSpatialId = requestAnimationFrame(dispatchSpatialPacket);
+    }
+  }
+
   function haptic(pattern) {
     if ("vibrate" in navigator) {
       try { navigator.vibrate(pattern); } catch (e) {}
@@ -603,16 +622,16 @@
     }
 
     if (dragAura) {
-      const auraScale = 0.85 + proximity * 0.45;
-      const auraOpacity = Math.min(1.0, 0.75 + proximity * 0.25);
+      const auraScale = 0.82 + proximity * 0.28;
+      const auraOpacity = Math.min(1.0, 0.72 + proximity * 0.28);
       dragAura.style.left = `${clientX}px`;
       dragAura.style.top = `${clientY}px`;
-      dragAura.style.transform = `translate(-50%, -50%) scale(${auraScale.toFixed(2)})`;
+      dragAura.style.transform = `translate3d(-50%, -50%, 0) scale(${auraScale.toFixed(2)})`;
       dragAura.style.opacity = auraOpacity.toFixed(2);
     }
 
-    // Send spatial coordinate packet to desktop
-    sendWS({
+    // Send spatial coordinate packet to desktop synced to hardware refresh
+    queueSpatialPacket({
       type: "drag_move",
       edge: desktopEdge,
       phone_edge: phoneEdge,
@@ -643,6 +662,11 @@
   }
 
   async function finishDrag(clientX, clientY) {
+    if (rafSpatialId) {
+      cancelAnimationFrame(rafSpatialId);
+      rafSpatialId = null;
+      pendingSpatialPacket = null;
+    }
     document.body.classList.remove("is-dragging-active");
     if (leftBezelHalo) leftBezelHalo.style.opacity = "0";
     if (leftBezelRim) leftBezelRim.style.opacity = "0";

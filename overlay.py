@@ -301,7 +301,8 @@ class DrapOverlay:
 
     def _handle_ws_message(self, data: dict):
         msg_type = data.get("type", "")
-        self._ensure_ticking()
+        if msg_type in ("drag_move", "drag_start", "drag_edge_enter", "file_dropped", "video_resume", "set_effect", "drag_edge_leave"):
+            self._ensure_ticking()
 
         if msg_type == "drag_move":
             self.last_interaction_time = time.time()
@@ -435,23 +436,23 @@ class DrapOverlay:
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
 
-        # Silky spring tracking & velocity damping
+        # Silky spring tracking & velocity damping (Instantaneous responsiveness)
         prev_coord = self.current_coord
-        self.current_coord += (self.target_coord - self.current_coord) * 0.45
+        self.current_coord += (self.target_coord - self.current_coord) * 0.65
         self.current_y = self.current_coord
         self.current_x = self.current_coord
         calculated_vy = (self.current_coord - prev_coord) / dt
-        self.current_vy += ((self.target_vy * 3.5 + calculated_vy * 0.15) - self.current_vy) * 0.35
+        self.current_vy += ((self.target_vy * 3.5 + calculated_vy * 0.15) - self.current_vy) * 0.45
         self.target_vy *= 0.85
 
         if self.target_intensity <= 0.001:
-            self.current_intensity *= 0.65
+            self.current_intensity *= 0.70
             if self.current_intensity < 0.004:
                 self.current_intensity = 0.0
         else:
-            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.35
+            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.55
 
-        self.current_pressure += (self.target_pressure - self.current_pressure) * 0.25
+        self.current_pressure += (self.target_pressure - self.current_pressure) * 0.45
 
         needs_draw = False
 
@@ -523,8 +524,10 @@ class DrapOverlay:
             widget.queue_draw()
             return GLib.SOURCE_CONTINUE
         else:
-            # Drop CPU to literal 0.00% when animation finishes
-            self.tick_id = None
+            # Drop CPU to literal 0.00% when animation finishes (remove GTK tick callback)
+            if self.tick_id is not None:
+                widget.remove_tick_callback(self.tick_id)
+                self.tick_id = None
             widget.queue_draw()
             return GLib.SOURCE_REMOVE
 
