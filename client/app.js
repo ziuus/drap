@@ -799,7 +799,7 @@
     container.appendChild(wave);
     setTimeout(() => {
       if (wave && wave.parentNode) wave.parentNode.removeChild(wave);
-    }, 850);
+    }, 450);
   }
 
   async function finishDrag(clientX, clientY) {

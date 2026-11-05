@@ -81,7 +81,7 @@ class DrapOverlay:
         self.card_filename = ""
         self.card_size_str = ""
         self.card_start_time = 0.0
-        self.card_duration = 2.8
+        self.card_duration = 1.25
 
         # Full-Screen Drop Confirmation Radiance Wave
         self.confirm_active = False
@@ -512,12 +512,12 @@ class DrapOverlay:
         self.target_vy *= 0.85
 
         if self.confirm_active:
-            # Radiant ambient edge bulb stays gloriously lit and fades in harmony with the wave
-            self.current_intensity = max(self.current_intensity * 0.96, math.pow(max(0.0, 1.0 - self.confirm_progress), 1.6))
+            # Radiant ambient edge bulb flares on confirm and decays briskly with the wave
+            self.current_intensity = math.pow(max(0.0, 1.0 - self.confirm_progress), 2.0)
             if self.current_intensity < 0.004:
                 self.current_intensity = 0.0
         elif self.target_intensity <= 0.001:
-            self.current_intensity *= 0.86
+            self.current_intensity *= 0.82
             if self.current_intensity < 0.004:
                 self.current_intensity = 0.0
         else:
@@ -534,25 +534,24 @@ class DrapOverlay:
             self.was_drawing = False
             needs_draw = True
 
-        # Full-Screen Confirmation Radiance Wave Progress (Rich, luxurious expansion)
+        # Full-Screen Confirmation Radiance Wave Progress (Snappy, punchy bloom ~0.45s)
         if self.confirm_active:
             needs_draw = True
-            self.confirm_progress += dt * 0.70
+            self.confirm_progress += dt * 2.20
             if self.confirm_progress >= 1.0:
                 self.confirm_active = False
                 self.confirm_progress = 0.0
-                self.confirm_active = False
-                self.confirm_progress = 0.0
+                self.current_intensity = 0.0
 
-        # Video / Drag start ripple progress (gentle fluid expansion, reduced speed)
+        # Video / Drag start ripple progress (crisp fluid expansion)
         if self.ripple_active:
             needs_draw = True
-            self.ripple_progress += dt * 0.85
+            self.ripple_progress += dt * 1.80
             if self.ripple_progress >= 1.0:
                 self.ripple_active = False
                 self.ripple_progress = 0.0
 
-        # Drop card animation progress
+        # Drop card animation progress (snappy 1.25s duration)
         if self.card_active:
             needs_draw = True
             elapsed = now - self.card_start_time
@@ -567,14 +566,14 @@ class DrapOverlay:
                 c1 = 1.70158
                 c3 = c1 + 1
 
-                if norm < 0.22:
-                    t = norm / 0.22
+                if norm < 0.15:
+                    t = norm / 0.15
                     ease_in = 1 + c3 * math.pow(t - 1, 3) + c1 * math.pow(t - 1, 2)
                     offset = ease_in
-                elif norm < 0.78:
+                elif norm < 0.70:
                     offset = 1.0
                 else:
-                    t = (norm - 0.78) / 0.22
+                    t = (norm - 0.70) / 0.30
                     offset = 1.0 - (t * t)
 
                 edge = getattr(self, "card_edge", "right")
@@ -992,8 +991,8 @@ class DrapOverlay:
         lut_w = 512
         lut_h = 1024
 
-        ease = 1.0 - math.pow(1.0 - progress, 2.5)
-        damping = math.pow(max(0.0, 1.0 - progress), 1.35)
+        ease = 1.0 - math.pow(1.0 - progress, 2.8)
+        damping = math.pow(max(0.0, 1.0 - progress), 1.6)
         if damping <= 0.005:
             return
 
@@ -1074,8 +1073,8 @@ class DrapOverlay:
             card_y = max(50, min(height - card_h - 50, self.card_y - card_h / 2))
 
         alpha = 1.0
-        if self.card_progress > 0.78:
-            alpha = max(0.0, (1.0 - self.card_progress) / 0.22)
+        if self.card_progress > 0.70:
+            alpha = max(0.0, (1.0 - self.card_progress) / 0.30)
 
         cr.save()
 

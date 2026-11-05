@@ -488,11 +488,14 @@ fn draw_drop_card(cr: &Context, width: f64, height: f64, state: &OverlayState) {
     let edge = &state.card_edge;
     let coord = state.card_coord;
 
-    let offset = if state.card_progress < 0.18 {
-        let t = 1.0 - (state.card_progress / 0.18);
+    let offset = if state.card_progress < 0.15 {
+        let t = 1.0 - (state.card_progress / 0.15);
         1.0 - (t * t)
-    } else {
+    } else if state.card_progress < 0.70 {
         1.0
+    } else {
+        let t = (state.card_progress - 0.70) / 0.30;
+        1.0 - (t * t)
     };
 
     let (card_x, card_y) = match edge.as_str() {
@@ -506,8 +509,8 @@ fn draw_drop_card(cr: &Context, width: f64, height: f64, state: &OverlayState) {
         _ => (width - (offset * 320.0), (coord * height - card_h / 2.0).clamp(50.0, height - card_h - 50.0)),
     };
 
-    let alpha = if state.card_progress > 0.78 {
-        ((1.0 - state.card_progress) / 0.22).max(0.0)
+    let alpha = if state.card_progress > 0.70 {
+        ((1.0 - state.card_progress) / 0.30).max(0.0)
     } else {
         1.0
     };
@@ -658,11 +661,6 @@ fn main() {
                 println!("[drap Rust Overlay] DRAW: intensity={:.3} edge={} card={} confirm={} w={} h={}", s.current_intensity, s.active_edge, s.card_active, s.confirm_active, w, h);
             }
 
-            // Test Red Marker
-            cr.set_source_rgba(1.0, 0.0, 0.0, 1.0);
-            cr.rectangle(w - 100.0, 400.0, 100.0, 200.0);
-            let _ = cr.fill();
-
             // Draw full-screen surge wave on drop
             if s.confirm_active {
                 draw_fullscreen_surge(cr, w, h, s.confirm_progress, &s.confirm_edge, s.confirm_coord, &s, &draw_luts);
@@ -720,15 +718,16 @@ fn main() {
                         }
                     }
 
-                    // Progress confirm wave
+                    // Progress confirm wave (crisp ~0.45s bloom)
                     if s.confirm_active {
                         if let Some(start) = s.confirm_start_time {
                             let elapsed = start.elapsed().as_secs_f64();
-                            s.confirm_progress = (elapsed / 1.45).min(1.0);
-                            s.current_intensity = (1.0 - s.confirm_progress).max(0.0).powf(1.6);
+                            s.confirm_progress = (elapsed / 0.45).min(1.0);
+                            s.current_intensity = (1.0 - s.confirm_progress).max(0.0).powf(2.0);
                             if s.confirm_progress >= 1.0 {
                                 s.confirm_active = false;
                                 s.confirm_progress = 0.0;
+                                s.current_intensity = 0.0;
                             }
                         }
                     } else {
@@ -736,11 +735,11 @@ fn main() {
                         s.current_intensity += (s.target_intensity - s.current_intensity) * 0.28;
                     }
 
-                    // Progress drop card
+                    // Progress drop card (snappy 1.25s duration)
                     if s.card_active {
                         if let Some(start) = s.card_start_time {
                             let elapsed = start.elapsed().as_secs_f64();
-                            s.card_progress = (elapsed / 2.8).min(1.0);
+                            s.card_progress = (elapsed / 1.25).min(1.0);
                             if s.card_progress >= 1.0 {
                                 s.card_active = false;
                                 s.card_progress = 0.0;
