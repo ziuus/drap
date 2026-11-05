@@ -77,7 +77,7 @@ impl OverlayState {
 
         Self {
             theme,
-            active_edge: "".to_string(),
+            active_edge: "right".to_string(),
             active_corner: "".to_string(),
             current_coord: 0.5,
             target_coord: 0.5,
@@ -103,7 +103,7 @@ impl OverlayState {
 }
 
 fn process_message(s: &mut OverlayState, msg: WsMessage) {
-    println!("[drap Rust Overlay] Event: type={} edge={:?} coord={:?} prox={:?}", msg.msg_type, msg.edge, msg.coord, msg.proximity);
+    println!("[drap Rust Overlay] Event: type={} edge={:?} corner={:?} coord={:?} prox={:?}", msg.msg_type, msg.edge, msg.corner, msg.coord, msg.proximity);
     match msg.msg_type.as_str() {
         "drag_start" | "drag_move" => {
             if let Some(corner) = msg.corner {
@@ -114,6 +114,8 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
             } else if let Some(edge) = msg.edge {
                 s.active_corner.clear();
                 s.active_edge = edge.to_lowercase();
+            } else if s.active_edge.is_empty() {
+                s.active_edge = "right".to_string();
             }
             if let Some(coord) = msg.coord {
                 s.target_coord = coord;
@@ -125,7 +127,7 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
                 s.current_vy = vy;
             }
             if let Some(prox) = msg.proximity {
-                s.target_intensity = if prox > 0.02 { prox.min(1.0) } else { 0.0 };
+                s.target_intensity = if prox > 0.01 { prox.min(1.0) } else { 0.0 };
             } else {
                 s.target_intensity = 0.85;
             }
@@ -134,26 +136,56 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
             }
         }
         "drag_edge_enter" => {
-            if let Some(edge) = msg.edge {
+            if let Some(corner) = msg.corner {
+                if !corner.is_empty() {
+                    s.active_corner = corner.to_lowercase();
+                    s.active_edge = format!("corner-{}", s.active_corner);
+                }
+            } else if let Some(edge) = msg.edge {
                 s.active_corner.clear();
                 s.active_edge = edge.to_lowercase();
+            } else if s.active_edge.is_empty() {
+                s.active_edge = "right".to_string();
             }
             if let Some(coord) = msg.coord {
                 s.target_coord = coord;
                 s.current_coord = coord;
             }
-            s.target_intensity = 0.85;
+            s.target_intensity = 1.0;
         }
         "drag_edge_leave" => {
             s.target_intensity = 0.0;
         }
-        "drag_drop" | "file_uploaded" => {
-            let edge = msg.edge.unwrap_or_else(|| "right".to_string()).to_lowercase();
-            let coord = msg.coord.unwrap_or(0.5);
+        "drag_drop" | "file_uploaded" | "file_from_laptop" => {
+            let edge = if let Some(ref c) = msg.corner {
+                if !c.is_empty() {
+                    format!("corner-{}", c.to_lowercase())
+                } else if let Some(ref e) = msg.edge {
+                    e.to_lowercase()
+                } else if !s.active_edge.is_empty() {
+                    s.active_edge.clone()
+                } else {
+                    "right".to_string()
+                }
+            } else if let Some(ref e) = msg.edge {
+                e.to_lowercase()
+            } else if !s.active_edge.is_empty() {
+                s.active_edge.clone()
+            } else {
+                "right".to_string()
+            };
+
+            let coord = msg.coord.unwrap_or(s.current_coord);
             let filename = msg.filename.unwrap_or_else(|| "Transferred File".to_string());
             let size_str = msg.size_str
                 .or_else(|| msg.size_bytes.map(ws::format_bytes))
                 .unwrap_or_else(|| "Saved to ~/Downloads".to_string());
+
+            s.active_edge = edge.clone();
+            s.current_coord = coord;
+            s.target_coord = coord;
+            s.current_intensity = 1.0;
+            s.target_intensity = 0.0;
 
             s.confirm_active = true;
             s.confirm_progress = 0.0;
@@ -168,16 +200,23 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
             s.card_size_str = size_str;
             s.card_edge = edge;
             s.card_coord = coord;
-            s.target_intensity = 0.0;
+
+            if let Some(t) = msg.theme {
+                s.theme = t.to_lowercase();
+            }
         }
         "video_resume" => {
-            let edge = msg.edge.unwrap_or_else(|| "right".to_string()).to_lowercase();
-            let coord = msg.coord.unwrap_or(0.5);
+            let edge = msg.edge.unwrap_or_else(|| if !s.active_edge.is_empty() { s.active_edge.clone() } else { "right".to_string() }).to_lowercase();
+            let coord = msg.coord.unwrap_or(s.current_coord);
             s.confirm_active = true;
             s.confirm_progress = 0.0;
             s.confirm_start_time = Some(Instant::now());
-            s.confirm_edge = edge;
+            s.confirm_edge = edge.clone();
             s.confirm_coord = coord;
+            s.active_edge = edge;
+            s.current_coord = coord;
+            s.target_coord = coord;
+            s.current_intensity = 1.0;
             s.target_intensity = 0.0;
         }
         "set_effect" | "set_config" => {
@@ -213,12 +252,12 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
         let r = (950.0 + intensity * 850.0) * breathe;
         (r, r)
     } else if edge == "top" || edge == "bottom" {
-        let rx = (750.0 + intensity * 750.0) * breathe;
+        let rx = (650.0 + intensity * 650.0) * breathe;
         let ry = (width * (0.85 + intensity * 0.45)).max(900.0) * breathe_y;
         (rx, ry)
     } else {
-        let rx = (880.0 + intensity * 920.0) * breathe;
-        let ry = (height * (1.05 + intensity * 0.45)).max(1000.0) * breathe_y;
+        let rx = (680.0 + intensity * 720.0) * breathe;
+        let ry = (height * (0.95 + intensity * 0.40)).max(950.0) * breathe_y;
         (rx, ry)
     };
 
@@ -266,27 +305,33 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
 
     // Tier 1: Living Deep Atmospheric Ambient Wash (Sinks deep into wallpaper)
     cr.save().expect("Cairo save");
-    let wash_rx = radius * 1.30;
+    let wash_rx = radius * 1.35;
     let wash_ry = radius_y * 1.15;
     cr.scale(wash_rx, wash_ry);
     let vol_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
     match state.theme.as_str() {
         "plasma" => {
-            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45 * intensity);
-            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.26 * intensity);
-            vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.10 * intensity);
+            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.60 * intensity);
+            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.35 * intensity);
+            vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.15 * intensity);
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
         }
         "solar" => {
-            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.45 * intensity);
-            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.26 * intensity);
-            vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.10 * intensity);
+            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.60 * intensity);
+            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.35 * intensity);
+            vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.15 * intensity);
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
         }
-        _ => { // aurora / liquid
-            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.48 * intensity);
-            vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.28 * intensity);
-            vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.12 * intensity);
+        "liquid" => {
+            vol_pat.add_color_stop_rgba(0.00, 0.15, 0.95, 0.95, 0.60 * intensity);
+            vol_pat.add_color_stop_rgba(0.30, 0.05, 0.70, 0.90, 0.35 * intensity);
+            vol_pat.add_color_stop_rgba(0.65, 0.02, 0.40, 0.75, 0.15 * intensity);
+            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
+        }
+        _ => { // aurora
+            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.62 * intensity);
+            vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.38 * intensity);
+            vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.16 * intensity);
             vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
         }
     }
@@ -298,26 +343,30 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     }
     let _ = cr.fill();
     let _ = cr.restore();
+    println!("[drap Rust Overlay] status after tier 1: {:?}, surf status: {:?}", cr.status(), surf.status());
 
     // Tier 2: Magnificent Incandescent Chromatic Dispersion Core
     cr.save().expect("Cairo save");
     cr.scale(radius / lut_w, radius_y / (lut_h / 2.0));
     cr.translate(-lut_w, -lut_h / 2.0);
     let pat = SurfacePattern::create(surf);
+    println!("[drap Rust Overlay] pat status: {:?}", pat.status());
     pat.set_filter(Filter::Bilinear);
     let _ = cr.set_source(&pat);
-    let glow_alpha = (intensity.sqrt() * 1.05 * pulse_alpha).min(1.0);
+    let glow_alpha = (intensity.sqrt() * 1.15 * pulse_alpha).min(1.0);
     let _ = cr.paint_with_alpha(glow_alpha);
     let _ = cr.restore();
+    println!("[drap Rust Overlay] status after tier 2: {:?}", cr.status());
 
     // Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
     cr.save().expect("Cairo save");
-    let core_r = (180.0 + intensity * 260.0) * (1.0 + 0.08 * (elapsed * 4.2).sin());
+    let core_r = (220.0 + intensity * 320.0) * (1.0 + 0.08 * (elapsed * 4.2).sin());
     cr.scale(core_r * 0.75, core_r * 1.55);
     let spec_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
-    spec_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.95 * intensity);
-    spec_pat.add_color_stop_rgba(0.25, 1.0, 1.0, 1.0, 0.75 * intensity);
-    spec_pat.add_color_stop_rgba(0.60, 0.95, 0.85, 1.0, 0.35 * intensity);
+    spec_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 1.00 * intensity);
+    spec_pat.add_color_stop_rgba(0.18, 1.0, 1.0, 1.0, 0.90 * intensity);
+    spec_pat.add_color_stop_rgba(0.40, 1.0, 0.95, 0.85, 0.65 * intensity);
+    spec_pat.add_color_stop_rgba(0.70, 0.85, 0.60, 1.0, 0.25 * intensity);
     spec_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
     let _ = cr.set_source(&spec_pat);
     if edge.starts_with("corner-") {
@@ -325,6 +374,19 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     } else {
         cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
     }
+    let _ = cr.fill();
+    let _ = cr.restore();
+
+    // Tier 4: Physical Glass Bezel Rim Meniscus (Drooop's physical hardware refraction highlight)
+    cr.save().expect("Cairo save");
+    let rim_pat = cairo::LinearGradient::new(0.0, 0.0, -8.0, 0.0);
+    rim_pat.add_color_stop_rgba(0.0, 1.0, 1.0, 1.0, 1.00 * intensity);
+    rim_pat.add_color_stop_rgba(0.25, 1.0, 0.94, 0.82, 0.88 * intensity);
+    rim_pat.add_color_stop_rgba(0.60, 0.40, 0.80, 1.0, 0.50 * intensity);
+    rim_pat.add_color_stop_rgba(1.0, 0.0, 0.0, 0.0, 0.0);
+    let _ = cr.set_source(&rim_pat);
+    let rim_length = (420.0 + intensity * 480.0) * breathe_y;
+    cr.rectangle(-6.0, -rim_length / 2.0, 6.0, rim_length);
     let _ = cr.fill();
     let _ = cr.restore();
 
@@ -592,10 +654,14 @@ fn main() {
             let w = width as f64;
             let h = height as f64;
 
-            // Clear surface
-            cr.set_operator(cairo::Operator::Clear);
-            let _ = cr.paint();
-            cr.set_operator(cairo::Operator::Over);
+            if s.current_intensity > 0.005 || s.confirm_active || s.card_active {
+                println!("[drap Rust Overlay] DRAW: intensity={:.3} edge={} card={} confirm={} w={} h={}", s.current_intensity, s.active_edge, s.card_active, s.confirm_active, w, h);
+            }
+
+            // Test Red Marker
+            cr.set_source_rgba(1.0, 0.0, 0.0, 1.0);
+            cr.rectangle(w - 100.0, 400.0, 100.0, 200.0);
+            let _ = cr.fill();
 
             // Draw full-screen surge wave on drop
             if s.confirm_active {
@@ -658,12 +724,16 @@ fn main() {
                     if s.confirm_active {
                         if let Some(start) = s.confirm_start_time {
                             let elapsed = start.elapsed().as_secs_f64();
-                            s.confirm_progress = (elapsed / 1.35).min(1.0);
+                            s.confirm_progress = (elapsed / 1.45).min(1.0);
+                            s.current_intensity = (1.0 - s.confirm_progress).max(0.0).powf(1.6);
                             if s.confirm_progress >= 1.0 {
                                 s.confirm_active = false;
                                 s.confirm_progress = 0.0;
                             }
                         }
+                    } else {
+                        // Smooth intensity interpolation
+                        s.current_intensity += (s.target_intensity - s.current_intensity) * 0.28;
                     }
 
                     // Progress drop card
@@ -678,8 +748,6 @@ fn main() {
                         }
                     }
 
-                    // Smooth intensity interpolation
-                    s.current_intensity += (s.target_intensity - s.current_intensity) * 0.28;
                     s.current_coord += (s.target_coord - s.current_coord) * 0.35;
 
                     da_ref.queue_draw();

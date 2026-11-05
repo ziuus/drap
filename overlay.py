@@ -174,12 +174,13 @@ class DrapOverlay:
 
             else: # "aurora" (Exact Chromatic Dispersion matching Tornike Drooop Demo Photo)
                 pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Maximum incandescent white-hot core
-                pat.add_color_stop_rgba(0.58, 1.00, 1.00, 1.00, 0.99) # Expansive pure white dome
-                pat.add_color_stop_rgba(0.66, 1.00, 0.94, 0.72, 0.96) # Warm golden peach
-                pat.add_color_stop_rgba(0.74, 1.00, 0.65, 0.75, 0.88) # Coral rose pink
-                pat.add_color_stop_rgba(0.82, 0.82, 0.62, 0.98, 0.65) # Ethereal lilac / violet
-                pat.add_color_stop_rgba(0.90, 0.38, 0.82, 1.00, 0.35) # Luminous sky cyan
-                pat.add_color_stop_rgba(0.96, 0.15, 0.60, 0.90, 0.12) # Soft azure mist
+                pat.add_color_stop_rgba(0.08, 0.98, 0.95, 0.88, 1.00) # Luminous warm white
+                pat.add_color_stop_rgba(0.18, 0.98, 0.80, 0.35, 0.98) # Rich golden amber
+                pat.add_color_stop_rgba(0.32, 0.95, 0.38, 0.58, 0.95) # Radiant coral rose pink
+                pat.add_color_stop_rgba(0.48, 0.74, 0.48, 0.86, 0.90) # Electric neon violet / lilac
+                pat.add_color_stop_rgba(0.65, 0.52, 0.82, 0.82, 0.82) # Luminous celestial turquoise
+                pat.add_color_stop_rgba(0.80, 0.35, 0.65, 0.95, 0.60) # Deep sky cyan
+                pat.add_color_stop_rgba(0.92, 0.18, 0.40, 0.85, 0.30) # Soft azure mist
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00) # Seamless transparent fade
 
             cr.set_source(pat)
@@ -192,32 +193,38 @@ class DrapOverlay:
             s_pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
             if theme == "plasma":
                 s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
-                s_pat.add_color_stop_rgba(0.08, 1.00, 0.90, 1.00, 0.95)
-                s_pat.add_color_stop_rgba(0.22, 0.92, 0.45, 1.00, 0.82)
-                s_pat.add_color_stop_rgba(0.45, 0.70, 0.22, 0.95, 0.58)
-                s_pat.add_color_stop_rgba(0.70, 0.40, 0.12, 0.75, 0.32)
-                s_pat.add_color_stop_rgba(0.90, 0.20, 0.05, 0.45, 0.12)
+                s_pat.add_color_stop_rgba(0.12, 0.80, 0.95, 1.00, 0.98)
+                s_pat.add_color_stop_rgba(0.28, 0.95, 0.35, 0.98, 0.92)
+                s_pat.add_color_stop_rgba(0.50, 0.65, 0.18, 0.95, 0.75)
+                s_pat.add_color_stop_rgba(0.72, 0.25, 0.35, 0.90, 0.52)
+                s_pat.add_color_stop_rgba(0.90, 0.10, 0.18, 0.65, 0.22)
                 s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
             elif theme == "solar":
                 s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
-                s_pat.add_color_stop_rgba(0.10, 1.00, 0.95, 0.85, 0.95)
-                s_pat.add_color_stop_rgba(0.28, 1.00, 0.70, 0.25, 0.85)
-                s_pat.add_color_stop_rgba(0.50, 0.98, 0.45, 0.12, 0.55)
-                s_pat.add_color_stop_rgba(0.75, 0.80, 0.25, 0.06, 0.28)
-                s_pat.add_color_stop_rgba(0.92, 0.45, 0.10, 0.02, 0.10)
+                s_pat.add_color_stop_rgba(0.12, 1.00, 0.92, 0.75, 0.98)
+                s_pat.add_color_stop_rgba(0.28, 1.00, 0.75, 0.18, 0.92)
+                s_pat.add_color_stop_rgba(0.52, 0.95, 0.40, 0.08, 0.75)
+                s_pat.add_color_stop_rgba(0.75, 0.85, 0.18, 0.12, 0.50)
+                s_pat.add_color_stop_rgba(0.92, 0.45, 0.06, 0.10, 0.20)
                 s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
             elif theme == "liquid":
                 s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
-                s_pat.add_color_stop_rgba(0.12, 0.90, 1.00, 1.00, 0.95)
-                s_pat.add_color_stop_rgba(0.30, 0.35, 0.95, 0.98, 0.80)
-                s_pat.add_color_stop_rgba(0.55, 0.15, 0.75, 0.90, 0.50)
-                s_pat.add_color_stop_rgba(0.78, 0.06, 0.45, 0.70, 0.25)
-                s_pat.add_color_stop_rgba(0.92, 0.02, 0.25, 0.45, 0.08)
+                s_pat.add_color_stop_rgba(0.14, 0.80, 1.00, 1.00, 0.98)
+                s_pat.add_color_stop_rgba(0.32, 0.18, 0.90, 0.92, 0.90)
+                s_pat.add_color_stop_rgba(0.55, 0.08, 0.65, 0.90, 0.70)
+                s_pat.add_color_stop_rgba(0.76, 0.04, 0.40, 0.80, 0.45)
+                s_pat.add_color_stop_rgba(0.92, 0.02, 0.20, 0.55, 0.18)
                 s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
-            else: # "aurora"
+            else: # "aurora" — Full-Screen Radiance Wave on Drop
                 s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Incandescent core
-                s_pat.add_color_stop_rgba(0.20, 1.00, 0.98, 0.92, 0.98) # Expansive white dome
-                s_pat.add_color_stop_rgba(0.40, 1.00, 0.88, 0.70, 0.88) # Golden peach
+                s_pat.add_color_stop_rgba(0.12, 1.00, 0.95, 0.85, 0.98)
+                s_pat.add_color_stop_rgba(0.28, 1.00, 0.78, 0.35, 0.95)
+                s_pat.add_color_stop_rgba(0.45, 0.98, 0.45, 0.65, 0.88)
+                s_pat.add_color_stop_rgba(0.62, 0.75, 0.48, 0.92, 0.75)
+                s_pat.add_color_stop_rgba(0.78, 0.35, 0.80, 0.98, 0.55)
+                s_pat.add_color_stop_rgba(0.90, 0.15, 0.50, 0.90, 0.30)
+                s_pat.add_color_stop_rgba(0.97, 0.05, 0.25, 0.70, 0.12)
+                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
                 s_pat.add_color_stop_rgba(0.60, 1.00, 0.60, 0.78, 0.72) # Coral rose
                 s_pat.add_color_stop_rgba(0.78, 0.75, 0.55, 0.98, 0.52) # Lilac violet
                 s_pat.add_color_stop_rgba(0.90, 0.25, 0.70, 0.98, 0.28) # Sky cyan
@@ -311,7 +318,7 @@ class DrapOverlay:
 
     def _handle_ws_message(self, data: dict):
         msg_type = data.get("type", "")
-        if msg_type in ("drag_move", "drag_start", "drag_edge_enter", "file_dropped", "video_resume", "set_effect", "drag_edge_leave"):
+        if msg_type in ("drag_move", "drag_start", "drag_edge_enter", "drag_drop", "file_uploaded", "file_from_laptop", "video_resume", "set_effect", "drag_edge_leave"):
             self._ensure_ticking()
 
         if msg_type == "drag_move":
@@ -390,14 +397,15 @@ class DrapOverlay:
             if "x" in data:
                 self.target_x = float(data["x"])
                 self.current_x = self.target_x
-            self.target_intensity = 0.85
-            self.current_intensity = 0.85
-            self.edge_proximity = 0.85
+            self.target_intensity = 1.0
+            self.current_intensity = 1.0
+            self.edge_proximity = 1.0
             self.drawing_area.queue_draw()
 
         elif msg_type == "drag_edge_leave":
-            self.target_intensity = 0.0
-            self.edge_proximity = 0.0
+            if not self.confirm_active and not self.card_active:
+                self.target_intensity = 0.0
+                self.edge_proximity = 0.0
             self.active_corner = ""
             self.target_pressure = 0.5
             self.drawing_area.queue_draw()
@@ -420,13 +428,14 @@ class DrapOverlay:
                     self.effect_theme = theme
             self.drawing_area.queue_draw()
 
-        elif msg_type == "drag_drop" or msg_type == "file_uploaded":
+        elif msg_type in ("drag_drop", "file_uploaded", "file_from_laptop"):
+            self.last_interaction_time = time.time()
             if "corner" in data and data["corner"]:
                 self.confirm_edge = "corner-" + data["corner"].lower()
             elif "edge" in data:
                 self.confirm_edge = data["edge"].lower()
             else:
-                self.confirm_edge = self.active_edge
+                self.confirm_edge = self.active_edge if self.active_edge else "right"
 
             if "coord" in data:
                 self.confirm_coord = float(data["coord"])
@@ -437,6 +446,9 @@ class DrapOverlay:
             else:
                 self.confirm_coord = self.current_coord
             self.confirm_y = self.confirm_coord
+            self.active_edge = self.confirm_edge
+            self.current_coord = self.confirm_coord
+            self.target_coord = self.confirm_coord
 
             filename = data.get("filename", "Transferred File")
             size_bytes = data.get("size", 0)
@@ -447,13 +459,17 @@ class DrapOverlay:
             else:
                 size_str = f"{size_bytes} B"
 
+            # Surge to full brilliance on drop!
+            self.current_intensity = 1.0
+            self.target_intensity = 0.0
+
             # Trigger Full-Screen Confirmation Radiance Wave
             self.confirm_active = True
             self.confirm_progress = 0.0
 
             # Trigger Confirmation Card
             self.trigger_drop_card(filename, size_str, self.confirm_coord, self.confirm_edge)
-            self.target_intensity = 0.0
+            self._ensure_ticking()
             self.drawing_area.queue_draw()
 
         elif msg_type == "video_resume":
@@ -481,8 +497,8 @@ class DrapOverlay:
         dt = max(0.001, min(0.05, now - self.last_tick))
         self.last_tick = now
 
-        # 250ms Inactivity Watchdog: Auto-decay if finger lifted
-        if (now - self.last_interaction_time > 0.25):
+        # Inactivity Watchdog: Auto-decay only if NOT confirming drop and NOT showing card
+        if not self.confirm_active and not self.card_active and (now - self.last_interaction_time > 0.45):
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
 
@@ -495,8 +511,13 @@ class DrapOverlay:
         self.current_vy += ((self.target_vy * 2.0 + calculated_vy * 0.15) - self.current_vy) * 0.35
         self.target_vy *= 0.85
 
-        if self.target_intensity <= 0.001:
-            self.current_intensity *= 0.82
+        if self.confirm_active:
+            # Radiant ambient edge bulb stays gloriously lit and fades in harmony with the wave
+            self.current_intensity = max(self.current_intensity * 0.96, math.pow(max(0.0, 1.0 - self.confirm_progress), 1.6))
+            if self.current_intensity < 0.004:
+                self.current_intensity = 0.0
+        elif self.target_intensity <= 0.001:
+            self.current_intensity *= 0.86
             if self.current_intensity < 0.004:
                 self.current_intensity = 0.0
         else:
@@ -513,11 +534,13 @@ class DrapOverlay:
             self.was_drawing = False
             needs_draw = True
 
-        # Full-Screen Confirmation Radiance Wave Progress
+        # Full-Screen Confirmation Radiance Wave Progress (Rich, luxurious expansion)
         if self.confirm_active:
             needs_draw = True
-            self.confirm_progress += dt * 0.95
+            self.confirm_progress += dt * 0.70
             if self.confirm_progress >= 1.0:
+                self.confirm_active = False
+                self.confirm_progress = 0.0
                 self.confirm_active = False
                 self.confirm_progress = 0.0
 
