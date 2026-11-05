@@ -198,62 +198,15 @@ body[data-theme="liquid"] .drag-aura {
   }
 }
 
-/* Water Ripple Container on Mobile */
-.mobile-ripple-container {
+/* High-Performance Hardware-Accelerated Liquid Wave Canvas */
+.liquid-wave-canvas {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  z-index: 950;
-  overflow: hidden;
-}
-
-.mobile-water-wave {
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  transform: translate3d(-50%, -50%, 0) scale(0.06);
-  border-radius: 50%;
-  pointer-events: none;
-  will-change: transform, opacity;
-  animation: mobileWaveExpand 0.95s cubic-bezier(0.12, 0.85, 0.25, 1) forwards;
-}
-
-.mobile-water-wave::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2.5px solid rgba(255, 255, 255, 0.95);
-  background: radial-gradient(circle, transparent 65%, rgba(255, 255, 255, 0.15) 85%, rgba(56, 189, 248, 0.25) 100%);
-}
-
-.mobile-water-wave::after {
-  content: '';
-  position: absolute;
-  inset: 22px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(56, 189, 248, 0.85);
-  background: radial-gradient(circle, transparent 70%, rgba(168, 85, 247, 0.20) 100%);
-}
-
-@keyframes mobileWaveExpand {
-  0% {
-    opacity: 1;
-    transform: translate3d(-50%, -50%, 0) scale(0.06);
-  }
-  30% {
-    opacity: 0.95;
-  }
-  70% {
-    opacity: 0.40;
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(-50%, -50%, 0) scale(1.5);
-  }
+  z-index: 940;
 }
 
 /* Lightweight Scrim Backdrop when Dragging (0% GPU Compositor Overhead) */

@@ -39,6 +39,8 @@ DOWNLOADS_DIR = Path(os.path.expanduser("~/Downloads"))
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 SHARED_DIR.mkdir(parents=True, exist_ok=True)
+STAGING_DIR = Path("/tmp/drap_staging")
+STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
 # Symlink or copy demo media into MEDIA_DIR if present
 for media_name in ["continue.mp4", "demo.mp4"]:
@@ -414,6 +416,103 @@ async def upload_file(
         "size": file_size,
         "y": y
     })
+
+@app.post("/api/stage_upload")
+async def stage_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    stage_id: str = Form(...)
+):
+    """Speculative Pre-Upload: Streams file to temporary staging area the instant drag begins."""
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+    if not device_sec.check_access(client_ip, user_agent):
+        raise HTTPException(status_code=403, detail="Device not authorized.")
+
+    safe_name = Path(file.filename).name
+    temp_path = STAGING_DIR / f"{stage_id}_{safe_name}"
+    try:
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed staging file: {e}")
+
+    return {
+        "status": "staged",
+        "stage_id": stage_id,
+        "filename": safe_name,
+        "size": temp_path.stat().st_size
+    }
+
+@app.post("/api/commit_upload")
+async def commit_upload(payload: Dict[str, Any]):
+    """Instantly commits staged file into ~/Downloads with 0ms perceived latency."""
+    stage_id = payload.get("stage_id")
+    filename = payload.get("filename", "Transferred File")
+    edge = payload.get("edge", "right")
+    corner = payload.get("corner")
+    coord = float(payload.get("coord", 0.5))
+    x = float(payload.get("x", 0.5))
+    y = float(payload.get("y", 0.5))
+    item_type = payload.get("item_type", "file")
+
+    safe_name = Path(filename).name
+    temp_path = STAGING_DIR / f"{stage_id}_{safe_name}"
+    if not temp_path.exists():
+        matches = list(STAGING_DIR.glob(f"{stage_id}_*"))
+        if matches:
+            temp_path = matches[0]
+            safe_name = temp_path.name[len(stage_id) + 1:]
+        else:
+            raise HTTPException(status_code=404, detail="Staged file not found")
+
+    dest_path = DOWNLOADS_DIR / safe_name
+    base = dest_path.stem
+    ext = dest_path.suffix
+    counter = 1
+    while dest_path.exists():
+        dest_path = DOWNLOADS_DIR / f"{base} ({counter}){ext}"
+        counter += 1
+
+    try:
+        shutil.move(str(temp_path), str(dest_path))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed commit: {e}")
+
+    file_size = dest_path.stat().st_size
+
+    # Desktop notification
+    try:
+        size_mb = file_size / (1024 * 1024)
+        size_str = f"{size_mb:.1f} MB" if size_mb >= 1.0 else f"{file_size // 1024} KB"
+        subprocess.Popen([
+            "notify-send",
+            "Drooop — File Received",
+            f"{dest_path.name} ({size_str})\nSaved to ~/Downloads",
+            "-a", "Drooop",
+            "-i", "document-save"
+        ])
+    except Exception:
+        pass
+
+    return {
+        "status": "success",
+        "filename": dest_path.name,
+        "path": str(dest_path),
+        "size": file_size
+    }
+
+@app.post("/api/cancel_upload")
+async def cancel_upload(payload: Dict[str, Any]):
+    """Cleans up staging file if user cancelled or dropped back into phone."""
+    stage_id = payload.get("stage_id")
+    if stage_id:
+        for p in STAGING_DIR.glob(f"{stage_id}_*"):
+            try:
+                p.unlink()
+            except Exception:
+                pass
+    return {"status": "cancelled"}
 
 @app.post("/api/video_resume")
 async def video_resume_endpoint(payload: Dict[str, Any]):

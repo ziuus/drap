@@ -314,6 +314,173 @@
     setTimeout(() => toast.classList.remove("show"), 2600);
   }
 
+  // 3.5 High-Performance Liquid Wave Engine (Hardware-Accelerated Fluid Simulation)
+  const liquidCanvas = document.getElementById("liquidWaveCanvas");
+  let liquidCtx = null;
+  let activeLiquidWaves = [];
+  let isLiquidAnimating = false;
+
+  function initLiquidCanvas() {
+    if (!liquidCanvas) return;
+    liquidCtx = liquidCanvas.getContext("2d", { alpha: true });
+    function resizeCanvas() {
+      liquidCanvas.width = window.innerWidth;
+      liquidCanvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+  }
+  initLiquidCanvas();
+
+  function triggerMobileLiquidWave(startX, startY, edge = "left", corner = "") {
+    if (!liquidCtx) return;
+    const now = performance.now();
+    activeLiquidWaves.push({
+      startTime: now,
+      duration: 720,
+      startX: startX,
+      startY: startY,
+      edge: edge,
+      corner: corner,
+      theme: activeTheme || "aurora"
+    });
+    if (!isLiquidAnimating) {
+      isLiquidAnimating = true;
+      requestAnimationFrame(renderLiquidWaves);
+    }
+  }
+
+  function renderLiquidWaves(now) {
+    if (!liquidCtx) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    liquidCtx.clearRect(0, 0, w, h);
+
+    activeLiquidWaves = activeLiquidWaves.filter(wave => {
+      const elapsed = now - wave.startTime;
+      if (elapsed >= wave.duration) return false;
+      const progress = elapsed / wave.duration;
+      const ease = 1.0 - Math.pow(1.0 - progress, 2.2);
+      const damping = Math.pow(1.0 - progress, 1.35);
+
+      liquidCtx.save();
+      const maxReach = (wave.edge === "top" || wave.edge === "bottom") ? h * 1.15 : w * 1.15;
+      const dist = ease * maxReach;
+
+      let fluidColor = "rgba(56, 189, 248, ";
+      let crestColor = "rgba(255, 255, 255, ";
+      if (wave.theme === "plasma") {
+        fluidColor = "rgba(192, 132, 252, ";
+      } else if (wave.theme === "solar") {
+        fluidColor = "rgba(251, 146, 60, ";
+      } else if (wave.theme === "liquid") {
+        fluidColor = "rgba(45, 212, 191, ";
+      }
+
+      liquidCtx.beginPath();
+      const steps = 40;
+      if (wave.edge === "left") {
+        liquidCtx.moveTo(0, 0);
+        for (let i = 0; i <= steps; i++) {
+          const y = (i / steps) * h;
+          const wobble = Math.sin(y / 55 + progress * 9) * 20 + Math.cos(y / 28 - progress * 14) * 10;
+          const x = dist + wobble;
+          liquidCtx.lineTo(x, y);
+        }
+        liquidCtx.lineTo(0, h);
+        liquidCtx.closePath();
+      } else if (wave.edge === "right") {
+        liquidCtx.moveTo(w, 0);
+        for (let i = 0; i <= steps; i++) {
+          const y = (i / steps) * h;
+          const wobble = Math.sin(y / 55 + progress * 9) * 20 + Math.cos(y / 28 - progress * 14) * 10;
+          const x = w - (dist + wobble);
+          liquidCtx.lineTo(x, y);
+        }
+        liquidCtx.lineTo(w, h);
+        liquidCtx.closePath();
+      } else if (wave.edge === "top") {
+        liquidCtx.moveTo(0, 0);
+        for (let i = 0; i <= steps; i++) {
+          const x = (i / steps) * w;
+          const wobble = Math.sin(x / 55 + progress * 9) * 20 + Math.cos(x / 28 - progress * 14) * 10;
+          const y = dist + wobble;
+          liquidCtx.lineTo(x, y);
+        }
+        liquidCtx.lineTo(w, 0);
+        liquidCtx.closePath();
+      } else {
+        liquidCtx.moveTo(0, h);
+        for (let i = 0; i <= steps; i++) {
+          const x = (i / steps) * w;
+          const wobble = Math.sin(x / 45 + progress * 10) * 18 + Math.cos(x / 25 - progress * 16) * 8;
+          const y = h - (dist + wobble);
+          liquidCtx.lineTo(x, y);
+        }
+        liquidCtx.lineTo(w, h);
+        liquidCtx.closePath();
+      }
+
+      // Translucent living liquid body
+      liquidCtx.fillStyle = fluidColor + (0.32 * damping) + ")";
+      liquidCtx.fill();
+
+      // Gleaming specular liquid wave crest stroke
+      liquidCtx.strokeStyle = crestColor + (0.92 * damping) + ")";
+      liquidCtx.lineWidth = 2.5;
+      liquidCtx.stroke();
+
+      liquidCtx.restore();
+      return true;
+    });
+
+    if (activeLiquidWaves.length > 0) {
+      requestAnimationFrame(renderLiquidWaves);
+    } else {
+      isLiquidAnimating = false;
+      liquidCtx.clearRect(0, 0, w, h);
+    }
+  }
+
+  // Speculative Pre-Upload Controller (Transfers files while dragging so drop latency is 0ms)
+  async function launchSpeculativePreUpload(drag) {
+    if (!drag || drag.itemType === "video") return;
+    const stageId = "stg_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+    const abortCtrl = new AbortController();
+    drag.stageId = stageId;
+    drag.stageAbort = abortCtrl;
+    drag.isStaged = false;
+
+    drag.stagePromise = (async () => {
+      try {
+        let payload = drag.payload;
+        if (typeof payload === "string") {
+          const r = await fetch(payload, { signal: abortCtrl.signal });
+          payload = await r.blob();
+        }
+        if (abortCtrl.signal.aborted) return;
+        const formData = new FormData();
+        formData.append("file", payload, drag.title);
+        formData.append("stage_id", stageId);
+
+        const uploadEndpoint = (targetHost === window.location.host) ? "/api/stage_upload" : `http://${targetHost}/api/stage_upload`;
+        const res = await fetch(uploadEndpoint, {
+          method: "POST",
+          body: formData,
+          signal: abortCtrl.signal
+        });
+        if (res.ok) {
+          drag.isStaged = true;
+          console.log(`[drap] Staged pre-upload ready for ${drag.title} (${stageId})`);
+        }
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          console.warn("[drap] Pre-upload notice:", e);
+        }
+      }
+    })();
+  }
+
   // 4. Intelligent Navigation vs Drag Handling
   function initCardGestures(card) {
     let startX = 0;
@@ -359,6 +526,8 @@
         theme: theme,
         normalizedY: y / window.innerHeight
       };
+
+      launchSpeculativePreUpload(activeDrag);
 
       if (dragGhost) {
         dragGhost.style.display = "flex";
@@ -898,7 +1067,8 @@
     }
 
     if (crossedThreshold) {
-      triggerMobileWaterWave(waveX, waveY);
+      // 1. Instant High-Performance Liquid Wave Flow on Phone Display
+      triggerMobileLiquidWave(waveX, waveY, dropPhoneEdge, dropCorner);
       haptic([30, 40, 80]);
 
       if (drag.itemType === "video") {
@@ -918,28 +1088,79 @@
         });
         showToast(`Video Resumed on Desktop (${curTime.toFixed(1)}s)`);
       } else {
+        // 2. OPTIMISTIC INSTANT CONFIRMATION:
+        // Zero-latency handoff! Trigger desktop confirmation card & liquid wave IMMEDIATELY via WebSocket!
+        sendWS({
+          type: "drag_drop",
+          filename: drag.title,
+          size: drag.sizeBytes || 0,
+          edge: dropDesktopEdge,
+          corner: dropCorner,
+          coord: dropCoord,
+          x: drag.normalizedX || 0.5,
+          y: drag.normalizedY || 0.5,
+          item_type: drag.itemType
+        });
         showToast(`Transferred ${drag.title} to Desktop`);
-        try {
-          const formData = new FormData();
-          formData.append("edge", dropDesktopEdge);
-          if (dropCorner) formData.append("corner", dropCorner);
-          formData.append("coord", dropCoord.toString());
-          formData.append("x", (drag.normalizedX || 0.5).toString());
-          formData.append("y", (drag.normalizedY || 0.5).toString());
-          formData.append("item_type", drag.itemType);
 
-          if (drag.payload instanceof File || drag.payload instanceof Blob) {
-            formData.append("file", drag.payload, drag.title);
-          } else {
-            const res = await fetch(drag.payload);
-            const blob = await res.blob();
-            formData.append("file", blob, drag.title);
+        // 3. Commit Staged Pre-Upload (or fallback to multipart upload)
+        (async () => {
+          try {
+            if (drag.stagePromise) {
+              await drag.stagePromise;
+            }
+            if (drag.isStaged) {
+              const commitEndpoint = (targetHost === window.location.host) ? "/api/commit_upload" : `http://${targetHost}/api/commit_upload`;
+              await fetch(commitEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  stage_id: drag.stageId,
+                  filename: drag.title,
+                  edge: dropDesktopEdge,
+                  corner: dropCorner,
+                  coord: dropCoord,
+                  item_type: drag.itemType
+                })
+              });
+              return;
+            }
+
+            // Fallback if pre-staging was bypassed
+            const formData = new FormData();
+            formData.append("edge", dropDesktopEdge);
+            if (dropCorner) formData.append("corner", dropCorner);
+            formData.append("coord", dropCoord.toString());
+            formData.append("x", (drag.normalizedX || 0.5).toString());
+            formData.append("y", (drag.normalizedY || 0.5).toString());
+            formData.append("item_type", drag.itemType);
+
+            if (drag.payload instanceof File || drag.payload instanceof Blob) {
+              formData.append("file", drag.payload, drag.title);
+            } else {
+              const res = await fetch(drag.payload);
+              const blob = await res.blob();
+              formData.append("file", blob, drag.title);
+            }
+
+            const uploadEndpoint = (targetHost === window.location.host) ? "/api/upload" : `http://${targetHost}/api/upload`;
+            await fetch(uploadEndpoint, { method: "POST", body: formData });
+          } catch (e) {
+            console.error("Upload error:", e);
           }
-
-          const uploadEndpoint = (targetHost === window.location.host) ? "/api/upload" : `http://${targetHost}/api/upload`;
-          fetch(uploadEndpoint, { method: "POST", body: formData });
-        } catch (e) {
-          console.error(e);
+        })();
+      }
+    } else {
+      // User cancelled drag or released back into library: Cancel speculative pre-upload
+      if (drag && drag.stageAbort) {
+        drag.stageAbort.abort();
+        if (drag.stageId) {
+          const cancelEndpoint = (targetHost === window.location.host) ? "/api/cancel_upload" : `http://${targetHost}/api/cancel_upload`;
+          fetch(cancelEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage_id: drag.stageId })
+          }).catch(() => {});
         }
       }
     }
