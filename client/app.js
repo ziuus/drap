@@ -314,134 +314,6 @@
     setTimeout(() => toast.classList.remove("show"), 2600);
   }
 
-  // 3.5 High-Performance Liquid Wave Engine (Hardware-Accelerated Fluid Simulation)
-  const liquidCanvas = document.getElementById("liquidWaveCanvas");
-  let liquidCtx = null;
-  let activeLiquidWaves = [];
-  let isLiquidAnimating = false;
-
-  function initLiquidCanvas() {
-    if (!liquidCanvas) return;
-    liquidCtx = liquidCanvas.getContext("2d", { alpha: true });
-    function resizeCanvas() {
-      liquidCanvas.width = window.innerWidth;
-      liquidCanvas.height = window.innerHeight;
-    }
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-  }
-  initLiquidCanvas();
-
-  function triggerMobileLiquidWave(startX, startY, edge = "left", corner = "") {
-    if (!liquidCtx) return;
-    const now = performance.now();
-    activeLiquidWaves.push({
-      startTime: now,
-      duration: 720,
-      startX: startX,
-      startY: startY,
-      edge: edge,
-      corner: corner,
-      theme: activeTheme || "aurora"
-    });
-    if (!isLiquidAnimating) {
-      isLiquidAnimating = true;
-      requestAnimationFrame(renderLiquidWaves);
-    }
-  }
-
-  function renderLiquidWaves(now) {
-    if (!liquidCtx) return;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    liquidCtx.clearRect(0, 0, w, h);
-
-    activeLiquidWaves = activeLiquidWaves.filter(wave => {
-      const elapsed = now - wave.startTime;
-      if (elapsed >= wave.duration) return false;
-      const progress = elapsed / wave.duration;
-      const ease = 1.0 - Math.pow(1.0 - progress, 2.2);
-      const damping = Math.pow(1.0 - progress, 1.35);
-
-      liquidCtx.save();
-      const maxReach = (wave.edge === "top" || wave.edge === "bottom") ? h * 1.15 : w * 1.15;
-      const dist = ease * maxReach;
-
-      let fluidColor = "rgba(56, 189, 248, ";
-      let crestColor = "rgba(255, 255, 255, ";
-      if (wave.theme === "plasma") {
-        fluidColor = "rgba(192, 132, 252, ";
-      } else if (wave.theme === "solar") {
-        fluidColor = "rgba(251, 146, 60, ";
-      } else if (wave.theme === "liquid") {
-        fluidColor = "rgba(45, 212, 191, ";
-      }
-
-      liquidCtx.beginPath();
-      const steps = 40;
-      if (wave.edge === "left") {
-        liquidCtx.moveTo(0, 0);
-        for (let i = 0; i <= steps; i++) {
-          const y = (i / steps) * h;
-          const wobble = Math.sin(y / 55 + progress * 9) * 20 + Math.cos(y / 28 - progress * 14) * 10;
-          const x = dist + wobble;
-          liquidCtx.lineTo(x, y);
-        }
-        liquidCtx.lineTo(0, h);
-        liquidCtx.closePath();
-      } else if (wave.edge === "right") {
-        liquidCtx.moveTo(w, 0);
-        for (let i = 0; i <= steps; i++) {
-          const y = (i / steps) * h;
-          const wobble = Math.sin(y / 55 + progress * 9) * 20 + Math.cos(y / 28 - progress * 14) * 10;
-          const x = w - (dist + wobble);
-          liquidCtx.lineTo(x, y);
-        }
-        liquidCtx.lineTo(w, h);
-        liquidCtx.closePath();
-      } else if (wave.edge === "top") {
-        liquidCtx.moveTo(0, 0);
-        for (let i = 0; i <= steps; i++) {
-          const x = (i / steps) * w;
-          const wobble = Math.sin(x / 55 + progress * 9) * 20 + Math.cos(x / 28 - progress * 14) * 10;
-          const y = dist + wobble;
-          liquidCtx.lineTo(x, y);
-        }
-        liquidCtx.lineTo(w, 0);
-        liquidCtx.closePath();
-      } else {
-        liquidCtx.moveTo(0, h);
-        for (let i = 0; i <= steps; i++) {
-          const x = (i / steps) * w;
-          const wobble = Math.sin(x / 45 + progress * 10) * 18 + Math.cos(x / 25 - progress * 16) * 8;
-          const y = h - (dist + wobble);
-          liquidCtx.lineTo(x, y);
-        }
-        liquidCtx.lineTo(w, h);
-        liquidCtx.closePath();
-      }
-
-      // Translucent living liquid body
-      liquidCtx.fillStyle = fluidColor + (0.32 * damping) + ")";
-      liquidCtx.fill();
-
-      // Gleaming specular liquid wave crest stroke
-      liquidCtx.strokeStyle = crestColor + (0.92 * damping) + ")";
-      liquidCtx.lineWidth = 2.5;
-      liquidCtx.stroke();
-
-      liquidCtx.restore();
-      return true;
-    });
-
-    if (activeLiquidWaves.length > 0) {
-      requestAnimationFrame(renderLiquidWaves);
-    } else {
-      isLiquidAnimating = false;
-      liquidCtx.clearRect(0, 0, w, h);
-    }
-  }
-
   // Speculative Pre-Upload Controller (Transfers files while dragging so drop latency is 0ms)
   async function launchSpeculativePreUpload(drag) {
     if (!drag || drag.itemType === "video") return;
@@ -1067,8 +939,7 @@
     }
 
     if (crossedThreshold) {
-      // 1. Instant High-Performance Liquid Wave Flow on Phone Display
-      triggerMobileLiquidWave(waveX, waveY, dropPhoneEdge, dropCorner);
+      triggerMobileWaterWave(waveX, waveY);
       haptic([30, 40, 80]);
 
       if (drag.itemType === "video") {
