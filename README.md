@@ -1,84 +1,147 @@
-# 💧 drap
+<div align="center">
 
-> **Spatial Cross-Device Transfer & Video Continuity System for Linux (Wayland / Hyprland)**  
-> *Seamless, fluid, physical interactions bridging your mobile device and native Linux desktop.*
+# 💧 Drap
 
-[![Linux](https://img.shields.io/badge/Platform-Linux%20%7C%20Wayland-007ACC?logo=linux&logoColor=white)](https://github.com/ziuus/drap)
-[![Wayland](https://img.shields.io/badge/Compositor-Hyprland%20%2F%20wlroots-blue)](https://hyprland.org)
-[![Performance](https://img.shields.io/badge/Render%20Engine-300%2B%20FPS%20LUT-emerald)](#-performance--architecture)
+**Spatial Cross-Device Transfer & Continuity System for Linux (Wayland / Hyprland)**  
+*Seamless, fluid, physical interactions bridging your mobile device and native Linux desktop.*
+
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Wayland-007ACC?logo=linux&logoColor=white)](https://github.com/ziuus/drap)
+[![Compositor](https://img.shields.io/badge/Compositor-Hyprland%20%2F%20Sway%20%2F%20River-blue)](https://hyprland.org)
+[![Refresh Rate](https://img.shields.io/badge/Display-60--144Hz%20V--Sync-emerald)](#-performance--architecture)
 [![Idle CPU](https://img.shields.io/badge/Idle%20CPU-0.00%25-brightgreen)](#-performance--architecture)
-[![LocalSend](https://img.shields.io/badge/Protocol-LocalSend%20v2%20Compatible-orange)](https://localsend.org)
+[![Protocol](https://img.shields.io/badge/Compatibility-LocalSend%20v2-orange)](https://localsend.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+</div>
 
 ---
 
-## 📸 Visual Showcase
+## 📸 Overview
 
 <div align="center">
-  <img src="assets/drap_aurora_bloom.png" alt="Drap Aurora Bloom" width="92%" />
-  <p><em>Ethereal multi-spectral Aurora Borealis spatial bloom and organic fluid meniscus anchored to display bezel.</em></p>
+  <img src="assets/drap_chromatic_ambience.png" alt="Drap Photorealistic Chromatic Ambience" width="94%" />
+  <p><em>Incandescent white-hot core with prismatic rainbow chromatic dispersion anchored to display bezel.</em></p>
 </div>
 
 <br />
 
 <div align="center">
-  <img src="assets/drap_water_ripple.png" alt="Concentric Water Wave Ripple" width="92%" />
-  <p><em>Physical concentric water ripples with specular crest reflections dispersing across desktop on file drop.</em></p>
+  <img src="assets/drap_water_ripple.png" alt="Concentric Water Wave Ripple" width="94%" />
+  <p><em>Hardware-accelerated concentric water shockwave dispersing across desktop upon media drop.</em></p>
 </div>
 
 ---
 
-## ✨ What is Drap?
+## ✨ Features
 
-**Drap** transforms cross-device file sharing and media continuity into an intuitive spatial gesture. By leveraging a high-performance **GTK4 Layer Shell** overlay on Wayland and an ultra-low latency WebSocket telemetry bridge, dragging media on your phone feels as though your mobile display and monitor are physically touching.
-
-Push a photo toward the bezel: a pearlescent fluid meniscus wells up from your laptop screen edge. Fling an active video: a chromatic portal shockwave detonates across your desktop, instantly resuming video playback in `mpv` at the exact second.
+- **🌈 Photorealistic Chromatic Ambience**: Expansive incandescent white core blooming across 45%+ of display width and 90%+ of bezel height, flanked by physical rainbow dispersion fringes (amber $\rightarrow$ coral rose $\rightarrow$ lilac $\rightarrow$ sky cyan mist).
+- **🧭 Omnidirectional 4-Edge Beam**: Position your phone anywhere around your laptop. Swipe toward any bezel (left, right, top, bottom) — Drap automatically routes the light portal to the matching monitor edge.
+- **⚡ Hardware-Accelerated 60–120 FPS**: Zero rasterization lag on mobile or desktop. Pre-computed 512×1024 bilinear LUTs on Linux Cairo and pure GPU-composited CSS transforms on mobile deliver stutter-free 60Hz/120Hz V-Sync.
+- **🍃 True 0.00% Idle Overhead**: GTK4 Layer Shell listeners automatically hibernate when not actively in use, consuming zero CPU cycles in the background.
+- **🔒 Granular Device Security & Whitelisting**: Control exactly who can beam files on your Wi-Fi network. Choose between Open, Prompt, or Strict whitelist modes, and permanently trust devices with one command.
+- **📱 Instant Pairing**: Launch `drap qr` in your terminal to display an ANSI UTF-8 QR code for instant mobile camera pairing, or open the GTK4 GUI Control Hub.
+- **📦 Two-Way Local Transfer & LocalSend Support**: Push files directly from your Linux terminal to connected phones with `drap share <file>`, with full LocalSend v2 interoperability.
 
 ---
 
-## 🌟 Key Features
+## 🚀 Installation
 
-### 🧭 Omnidirectional 4-Edge Spatial Transfer
-- **Full 360° Spatial Alignment**: Place your phone anywhere around your laptop:
-  - **Swipe Left on Phone** &rarr; Enters the **Right** bezel of your desktop (phone to the right).
-  - **Swipe Right on Phone** &rarr; Enters the **Left** bezel of your desktop (phone to the left).
-  - **Swipe Up on Phone** &rarr; Enters the **Bottom** bezel of your desktop (phone in front of laptop).
-  - **Swipe Down on Phone** &rarr; Enters the **Top** bezel of your desktop (phone above laptop).
-- **Dynamic Adaptive Edge Meniscus**: Phone's meniscus bulb, rim glow, and tactile water ripples automatically conform to whichever of the 4 borders your finger approaches.
+### 1. System Requirements
 
-### 🌊 Dynamic Directional Velocity Physics
-- **Directional Shear & Vertical Stretch**: Dragging upward or downward dynamically shears the liquid bezel contour (`skew_y = -v_y * 0.20`) and elongates the meniscus (`v_stretch = 1.0 + |v_y| * 0.45`).
-- **Trailing Bezel Liquid Wake**: A soft liquid trail streams along the screen edge opposite to your drag direction.
-- **Teardrop Meniscus Bulb**: Mobile bezel indicator dynamically morphs into an aerodynamic teardrop pointing in the direction of motion.
-- **Tactile 3D Card Physics**: Aerodynamic tilt (`-14°` to `+14°`) and haptic detents provide tangible physical weight as you guide items across screens.
+- **Wayland Compositor**: Hyprland, Sway, River, or any `ext-layer-shell` compliant compositor.
+- **Required Packages**:
 
-### ⚡ 300+ FPS Shader LUT Engine (0.00% Idle CPU)
-- **Pre-computed 512×512 Bilinear LUT**: Eliminated costly CPU radial gradients, reducing frame draw times from `~41ms` to `~2.8ms` (350+ FPS rendering).
-- **Zero-Power Tick Hibernation**: Automatically detaches GTK frame clock listeners when idle. Drops to **0.00% CPU** with 100% surface transparency until touch events arrive.
+```bash
+# Arch Linux
+sudo pacman -S gtk4 gtk4-layer-shell python-cairo python-gobject mpv wl-clipboard qrencode nodejs
 
-### 💧 Physical Water Ripple Engine
-- Multi-wave concentric wavefronts with physical wave speed ($v = 420\text{ px/s}$) and quadratic viscosity damping ($e^{-3.8t}$).
-- Specular crest highlights and soft refractions provide an authentic liquid drop sensation.
+# Ubuntu / Debian
+sudo apt install libgtk-4-dev libgtk4-layer-shell-dev python3-cairo python3-gi mpv wl-clipboard qrencode nodejs
 
-### 🎬 Real-Time Video Continuity Handoff
-- Stream a video on your mobile phone and flick it towards your monitor bezel.
-- Laptop detects the drop vector and launches `mpv --start=<seconds>` with zero latency.
+# Fedora
+sudo dnf install gtk4 gtk4-layer-shell python3-cairo python3-gobject mpv wl-clipboard qrencode nodejs
+```
 
-### 📋 Two-Way File & Clipboard Sharing (LocalSend Compatible)
-- Seamlessly paste phone text into laptop clipboard via native `wl-copy`.
-- Drop files from laptop onto desktop drop zones to beam directly to mobile devices.
-- Built-in LocalSend v2 compatibility for automatic discovery across your local network.
+### 2. Universal Quick Install
 
-### 🎨 Apple-Style Minimalist Web PWA
-- Clean, focused interface with live glowing connection pill and ambient OLED aura.
-- Frosted glass settings sheet for instant theme switching (**Aurora**, **Seafoam**, **Plasma**, **Solar**).
+Run the automated installer directly in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ziuus/drap/main/install.sh | bash
+```
+
+*Or install locally from a cloned repository:*
+
+```bash
+git clone https://github.com/ziuus/drap.git
+cd drap && bash install.sh
+```
+
+The installer configures:
+- CLI binary `drap` in `~/.local/bin/drap`
+- Desktop Application Launcher entry (`drap.desktop` for Rofi / Wofi / App Menus)
+- Systemd user service `drap.service` for background auto-management
+
+---
+
+## ⌨️ Command Reference
+
+Manage Drap easily from any terminal:
+
+### Pairing & Mobile Access
+```bash
+drap qr                  # Print scannable ANSI pairing QR code in terminal
+drap gui                 # Launch native GTK4 Wayland Control Hub
+drap status              # Show system health, active phones, and network IPs
+drap share <file>        # Push any file from laptop to connected phone(s)
+```
+
+### Daemon Lifecycle
+```bash
+drap on                  # Start background gateway server & spatial overlay
+drap off                 # Stop all Drap processes cleanly
+drap restart             # Restart all services
+drap update              # Pull latest GitHub release & update local installation
+drap autostart on        # Enable automatic start upon Linux login
+drap autostart off       # Disable automatic start upon login
+```
+
+### Device Access & Security
+```bash
+drap devices             # List discovered, allowed, trusted, and blocked phones
+drap trust <ip>          # Permanently allow a device (Always Allowed without prompt)
+drap allow <ip>          # Authorize a phone IP for the current session
+drap block <ip>          # Block an untrusted device from connecting
+drap security <mode>     # Set policy: open | prompt (default) | strict
+```
+
+### Visual Themes
+```bash
+drap theme aurora        # Photorealistic chromatic dispersion (Default)
+drap theme liquid        # Crystalline oceanic cyan & fluid wobble
+drap theme plasma        # High-voltage cyberpunk violet & neon lightning
+drap theme solar         # Warm golden hour amber & thermonuclear embers
+```
+
+---
+
+## 📱 Mobile Connection & PWA Setup
+
+1. Connect your phone to the same local Wi-Fi network as your laptop.
+2. Scan the pairing QR code (`drap qr`) or open:
+   - **HTTP**: `http://<your-laptop-ip>:8080`
+   - **HTTPS**: `https://<your-laptop-ip>:8443` *(Recommended for PWA installation)*
+3. **PWA Standalone Setup**:
+   - **Chrome (Android)**: Open the HTTPS link, accept the self-signed certificate, and tap **Install App** when prompted.
+   - **Brave (Android)**: Open `brave://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<your-laptop-ip>:8080`, and tap **Add to Home screen**.
+   - **Safari (iOS)**: Tap the Share button (`⎋`) $\rightarrow$ **Add to Home Screen** (`⊕`).
 
 ---
 
 ## 🛠️ Architecture
 
 ```
-                             [ Mobile Device (PWA) ]
+                             [ Mobile Client (PWA) ]
                                         │
            WebSocket Telemetry          │  HTTP Multipart
            (x, y, proximity,            │  (Files / Media / Clips)
@@ -86,13 +149,13 @@ Push a photo toward the bezel: a pearlescent fluid meniscus wells up from your l
                                         ▼
                             ┌───────────────────────┐
                             │       server.py       │
-                            │ (FastAPI & Uvicorn)   │
+                            │  (FastAPI & Uvicorn)  │
                             │   Port 0.0.0.0:8080   │
                             │   HTTPS / WSS: 8443   │
                             └───────────┬───────────┘
                                         │
                ┌────────────────────────┼────────────────────────┐
-               │ Local WebSocket        │ OS Subprocess          │ File IO
+               │ Local WebSocket        │ System Subprocess      │ Local Storage
                ▼                        ▼                        ▼
    ┌───────────────────────┐  ┌───────────────────┐    ┌─────────────────┐
    │      overlay.py       │  │  mpv / wl-copy    │    │   ~/Downloads   │
@@ -104,117 +167,16 @@ Push a photo toward the bezel: a pearlescent fluid meniscus wells up from your l
 
 ---
 
-## 🚀 Quick Start
+## 🎨 Hyprland Compositor Integration
 
-### 1. Requirements
-
-- **Compositor**: Wayland (`Hyprland`, `Sway`, `River`, or any `wlroots`/`ext-layer-shell` compositor).
-- **Core Packages**:
-  ```bash
-  # Arch Linux
-  sudo pacman -S gtk4 gtk4-layer-shell python-cairo python-gobject mpv wl-clipboard
-  
-  # Ubuntu / Debian
-  sudo apt install libgtk-4-dev libgtk4-layer-shell-dev python3-cairo python3-gi mpv wl-clipboard
-  
-  # Fedora
-  sudo dnf install gtk4 gtk4-layer-shell python3-cairo python3-gobject mpv wl-clipboard
-  ```
-
-### 2. Quick 1-Line Installation
-
-Run the universal installer directly in your terminal:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ziuus/drap/main/install.sh | bash
-```
-
-*(Or clone manually and run `./install.sh`).*
-
-This sets up:
-- Global CLI binary `drap` in `~/.local/bin/drap`
-- Desktop Application Launcher entry (`drap.desktop`)
-- Systemd user service `drap.service` for automatic login startup
-
----
-
-## ⌨️ Managing Drap (CLI Commands)
-
-Manage Drap effortlessly right from your terminal:
-
-```bash
-# Turn Drap ON (starts background server & GTK4 Layer Shell overlay)
-drap on
-
-# Turn Drap OFF (stops all background processes cleanly)
-drap off
-
-# Restart Drap services
-drap restart
-
-# Check live system dashboard (status, connected phones, gateway URLs, IPs)
-drap status
-
-# Enable automatic start on login
-drap autostart on
-
-# Disable automatic start on login
-drap autostart off
-
-# Switch live ambient shader theme from terminal
-drap theme aurora    # or: plasma, solar, liquid
-
-# Security & Access Control (Choose which devices can connect):
-drap devices         # List connected and paired devices (IP, status, name)
-drap allow <ip>      # Authorize a phone IP to transfer files
-drap block <ip>      # Block an untrusted device from connecting
-drap security open   # Mode: open (trust all LAN), prompt (default), strict (whitelist)
-
-# Launch native GTK4 Control Hub & pairing QR Code
-drap gui
-
-# Beam any file from your laptop terminal to your phone
-drap share ~/Pictures/photo.jpg
-```
-
----
-
-## 📱 Mobile Connection & PWA Setup
-
-1. Open your laptop IP in your phone browser:
-   - **HTTP**: `http://<your-laptop-ip>:8080`
-   - **HTTPS**: `https://<your-laptop-ip>:8443` *(recommended for 1-tap PWA install)*
-2. **Installing as Native PWA**:
-   - **Brave Browser (Android)**: Chromium blocks PWA installs over LAN IP without trusted CA. Simply open `brave://flags/#unsafely-treat-insecure-origin-as-secure`, add `http://<your-laptop-ip>:8080`, enable and relaunch; or tap `Menu (⋮) -> Add to Home screen -> Create Shortcut`.
-   - **Chrome (Android)**: Open the HTTPS link (`https://<your-laptop-ip>:8443`), accept the local certificate, and tap **Install** when prompted.
-   - **Safari (iOS)**: Tap the Share button (`⎋`) -> **Add to Home Screen** (`⊕`).
-
----
-
-## 🎨 Hyprland Compositor Rules
-
-Add the following to your `hyprland.conf` for optimal overlay rendering:
+Add the following rule to your `hyprland.conf` to prevent compositor blur interference on the overlay layer:
 
 ```ini
-# Keep overlay razor-sharp without compositor blur interference
 layerrule = noblur, drap-aurora
 ```
 
 ---
 
-## 📡 WebSocket Signaling Protocol
-
-The telemetry engine communicates via `ws://<host>:8080/ws` with JSON frames:
-
-- `drag_move`: Streams touch coordinates (`y`, `proximity`, `pressure`, `vy`).
-- `drag_edge_enter`: Emitted when touch enters bezel proximity threshold.
-- `drag_edge_leave`: Emitted on finger release; begins fluid decay to zero.
-- `drag_drop`: Emitted on release over edge; triggers physical water ripple and file download.
-- `video_resume`: Transmits video source URL and timestamp for instant `mpv` continuity.
-- `set_effect`: Switches active shader palette (`aurora`, `liquid`, `plasma`, `solar`).
-
----
-
 ## 📄 License
 
-Distributed under the [MIT License](LICENSE). Built with ❤️ for the Linux and Wayland community.
+Distributed under the [MIT License](LICENSE). Built for the Linux and Wayland community.
