@@ -23,7 +23,32 @@ impl Luts {
             let surf = ImageSurface::create(Format::ARgb32, lut_w, lut_h)
                 .expect("Failed to create Cairo ImageSurface");
             let cr = Context::new(&surf).expect("Failed to create Cairo context");
-            let pat = RadialGradient::new(cx, cy, 0.0, cx, cy, max_r);
+
+            let wash = RadialGradient::new(cx, cy, 0.0, cx, cy, max_r);
+            match theme {
+                "plasma" => {
+                    wash.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45);
+                    wash.add_color_stop_rgba(0.35, 0.55, 0.20, 0.88, 0.25);
+                    wash.add_color_stop_rgba(0.70, 0.25, 0.10, 0.50, 0.10);
+                    wash.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
+                "solar" => {
+                    wash.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.45);
+                    wash.add_color_stop_rgba(0.35, 0.98, 0.45, 0.15, 0.25);
+                    wash.add_color_stop_rgba(0.70, 0.60, 0.15, 0.05, 0.10);
+                    wash.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
+                _ => { // aurora / liquid
+                    wash.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.48);
+                    wash.add_color_stop_rgba(0.35, 0.55, 0.35, 0.95, 0.26);
+                    wash.add_color_stop_rgba(0.70, 0.05, 0.45, 0.70, 0.11);
+                    wash.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
+            }
+            let _ = cr.set_source(&wash);
+            let _ = cr.paint();
+
+            let pat = RadialGradient::new(cx, cy, 0.0, cx, cy, max_r * 0.90);
 
             match theme {
                 "plasma" => {

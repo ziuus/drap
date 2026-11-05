@@ -140,35 +140,57 @@ class DrapOverlay:
         for theme in ("aurora", "plasma", "solar", "liquid"):
             surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_w, lut_h)
             cr = cairo.Context(surf)
-            pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
+
+            # 1. Wide Atmospheric Ambient Wash layer
+            wash_pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
+            if theme == "plasma":
+                wash_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45)
+                wash_pat.add_color_stop_rgba(0.35, 0.55, 0.20, 0.88, 0.25)
+                wash_pat.add_color_stop_rgba(0.70, 0.25, 0.10, 0.50, 0.10)
+                wash_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            elif theme == "solar":
+                wash_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.45)
+                wash_pat.add_color_stop_rgba(0.35, 0.98, 0.45, 0.15, 0.25)
+                wash_pat.add_color_stop_rgba(0.70, 0.60, 0.15, 0.05, 0.10)
+                wash_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            else: # aurora / liquid
+                wash_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.48)
+                wash_pat.add_color_stop_rgba(0.35, 0.55, 0.35, 0.95, 0.26)
+                wash_pat.add_color_stop_rgba(0.70, 0.05, 0.45, 0.70, 0.11)
+                wash_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            cr.set_source(wash_pat)
+            cr.paint()
+
+            # 2. Primary Incandescent Chromatic Dispersion Core
+            pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r * 0.90)
 
             if theme == "plasma":
                 # Electric violet & cyber indigo
-                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95)
-                pat.add_color_stop_rgba(0.12, 0.95, 0.40, 1.00, 0.80)
-                pat.add_color_stop_rgba(0.28, 0.75, 0.25, 0.98, 0.60)
-                pat.add_color_stop_rgba(0.50, 0.45, 0.15, 0.88, 0.32)
-                pat.add_color_stop_rgba(0.75, 0.22, 0.08, 0.60, 0.12)
-                pat.add_color_stop_rgba(0.92, 0.10, 0.04, 0.35, 0.02)
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
+                pat.add_color_stop_rgba(0.12, 0.95, 0.40, 1.00, 0.85)
+                pat.add_color_stop_rgba(0.28, 0.75, 0.25, 0.98, 0.65)
+                pat.add_color_stop_rgba(0.50, 0.45, 0.15, 0.88, 0.35)
+                pat.add_color_stop_rgba(0.75, 0.22, 0.08, 0.60, 0.15)
+                pat.add_color_stop_rgba(0.92, 0.10, 0.04, 0.35, 0.03)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             elif theme == "solar":
                 # Warm golden hour & peach amber
-                pat.add_color_stop_rgba(0.00, 1.00, 0.99, 0.94, 0.95)
-                pat.add_color_stop_rgba(0.14, 1.00, 0.82, 0.35, 0.82)
-                pat.add_color_stop_rgba(0.32, 0.98, 0.55, 0.20, 0.58)
-                pat.add_color_stop_rgba(0.55, 0.90, 0.35, 0.15, 0.30)
-                pat.add_color_stop_rgba(0.78, 0.75, 0.18, 0.08, 0.10)
-                pat.add_color_stop_rgba(0.92, 0.50, 0.10, 0.04, 0.02)
+                pat.add_color_stop_rgba(0.00, 1.00, 0.99, 0.94, 1.00)
+                pat.add_color_stop_rgba(0.14, 1.00, 0.82, 0.35, 0.85)
+                pat.add_color_stop_rgba(0.32, 0.98, 0.55, 0.20, 0.62)
+                pat.add_color_stop_rgba(0.55, 0.90, 0.35, 0.15, 0.35)
+                pat.add_color_stop_rgba(0.78, 0.75, 0.18, 0.08, 0.12)
+                pat.add_color_stop_rgba(0.92, 0.50, 0.10, 0.04, 0.03)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             elif theme == "liquid":
                 # Crystalline oceanic cyan & aqua mist with pure white-hot originating core
                 pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
                 pat.add_color_stop_rgba(0.18, 0.96, 1.00, 1.00, 0.95)
-                pat.add_color_stop_rgba(0.35, 0.35, 0.95, 0.98, 0.75)
-                pat.add_color_stop_rgba(0.55, 0.15, 0.80, 0.92, 0.48)
-                pat.add_color_stop_rgba(0.75, 0.08, 0.55, 0.78, 0.22)
+                pat.add_color_stop_rgba(0.35, 0.35, 0.95, 0.98, 0.78)
+                pat.add_color_stop_rgba(0.55, 0.15, 0.80, 0.92, 0.50)
+                pat.add_color_stop_rgba(0.75, 0.08, 0.55, 0.78, 0.24)
                 pat.add_color_stop_rgba(0.90, 0.03, 0.30, 0.50, 0.06)
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
@@ -225,11 +247,6 @@ class DrapOverlay:
                 s_pat.add_color_stop_rgba(0.90, 0.15, 0.50, 0.90, 0.30)
                 s_pat.add_color_stop_rgba(0.97, 0.05, 0.25, 0.70, 0.12)
                 s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
-                s_pat.add_color_stop_rgba(0.60, 1.00, 0.60, 0.78, 0.72) # Coral rose
-                s_pat.add_color_stop_rgba(0.78, 0.75, 0.55, 0.98, 0.52) # Lilac violet
-                s_pat.add_color_stop_rgba(0.90, 0.25, 0.70, 0.98, 0.28) # Sky cyan
-                s_pat.add_color_stop_rgba(0.97, 0.10, 0.40, 0.75, 0.10) # Cosmic mist
-                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00) # Seamless transparent fade
             s_cr.set_source(s_pat)
             s_cr.paint()
             self.surge_luts[theme] = s_surf
@@ -331,16 +348,14 @@ class DrapOverlay:
                 self.active_edge = data["edge"].lower()
             if "coord" in data:
                 self.target_coord = float(data["coord"])
-                self.current_coord += (self.target_coord - self.current_coord) * 0.55
+            elif self.active_edge in ("top", "bottom") and "x" in data:
+                self.target_coord = float(data["x"])
             elif "y" in data:
                 self.target_coord = float(data["y"])
-                self.current_coord += (self.target_coord - self.current_coord) * 0.55
             if "x" in data:
                 self.target_x = float(data["x"])
-                self.current_x += (self.target_x - self.current_x) * 0.55
             if "y" in data:
                 self.target_y = float(data["y"])
-                self.current_y += (self.target_y - self.current_y) * 0.55
             if "vy" in data:
                 self.target_vy = float(data["vy"])
 
@@ -349,9 +364,7 @@ class DrapOverlay:
 
             self.edge_proximity = proximity
             self.target_pressure = pressure
-            self.current_pressure += (pressure - self.current_pressure) * 0.45
             self.target_intensity = max(0.0, min(1.0, proximity)) if proximity > 0.02 else 0.0
-            self.current_intensity += (self.target_intensity - self.current_intensity) * 0.45
 
             if "theme" in data:
                 t = data["theme"].lower()
@@ -507,8 +520,8 @@ class DrapOverlay:
         self.current_coord += (self.target_coord - self.current_coord) * 0.38
         self.current_y = self.current_coord
         self.current_x = self.current_coord
-        calculated_vy = (self.current_coord - prev_coord) / dt
-        self.current_vy += ((self.target_vy * 2.0 + calculated_vy * 0.15) - self.current_vy) * 0.35
+        calculated_vy = (self.current_coord - prev_coord) / max(0.016, dt)
+        self.current_vy += ((self.target_vy * 0.5 + calculated_vy * 0.25) - self.current_vy) * 0.25
         self.target_vy *= 0.85
 
         if self.confirm_active:
@@ -681,34 +694,12 @@ class DrapOverlay:
                 cr.translate(0, height)
                 cr.rotate(-math.pi / 4)
 
-            # 1. Soft atmospheric corner wash sweeping deep into screen
-            wash_r = radius * 1.30
-            vol_pat = cairo.RadialGradient(0, 0, 15, 0, 0, wash_r)
-            if self.effect_theme == "plasma":
-                vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.44 * active_intensity)
-                vol_pat.add_color_stop_rgba(0.35, 0.55, 0.20, 0.88, 0.24 * active_intensity)
-                vol_pat.add_color_stop_rgba(0.70, 0.25, 0.10, 0.50, 0.09 * active_intensity)
-                vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-            elif self.effect_theme == "solar":
-                vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.44 * active_intensity)
-                vol_pat.add_color_stop_rgba(0.35, 0.98, 0.45, 0.15, 0.24 * active_intensity)
-                vol_pat.add_color_stop_rgba(0.70, 0.60, 0.15, 0.05, 0.09 * active_intensity)
-                vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-            else: # aurora / liquid
-                vol_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.46 * active_intensity)
-                vol_pat.add_color_stop_rgba(0.35, 0.55, 0.35, 0.95, 0.26 * active_intensity)
-                vol_pat.add_color_stop_rgba(0.70, 0.05, 0.45, 0.70, 0.11 * active_intensity)
-                vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-            cr.set_source(vol_pat)
-            cr.arc(0, 0, wash_r, 0, 2 * math.pi)
-            cr.fill()
-
-            # 2. Primary Chromatic Prismatic Corner Flare
+            # Primary Chromatic Prismatic Corner Flare
             cr.scale(radius / lut_w, radius / (lut_h / 2))
             cr.translate(-lut_w, -lut_h / 2)
 
             pat = cairo.SurfacePattern(surf)
-            pat.set_filter(cairo.Filter.BILINEAR)
+            pat.set_filter(cairo.Filter.FAST)
             cr.set_source(pat)
             glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.06 * pulse_alpha)
             cr.paint_with_alpha(glow_alpha)
@@ -750,57 +741,15 @@ class DrapOverlay:
             skew_mat = cairo.Matrix(1.0, skew_y, 0.0, 1.0, 0.0, 0.0)
             cr.transform(skew_mat)
 
-        # Tier 1: Living Deep Atmospheric Ambient Wash (Sinks deep into the wallpaper)
-        cr.save()
-        wash_rx = radius_x * 1.30
-        wash_ry = radius_y * 1.15
-        cr.scale(wash_rx, wash_ry)
-        vol_pat = cairo.RadialGradient(0, 0, 0.02, 0, 0, 1.0)
-        if self.effect_theme == "plasma":
-            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.26 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.10 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        elif self.effect_theme == "solar":
-            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.45 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.26 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.10 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        else: # aurora / liquid
-            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.48 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.28 * active_intensity)
-            vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.12 * active_intensity)
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        cr.set_source(vol_pat)
-        cr.arc(0, 0, 1.0, math.pi / 2, 3 * math.pi / 2)
-        cr.fill()
-        cr.restore()
-
-        # Tier 2: Magnificent Incandescent Chromatic Dispersion Core
-        cr.save()
+        # Magnificent Incandescent Chromatic Dispersion Core & Atmospheric Wash (Pre-baked Hardware-Fast Blit)
         cr.scale(radius_x / lut_w, radius_y / (lut_h / 2))
         cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
-        pat.set_filter(cairo.Filter.BILINEAR)
+        pat.set_filter(cairo.Filter.FAST)
         cr.set_source(pat)
         glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.05 * pulse_alpha)
         cr.paint_with_alpha(glow_alpha)
-        cr.restore()
-
-        # Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
-        cr.save()
-        core_r = (180 + active_intensity * 260) * pressure_scale * (1.0 + 0.08 * math.sin(t_sec * 4.2))
-        cr.scale(core_r * 0.75, core_r * 1.55)
-        spec_pat = cairo.RadialGradient(0, 0, 0.02, 0, 0, 1.0)
-        spec_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.95 * active_intensity)
-        spec_pat.add_color_stop_rgba(0.25, 1.0, 1.0, 1.0, 0.75 * active_intensity)
-        spec_pat.add_color_stop_rgba(0.60, 0.95, 0.85, 1.0, 0.35 * active_intensity)
-        spec_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0)
-        cr.set_source(spec_pat)
-        cr.arc(0, 0, 1.0, math.pi / 2, 3 * math.pi / 2)
-        cr.fill()
-        cr.restore()
 
         cr.restore()
 
@@ -1035,7 +984,7 @@ class DrapOverlay:
         cr.translate(-lut_w, -lut_h / 2)
 
         pat = cairo.SurfacePattern(surf)
-        pat.set_filter(cairo.Filter.BILINEAR)
+        pat.set_filter(cairo.Filter.FAST)
         cr.set_source(pat)
         cr.paint_with_alpha(damping * 0.98)
 

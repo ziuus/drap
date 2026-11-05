@@ -303,91 +303,15 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
         }
     }
 
-    // Tier 1: Living Deep Atmospheric Ambient Wash (Sinks deep into wallpaper)
-    cr.save().expect("Cairo save");
-    let wash_rx = radius * 1.35;
-    let wash_ry = radius_y * 1.15;
-    cr.scale(wash_rx, wash_ry);
-    let vol_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
-    match state.theme.as_str() {
-        "plasma" => {
-            vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.60 * intensity);
-            vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.35 * intensity);
-            vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.15 * intensity);
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
-        }
-        "solar" => {
-            vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.60 * intensity);
-            vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.35 * intensity);
-            vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.15 * intensity);
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
-        }
-        "liquid" => {
-            vol_pat.add_color_stop_rgba(0.00, 0.15, 0.95, 0.95, 0.60 * intensity);
-            vol_pat.add_color_stop_rgba(0.30, 0.05, 0.70, 0.90, 0.35 * intensity);
-            vol_pat.add_color_stop_rgba(0.65, 0.02, 0.40, 0.75, 0.15 * intensity);
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
-        }
-        _ => { // aurora
-            vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.62 * intensity);
-            vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.38 * intensity);
-            vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.16 * intensity);
-            vol_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
-        }
-    }
-    let _ = cr.set_source(&vol_pat);
-    if edge.starts_with("corner-") {
-        cr.arc(0.0, 0.0, 1.0, 0.0, 2.0 * std::f64::consts::PI);
-    } else {
-        cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-    }
-    let _ = cr.fill();
-    let _ = cr.restore();
-    println!("[drap Rust Overlay] status after tier 1: {:?}, surf status: {:?}", cr.status(), surf.status());
-
-    // Tier 2: Magnificent Incandescent Chromatic Dispersion Core
+    // Magnificent Incandescent Chromatic Dispersion Core & Atmospheric Wash (Pre-baked Hardware-Fast Blit)
     cr.save().expect("Cairo save");
     cr.scale(radius / lut_w, radius_y / (lut_h / 2.0));
     cr.translate(-lut_w, -lut_h / 2.0);
     let pat = SurfacePattern::create(surf);
-    println!("[drap Rust Overlay] pat status: {:?}", pat.status());
-    pat.set_filter(Filter::Bilinear);
+    pat.set_filter(Filter::Fast);
     let _ = cr.set_source(&pat);
     let glow_alpha = (intensity.sqrt() * 1.15 * pulse_alpha).min(1.0);
     let _ = cr.paint_with_alpha(glow_alpha);
-    let _ = cr.restore();
-    println!("[drap Rust Overlay] status after tier 2: {:?}", cr.status());
-
-    // Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
-    cr.save().expect("Cairo save");
-    let core_r = (220.0 + intensity * 320.0) * (1.0 + 0.08 * (elapsed * 4.2).sin());
-    cr.scale(core_r * 0.75, core_r * 1.55);
-    let spec_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
-    spec_pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 1.00 * intensity);
-    spec_pat.add_color_stop_rgba(0.18, 1.0, 1.0, 1.0, 0.90 * intensity);
-    spec_pat.add_color_stop_rgba(0.40, 1.0, 0.95, 0.85, 0.65 * intensity);
-    spec_pat.add_color_stop_rgba(0.70, 0.85, 0.60, 1.0, 0.25 * intensity);
-    spec_pat.add_color_stop_rgba(1.00, 0.0, 0.0, 0.0, 0.0);
-    let _ = cr.set_source(&spec_pat);
-    if edge.starts_with("corner-") {
-        cr.arc(0.0, 0.0, 1.0, 0.0, 2.0 * std::f64::consts::PI);
-    } else {
-        cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-    }
-    let _ = cr.fill();
-    let _ = cr.restore();
-
-    // Tier 4: Physical Glass Bezel Rim Meniscus (Drooop's physical hardware refraction highlight)
-    cr.save().expect("Cairo save");
-    let rim_pat = cairo::LinearGradient::new(0.0, 0.0, -8.0, 0.0);
-    rim_pat.add_color_stop_rgba(0.0, 1.0, 1.0, 1.0, 1.00 * intensity);
-    rim_pat.add_color_stop_rgba(0.25, 1.0, 0.94, 0.82, 0.88 * intensity);
-    rim_pat.add_color_stop_rgba(0.60, 0.40, 0.80, 1.0, 0.50 * intensity);
-    rim_pat.add_color_stop_rgba(1.0, 0.0, 0.0, 0.0, 0.0);
-    let _ = cr.set_source(&rim_pat);
-    let rim_length = (420.0 + intensity * 480.0) * breathe_y;
-    cr.rectangle(-6.0, -rim_length / 2.0, 6.0, rim_length);
-    let _ = cr.fill();
     let _ = cr.restore();
 
     let _ = cr.restore();
@@ -461,7 +385,7 @@ fn draw_fullscreen_surge(cr: &Context, width: f64, height: f64, progress: f64, e
     cr.translate(-lut_w, -lut_h / 2.0);
 
     let pat = SurfacePattern::create(surf);
-    pat.set_filter(Filter::Bilinear);
+    pat.set_filter(Filter::Fast);
     let _ = cr.set_source(&pat);
     let _ = cr.paint_with_alpha(damping * 0.98);
 
