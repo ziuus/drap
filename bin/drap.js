@@ -85,6 +85,12 @@ switch (command) {
     }
     break;
 
+  case "install":
+    console.log("💧 Running Drap System Installer...");
+    const installer = spawn("bash", [path.join(PROJECT_DIR, "install.sh")], { stdio: "inherit" });
+    installer.on("exit", (code) => process.exit(code || 0));
+    break;
+
   case "off":
   case "stop":
     stopServices();
@@ -255,6 +261,7 @@ switch (command) {
 💧 Drap - Spatial Cross-Device Transfer & Continuity System
 
 Lifecycle:
+  drap install            Install Drap command, desktop entry & systemd service
   drap on                 Turn Drap ON (starts background server & bezel overlay)
   drap off                Turn Drap OFF (stops all processes)
   drap restart            Restart all Drap services

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drooop for Linux (Hyprland / Wayland) Runner
+# Drap for Linux (Hyprland / Wayland) Runner
 # Starts local signaling daemon and GTK4 Layer Shell edge overlay
 
 set -e
@@ -18,29 +18,29 @@ fi
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
-echo "==> Starting Drooop Server on 0.0.0.0:8080..."
+echo "==> Starting Drap Server on 0.0.0.0:8080..."
 python3 "$DIR/server.py" &
 SERVER_PID=$!
 
 # Wait briefly for server to bind port
 sleep 1.2
 
-echo "==> Starting Drooop Hyprland Edge Aurora Overlay..."
+echo "==> Starting Drap Hyprland Edge Aurora Overlay..."
 LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3 "$DIR/overlay.py" &
 OVERLAY_PID=$!
 
 cleanup() {
     echo ""
-    echo "==> Shutting down Drooop..."
+    echo "==> Shutting down Drap..."
     kill $OVERLAY_PID 2>/dev/null || true
     kill $SERVER_PID 2>/dev/null || true
     wait $OVERLAY_PID 2>/dev/null || true
     wait $SERVER_PID 2>/dev/null || true
-    echo "==> Drooop terminated cleanly."
+    echo "==> Drap terminated cleanly."
 }
 
 trap cleanup INT TERM
 
 echo ""
-echo "✨ Drooop is LIVE! Press Ctrl+C to exit."
+echo "✨ Drap is LIVE! Press Ctrl+C to exit."
 wait $SERVER_PID $OVERLAY_PID
