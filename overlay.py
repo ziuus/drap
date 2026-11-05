@@ -100,6 +100,7 @@ class DrapOverlay:
         # Dynamic Tick Callback & Bounding Box Optimization
         self.tick_id = None
         self.dirty_rect = None  # (x, y, w, h) to clear
+        self.prev_dirty_rect = None
         self._load_config()
         try:
             signal.signal(signal.SIGUSR1, lambda *_: GLib.idle_add(self._on_sigusr1))
@@ -622,18 +623,88 @@ class DrapOverlay:
             return GLib.SOURCE_CONTINUE
         else:
             # Drop CPU to literal 0.00% when animation finishes (remove GTK tick callback)
+            self.prev_dirty_rect = None
             if self.tick_id is not None:
                 widget.remove_tick_callback(self.tick_id)
                 self.tick_id = None
             widget.queue_draw()
             return GLib.SOURCE_REMOVE
 
+    def _compute_active_rect(self, width, height):
+        if self.confirm_active or self.ripple_active:
+            return None
+
+        rects = []
+        if self.current_intensity > 0.004:
+            edge = getattr(self, "active_edge", "right")
+            corner = getattr(self, "active_corner", "")
+            coord = getattr(self, "current_coord", 0.5)
+            pressure_scale = 0.92 + self.current_pressure * 0.45
+
+            if corner:
+                r = int((950 + self.current_intensity * 850) * pressure_scale * 1.15)
+                if corner == "top-right":
+                    rects.append((max(0, width - r), 0, min(width, r), min(height, r)))
+                elif corner == "bottom-right":
+                    rects.append((max(0, width - r), max(0, height - r), min(width, r), min(height, r)))
+                elif corner == "top-left":
+                    rects.append((0, 0, min(width, r), min(height, r)))
+                elif corner == "bottom-left":
+                    rects.append((0, max(0, height - r), min(width, r), min(height, r)))
+            elif edge in ("top", "bottom"):
+                rx = int((750 + self.current_intensity * 750) * pressure_scale * 1.15)
+                ry = int(max(900.0, width * (0.85 + self.current_intensity * 0.45)) * 1.15)
+                x_pos = int(coord * width)
+                if edge == "top":
+                    rects.append((max(0, x_pos - ry), 0, min(width, ry * 2), min(height, rx)))
+                else:
+                    rects.append((max(0, x_pos - ry), max(0, height - rx), min(width, ry * 2), min(height, rx)))
+            else: # "left", "right"
+                rx = int((880 + self.current_intensity * 920) * pressure_scale * 1.15)
+                ry = int(max(1000.0, height * (1.05 + self.current_intensity * 0.45)) * 1.15)
+                y_pos = int(coord * height)
+                if edge == "left":
+                    rects.append((0, max(0, y_pos - ry), min(width, rx), min(height, ry * 2)))
+                else:
+                    rects.append((max(0, width - rx), max(0, y_pos - ry), min(width, rx), min(height, ry * 2)))
+
+        if self.card_active:
+            card_w, card_h = 320, 100
+            card_x = int(getattr(self, "card_x", width - 320)) - 40
+            card_y = int(getattr(self, "card_y", 540)) - 40
+            rects.append((max(0, card_x), max(0, card_y), min(width, card_w + 80), min(height, card_h + 80)))
+
+        if not rects:
+            return None
+
+        min_x = min(r[0] for r in rects)
+        min_y = min(r[1] for r in rects)
+        max_x = max(r[0] + r[2] for r in rects)
+        max_y = max(r[1] + r[3] for r in rects)
+        return (min_x, min_y, max_x - min_x, max_y - min_y)
+
     def _on_draw(self, area, cr, width, height, *args):
-        # 1. Total wipe to 100% transparent pixels
-        cr.set_source_rgba(0, 0, 0, 0)
-        cr.set_operator(cairo.Operator.CLEAR)
-        cr.paint()
-        cr.set_operator(cairo.Operator.OVER)
+        curr_rect = self._compute_active_rect(width, height)
+
+        if curr_rect is None or self.prev_dirty_rect is None:
+            cr.set_source_rgba(0, 0, 0, 0)
+            cr.set_operator(cairo.Operator.CLEAR)
+            cr.paint()
+            cr.set_operator(cairo.Operator.OVER)
+        else:
+            ux = min(self.prev_dirty_rect[0], curr_rect[0])
+            uy = min(self.prev_dirty_rect[1], curr_rect[1])
+            uw = max(self.prev_dirty_rect[0] + self.prev_dirty_rect[2], curr_rect[0] + curr_rect[2]) - ux
+            uh = max(self.prev_dirty_rect[1] + self.prev_dirty_rect[3], curr_rect[1] + curr_rect[3]) - uy
+
+            cr.rectangle(ux, uy, uw, uh)
+            cr.clip()
+            cr.set_source_rgba(0, 0, 0, 0)
+            cr.set_operator(cairo.Operator.CLEAR)
+            cr.paint()
+            cr.set_operator(cairo.Operator.OVER)
+
+        self.prev_dirty_rect = curr_rect
 
         t_sec = time.time() - self.start_time
         active_intensity = self.current_intensity

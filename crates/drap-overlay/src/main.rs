@@ -581,10 +581,6 @@ fn main() {
             let w = width as f64;
             let h = height as f64;
 
-            if s.current_intensity > 0.005 || s.confirm_active || s.card_active {
-                println!("[drap Rust Overlay] DRAW: intensity={:.3} edge={} card={} confirm={} w={} h={}", s.current_intensity, s.active_edge, s.card_active, s.confirm_active, w, h);
-            }
-
             // Draw full-screen surge wave on drop
             if s.confirm_active {
                 draw_fullscreen_surge(cr, w, h, s.confirm_progress, &s.confirm_edge, s.confirm_coord, &s, &draw_luts);

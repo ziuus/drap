@@ -25,9 +25,15 @@ SERVER_PID=$!
 # Wait briefly for server to bind port
 sleep 1.2
 
-echo "==> Starting Drap Wayland Layer-Shell Overlay..."
-LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3 "$DIR/overlay.py" &
-OVERLAY_PID=$!
+if [ -x "$DIR/bin/drap-overlay" ]; then
+    echo "==> Starting Drap Native Wayland Layer-Shell Overlay (Rust, 100+ FPS Guaranteed)..."
+    "$DIR/bin/drap-overlay" &
+    OVERLAY_PID=$!
+else
+    echo "==> Starting Drap Wayland Layer-Shell Overlay (Python, 200+ FPS)..."
+    LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3 "$DIR/overlay.py" &
+    OVERLAY_PID=$!
+fi
 
 cleanup() {
     echo ""
