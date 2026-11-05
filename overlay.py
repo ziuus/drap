@@ -149,15 +149,14 @@ class DrapOverlay:
                 pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
 
             else: # "aurora" (Exact Chromatic Dispersion matching Tornike Drooop Demo Photo)
-                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Pure incandescent core
-                pat.add_color_stop_rgba(0.48, 1.00, 1.00, 1.00, 0.99) # Expansive white core
-                pat.add_color_stop_rgba(0.56, 1.00, 0.95, 0.88, 0.95) # Warm cream
-                pat.add_color_stop_rgba(0.64, 1.00, 0.82, 0.55, 0.88) # Golden amber / peach
-                pat.add_color_stop_rgba(0.72, 1.00, 0.58, 0.68, 0.78) # Rose coral / pink
-                pat.add_color_stop_rgba(0.80, 0.78, 0.55, 0.98, 0.60) # Ethereal lilac / violet
-                pat.add_color_stop_rgba(0.88, 0.25, 0.75, 0.98, 0.40) # Luminous sky cyan
-                pat.add_color_stop_rgba(0.95, 0.08, 0.50, 0.85, 0.15) # Oceanic azure mist
-                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00) # Transparent fade
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Maximum incandescent white-hot core
+                pat.add_color_stop_rgba(0.58, 1.00, 1.00, 1.00, 0.99) # Expansive pure white dome
+                pat.add_color_stop_rgba(0.66, 1.00, 0.94, 0.72, 0.96) # Warm golden peach
+                pat.add_color_stop_rgba(0.74, 1.00, 0.65, 0.75, 0.88) # Coral rose pink
+                pat.add_color_stop_rgba(0.82, 0.82, 0.62, 0.98, 0.65) # Ethereal lilac / violet
+                pat.add_color_stop_rgba(0.90, 0.38, 0.82, 1.00, 0.35) # Luminous sky cyan
+                pat.add_color_stop_rgba(0.96, 0.15, 0.60, 0.90, 0.12) # Soft azure mist
+                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00) # Seamless transparent fade
 
             cr.set_source(pat)
             cr.paint()
@@ -337,6 +336,27 @@ class DrapOverlay:
                 if t in ("aurora", "plasma", "solar", "liquid"):
                     self.effect_theme = t
 
+            self.drawing_area.queue_draw()
+
+        elif msg_type == "drag_start":
+            self.last_interaction_time = time.time()
+            if "edge" in data:
+                self.active_edge = data["edge"].lower()
+            if "coord" in data:
+                self.target_coord = float(data["coord"])
+                self.current_coord = self.target_coord
+            elif "y" in data:
+                self.target_coord = float(data["y"])
+                self.current_coord = self.target_coord
+            if "x" in data:
+                self.target_x = float(data["x"])
+                self.current_x = self.target_x
+            if "y" in data:
+                self.target_y = float(data["y"])
+                self.current_y = self.target_y
+            self.target_intensity = 0.55
+            self.current_intensity = 0.45
+            self.trigger_video_ripple(self.current_coord, self.active_edge)
             self.drawing_area.queue_draw()
 
         elif msg_type == "drag_edge_enter":
@@ -573,15 +593,15 @@ class DrapOverlay:
         edge = getattr(self, "active_edge", "right")
         coord = getattr(self, "current_coord", 0.5)
 
-        # Massive volumetric ambience matching Drooop (spans across 60%+ of the display)
+        # Massive volumetric ambience matching Drooop (spans across 45%+ of display width and 90%+ height)
         if edge in ("top", "bottom"):
-            radius_x = (440 + active_intensity * 520) * pressure_scale
+            radius_x = (540 + active_intensity * 600) * pressure_scale
             v_stretch = 1.0 + min(0.30, abs(self.current_vy) * 0.25)
-            radius_y = radius_x * 1.85 * v_stretch
+            radius_y = max(700.0, width * (0.65 + active_intensity * 0.35)) * v_stretch
         else: # "left", "right"
-            radius_x = (580 + active_intensity * 680) * pressure_scale
+            radius_x = (640 + active_intensity * 680) * pressure_scale
             v_stretch = 1.0 + min(0.30, abs(self.current_vy) * 0.25)
-            radius_y = radius_x * 1.62 * v_stretch
+            radius_y = max(800.0, height * (0.85 + active_intensity * 0.35)) * v_stretch
 
         cr.save()
 

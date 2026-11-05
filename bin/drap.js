@@ -153,6 +153,73 @@ switch (command) {
     console.log("==================================================\n");
     break;
 
+  case "qr":
+    try {
+      let hostIp = "127.0.0.1";
+      try {
+        const raw = execSync("curl -s --max-time 1.2 http://127.0.0.1:8080/api/status").toString();
+        const info = JSON.parse(raw);
+        hostIp = info.host_ip || info.ip || "127.0.0.1";
+      } catch (e) {
+        try {
+          const ifaces = execSync("hostname -I 2>/dev/null").toString().trim().split(" ");
+          if (ifaces[0]) hostIp = ifaces[0];
+        } catch (e2) {}
+      }
+
+      const gatewayUrl = `http://${hostIp}:8080`;
+      const pwaUrl = `https://${hostIp}:8443`;
+
+      console.log("\n==================================================");
+      console.log("  💧 DRAP MOBILE PAIRING QR CODE");
+      console.log("==================================================");
+      console.log("  Scan with your phone's camera to connect:\n");
+
+      try {
+        const qrOut = execSync(`qrencode -t ANSIUTF8 "${gatewayUrl}" 2>/dev/null`).toString();
+        console.log(qrOut);
+      } catch (e) {
+        console.log("  [ Install 'qrencode' to view ASCII QR in terminal ]\n");
+      }
+
+      console.log("--------------------------------------------------");
+      console.log(`  📱 Mobile Web App:  ${gatewayUrl}`);
+      console.log(`  🔒 Secure PWA:      ${pwaUrl}`);
+      console.log("==================================================\n");
+    } catch (e) {
+      console.error("❌ Failed to generate QR code:", e.message);
+    }
+    break;
+
+  case "update":
+    console.log("\n==================================================");
+    console.log("  💧 UPDATING DRAP TO LATEST VERSION");
+    console.log("==================================================");
+    try {
+      console.log("==> Fetching latest release from GitHub...");
+      const pullOut = execSync(`git -C "${PROJECT_DIR}" pull --ff-only 2>&1`).toString();
+      console.log(pullOut.trim());
+
+      const commit = execSync(`git -C "${PROJECT_DIR}" rev-parse --short HEAD`).toString().trim();
+      const commitMsg = execSync(`git -C "${PROJECT_DIR}" log -1 --pretty=%B`).toString().trim().split("\n")[0];
+      console.log(`==> Current commit: ${commit} ("${commitMsg}")`);
+
+      console.log("==> Updating system files and daemons...");
+      execSync(`bash "${path.join(PROJECT_DIR, "install.sh")}"`, { stdio: "inherit" });
+
+      console.log("==> Restarting Drap services...");
+      stopServices();
+      setTimeout(() => {
+        startServices();
+        console.log("\n==================================================");
+        console.log(`✨ Drap successfully updated to commit ${commit}!`);
+        console.log("==================================================\n");
+      }, 700);
+    } catch (e) {
+      console.error("❌ Update failed:", e.message);
+    }
+    break;
+
   case "devices":
     try {
       const raw = execSync("curl -s --max-time 1.5 http://127.0.0.1:8080/api/devices").toString();
@@ -161,33 +228,57 @@ switch (command) {
       console.log(`  🔒 DRAP DEVICE ACCESS CONTROL (Mode: ${data.mode.toUpperCase()})`);
       console.log("==================================================");
       if (!data.devices || data.devices.length === 0) {
-        console.log("  No devices recorded yet.");
+        console.log("  No devices recorded yet. Run 'drap qr' to pair a phone.");
       } else {
         data.devices.forEach((d) => {
-          const statusIcon = d.status === "allowed" ? "🟢 ALLOWED" : (d.status === "blocked" ? "🔴 BLOCKED" : "🟡 PENDING");
-          console.log(`  • ${d.ip.padEnd(16)} | ${statusIcon.padEnd(12)} | ${d.name}`);
+          let statusIcon = "🟡 PENDING";
+          if (d.always_allowed) {
+            statusIcon = "🟢 ALWAYS ALLOWED";
+          } else if (d.status === "allowed") {
+            statusIcon = "🟢 ALLOWED";
+          } else if (d.status === "blocked") {
+            statusIcon = "🔴 BLOCKED";
+          }
+          console.log(`  • ${d.ip.padEnd(16)} | ${statusIcon.padEnd(18)} | ${d.name}`);
         });
       }
       console.log("--------------------------------------------------");
       console.log("  Manage devices:");
-      console.log("    drap allow <ip>     Allow device to transfer");
-      console.log("    drap block <ip>     Block device from connecting");
-      console.log("    drap security <mode> (open | prompt | strict)");
+      console.log("    drap trust <ip>       Permanently allow device (Always Allowed)");
+      console.log("    drap allow <ip>       Authorize device for session");
+      console.log("    drap block <ip>       Block device from connecting");
+      console.log("    drap security <mode>  Policy: open | prompt | strict");
       console.log("==================================================\n");
     } catch (e) {
       console.error("❌ Failed to query devices. Is Drap running? ('drap on')");
     }
     break;
 
-  case "allow":
-    const allowIp = args[1];
-    if (!allowIp) {
-      console.error("Usage: drap allow <device-ip>");
+  case "trust":
+  case "always-allow":
+    const trustIp = args[1];
+    if (!trustIp) {
+      console.error("Usage: drap trust <device-ip>");
       process.exit(1);
     }
     try {
-      execSync(`curl -s -X POST http://127.0.0.1:8080/api/devices/allow -H "Content-Type: application/json" -d '{"ip":"${allowIp}"}'`);
-      console.log(`✓ Device ${allowIp} is now ALLOWED.`);
+      execSync(`curl -s -X POST http://127.0.0.1:8080/api/devices/trust -H "Content-Type: application/json" -d '{"ip":"${trustIp}"}'`);
+      console.log(`✓ Device ${trustIp} is now ALWAYS ALLOWED (Permanently Trusted).`);
+    } catch (e) {
+      console.error("❌ Failed to trust device. Is Drap running? ('drap on')");
+    }
+    break;
+
+  case "allow":
+    const allowIp = args[1];
+    const isAlways = args[2] === "always" || args.includes("--always");
+    if (!allowIp) {
+      console.error("Usage: drap allow <device-ip> [--always]");
+      process.exit(1);
+    }
+    try {
+      execSync(`curl -s -X POST http://127.0.0.1:8080/api/devices/allow -H "Content-Type: application/json" -d '{"ip":"${allowIp}", "always": ${isAlways}}'`);
+      console.log(`✓ Device ${allowIp} is now ${isAlways ? "ALWAYS ALLOWED (Trusted)" : "ALLOWED"}.`);
     } catch (e) {
       console.error("❌ Failed to allow device. Is Drap running? ('drap on')");
     }

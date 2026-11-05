@@ -89,37 +89,54 @@ class DeviceSecurity:
     def get_all(self):
         return list(self.devices.values())
 
-    def allow(self, ip: str) -> bool:
+    def allow(self, ip: str, always: bool = False) -> bool:
+        now_str = datetime.now().isoformat()
         if ip in self.devices:
             self.devices[ip]["status"] = "allowed"
+            if always:
+                self.devices[ip]["always_allowed"] = True
         else:
-            now_str = datetime.now().isoformat()
             self.devices[ip] = {
                 "ip": ip,
                 "name": "Authorized Device",
                 "status": "allowed",
+                "always_allowed": always,
                 "first_seen": now_str,
                 "last_seen": now_str
             }
         self.save()
-        self._notify(f"Device Allowed: {ip}", "Transfers and spatial telemetry authorized.")
+        msg = f"Device Always Allowed (Trusted): {ip}" if always else f"Device Allowed: {ip}"
+        self._notify(msg, "Device authorized to connect and transfer files.")
         return True
 
+    def trust(self, ip: str) -> bool:
+        """Permanently whitelists and marks device as Always Allowed."""
+        return self.allow(ip, always=True)
+
     def block(self, ip: str) -> bool:
+        now_str = datetime.now().isoformat()
         if ip in self.devices:
             self.devices[ip]["status"] = "blocked"
+            self.devices[ip]["always_allowed"] = False
         else:
-            now_str = datetime.now().isoformat()
             self.devices[ip] = {
                 "ip": ip,
                 "name": "Blocked Device",
                 "status": "blocked",
+                "always_allowed": False,
                 "first_seen": now_str,
                 "last_seen": now_str
             }
         self.save()
         self._notify(f"Device Blocked: {ip}", "Access and uploads revoked.")
         return True
+
+    def remove(self, ip: str) -> bool:
+        if ip in self.devices:
+            del self.devices[ip]
+            self.save()
+            return True
+        return False
 
     def set_mode(self, mode: str):
         if mode in ("open", "prompt", "strict"):
@@ -160,9 +177,11 @@ class DeviceSecurity:
                 dev["name"] = self._infer_alias(user_agent)
             self.save()
 
-            if dev["status"] == "blocked":
+            if dev.get("always_allowed"):
+                return True
+            if dev.get("status") == "blocked":
                 return False
-            if self.mode == "strict" and dev["status"] != "allowed":
+            if self.mode == "strict" and dev.get("status") != "allowed":
                 return False
             return True
 
@@ -515,10 +534,27 @@ async def get_devices():
 @app.post("/api/devices/allow")
 async def allow_device(payload: Dict[str, Any]):
     ip = payload.get("ip")
+    always = bool(payload.get("always", False))
     if not ip:
         raise HTTPException(status_code=400, detail="Missing ip parameter")
-    device_sec.allow(ip)
-    return {"status": "success", "ip": ip, "device_status": "allowed"}
+    device_sec.allow(ip, always=always)
+    return {"status": "success", "ip": ip, "always_allowed": always}
+
+@app.post("/api/devices/trust")
+async def trust_device(payload: Dict[str, Any]):
+    ip = payload.get("ip")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+    device_sec.trust(ip)
+    return {"status": "success", "ip": ip, "always_allowed": True}
+
+@app.post("/api/devices/remove")
+async def remove_device(payload: Dict[str, Any]):
+    ip = payload.get("ip")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+    device_sec.remove(ip)
+    return {"status": "success", "ip": ip}
 
 @app.post("/api/devices/block")
 async def block_device(payload: Dict[str, Any]):

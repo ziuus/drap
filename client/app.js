@@ -335,8 +335,20 @@
         dragAura.style.left = `${x}px`;
         dragAura.style.top = `${y}px`;
         dragAura.style.opacity = "0.85";
-        dragAura.style.transform = "translate(-50%, -50%) scale(0.70)";
+        dragAura.style.transform = "translate3d(-50%, -50%, 0) scale(0.75)";
       }
+
+      // Prime spatial connection on desktop with instant shockwave ripple
+      const initialEdge = (targetEdgePref && targetEdgePref !== 'auto') ? targetEdgePref : 'right';
+      queueSpatialPacket({
+        type: "drag_start",
+        edge: initialEdge,
+        coord: y / window.innerHeight,
+        x: x / window.innerWidth,
+        y: y / window.innerHeight,
+        proximity: 0.20,
+        pressure: 0.5
+      });
     }
 
     card.addEventListener("touchstart", (e) => {
@@ -375,9 +387,17 @@
         }
 
         // In Browse Mode: Lock into vertical scroll only if moving fast vertically without holding
-        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.6) {
+        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.5) {
           isScrolling = true;
           clearTimeout(holdTimer);
+          return;
+        }
+
+        // Horizontal flick/swipe in browse mode: start spatial drag immediately
+        if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+          clearTimeout(holdTimer);
+          e.preventDefault();
+          startActiveDrag(t.clientX, t.clientY);
           return;
         }
       }
