@@ -48,7 +48,8 @@ def rounded_rectangle(cr, x, y, width, height, radius):
 class DrapOverlay:
     def __init__(self):
         self.running = True
-        self.active_edge = "right"  # "right", "left", "bottom", "top"
+        self.active_edge = "right"  # "right", "left", "bottom", "top", "corner-*"
+        self.active_corner = ""     # "top-right", "bottom-right", "top-left", "bottom-left"
         self.target_edge = "right"
         self.target_coord = 0.5
         self.current_coord = 0.5
@@ -305,7 +306,11 @@ class DrapOverlay:
 
         if msg_type == "drag_move":
             self.last_interaction_time = time.time()
-            if "edge" in data:
+            if "corner" in data and data["corner"]:
+                self.active_corner = data["corner"].lower()
+                self.active_edge = "corner-" + self.active_corner
+            elif "edge" in data:
+                self.active_corner = ""
                 self.active_edge = data["edge"].lower()
             if "coord" in data:
                 self.target_coord = float(data["coord"])
@@ -340,7 +345,11 @@ class DrapOverlay:
 
         elif msg_type == "drag_start":
             self.last_interaction_time = time.time()
-            if "edge" in data:
+            if "corner" in data and data["corner"]:
+                self.active_corner = data["corner"].lower()
+                self.active_edge = "corner-" + self.active_corner
+            elif "edge" in data:
+                self.active_corner = ""
                 self.active_edge = data["edge"].lower()
             if "coord" in data:
                 self.target_coord = float(data["coord"])
@@ -379,6 +388,7 @@ class DrapOverlay:
         elif msg_type == "drag_edge_leave":
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
+            self.active_corner = ""
             self.target_pressure = 0.5
             self.drawing_area.queue_draw()
 
@@ -392,7 +402,9 @@ class DrapOverlay:
                 self.drawing_area.queue_draw()
 
         elif msg_type == "drag_drop" or msg_type == "file_uploaded":
-            if "edge" in data:
+            if "corner" in data and data["corner"]:
+                self.confirm_edge = "corner-" + data["corner"].lower()
+            elif "edge" in data:
                 self.confirm_edge = data["edge"].lower()
             else:
                 self.confirm_edge = self.active_edge
@@ -526,7 +538,19 @@ class DrapOverlay:
                 edge = getattr(self, "card_edge", "right")
                 coord = getattr(self, "card_coord", 0.5)
 
-                if edge == "right":
+                if edge == "corner-top-right":
+                    self.card_x = screen_w - (offset * 320)
+                    self.card_y = (offset * 140)
+                elif edge == "corner-bottom-right":
+                    self.card_x = screen_w - (offset * 320)
+                    self.card_y = screen_h - (offset * 140) - 74
+                elif edge == "corner-top-left":
+                    self.card_x = (offset * 320) - 280
+                    self.card_y = (offset * 140)
+                elif edge == "corner-bottom-left":
+                    self.card_x = (offset * 320) - 280
+                    self.card_y = screen_h - (offset * 140) - 74
+                elif edge == "right":
                     self.card_x = screen_w - (offset * 320)
                     self.card_y = coord * screen_h
                 elif edge == "left":
@@ -590,7 +614,36 @@ class DrapOverlay:
 
         pressure_scale = 0.90 + self.current_pressure * 0.45
         edge = getattr(self, "active_edge", "right")
+        corner = getattr(self, "active_corner", "")
         coord = getattr(self, "current_coord", 0.5)
+
+        if corner:
+            # Dual-Bezel Corner Drooop Aurora Atmosphere
+            radius = (720 + active_intensity * 650) * pressure_scale
+            cr.save()
+            if corner == "top-right":
+                cr.translate(width, 0)
+                cr.rotate(3 * math.pi / 4)
+            elif corner == "bottom-right":
+                cr.translate(width, height)
+                cr.rotate(-3 * math.pi / 4)
+            elif corner == "top-left":
+                cr.translate(0, 0)
+                cr.rotate(math.pi / 4)
+            elif corner == "bottom-left":
+                cr.translate(0, height)
+                cr.rotate(-math.pi / 4)
+
+            cr.scale(radius / lut_w, radius / (lut_h / 2))
+            cr.translate(-lut_w, -lut_h / 2)
+
+            pat = cairo.SurfacePattern(surf)
+            pat.set_filter(cairo.Filter.BILINEAR)
+            cr.set_source(pat)
+            glow_alpha = min(1.0, math.sqrt(active_intensity) * 1.05)
+            cr.paint_with_alpha(glow_alpha)
+            cr.restore()
+            return
 
         # Massive volumetric ambience matching Drooop (spans across 45%+ of display width and 90%+ height)
         if edge in ("top", "bottom"):
@@ -869,7 +922,21 @@ class DrapOverlay:
         edge = getattr(self, "confirm_edge", "right")
         coord = getattr(self, "confirm_coord", 0.5)
 
-        if edge == "left":
+        if edge.startswith("corner-"):
+            corner = edge.replace("corner-", "")
+            if corner == "top-right":
+                cr.translate(width, 0)
+                cr.rotate(3 * math.pi / 4)
+            elif corner == "bottom-right":
+                cr.translate(width, height)
+                cr.rotate(-3 * math.pi / 4)
+            elif corner == "top-left":
+                cr.translate(0, 0)
+                cr.rotate(math.pi / 4)
+            elif corner == "bottom-left":
+                cr.translate(0, height)
+                cr.rotate(-math.pi / 4)
+        elif edge == "left":
             cr.translate(0, coord * height)
             cr.rotate(math.pi)
         elif edge == "top":
@@ -908,7 +975,21 @@ class DrapOverlay:
         edge = getattr(self, "ripple_edge", "right")
         coord = getattr(self, "ripple_coord", 0.5)
 
-        if edge == "left":
+        if edge.startswith("corner-"):
+            corner = edge.replace("corner-", "")
+            if corner == "top-right":
+                cr.translate(width, 0)
+                cr.rotate(3 * math.pi / 4)
+            elif corner == "bottom-right":
+                cr.translate(width, height)
+                cr.rotate(-3 * math.pi / 4)
+            elif corner == "top-left":
+                cr.translate(0, 0)
+                cr.rotate(math.pi / 4)
+            elif corner == "bottom-left":
+                cr.translate(0, height)
+                cr.rotate(-math.pi / 4)
+        elif edge == "left":
             cr.translate(0, coord * height)
             cr.rotate(math.pi)
         elif edge == "top":
@@ -935,7 +1016,10 @@ class DrapOverlay:
         card_w = 280
         card_h = 74
 
-        if edge in ("top", "bottom"):
+        if edge.startswith("corner-"):
+            card_x = max(40, min(width - card_w - 40, self.card_x))
+            card_y = max(40, min(height - card_h - 40, self.card_y))
+        elif edge in ("top", "bottom"):
             card_x = max(40, min(width - card_w - 40, self.card_x - card_w / 2))
             card_y = max(40, min(height - card_h - 40, self.card_y))
         else:

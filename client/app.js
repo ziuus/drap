@@ -423,29 +423,31 @@
 
       // Directional Angle & Gesture Check
       if (!isHoldLifted && !activeDrag) {
-        // In Transfer Mode: Immediate flick in ANY direction (left, right, up, down)
+        // In Transfer Mode: Immediate intentional flick in any direction
         if (currentMode === 'transfer') {
-          if (Math.abs(dx) > 16 || Math.abs(dy) > 16) {
+          if (Math.abs(dx) > 35 || Math.abs(dy) > 35) {
             e.preventDefault();
             startActiveDrag(t.clientX, t.clientY);
           }
           return;
         }
 
-        // In Browse Mode: Lock into vertical scroll only if moving fast vertically without holding
-        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+        // In Browse Mode: Vertical motion is strictly browsing / scrolling!
+        if (Math.abs(dy) > 12) {
           isScrolling = true;
           clearTimeout(holdTimer);
           return;
         }
 
-        // Horizontal flick/swipe in browse mode: start spatial drag immediately
-        if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+        // In Browse Mode: ONLY start drag on an intentional, large horizontal flick (> 75px)
+        // This completely eliminates accidental drag start and jumping sides while browsing!
+        if (Math.abs(dx) > 75 && Math.abs(dx) > Math.abs(dy) * 2.0) {
           clearTimeout(holdTimer);
           e.preventDefault();
           startActiveDrag(t.clientX, t.clientY);
           return;
         }
+        return;
       }
 
       if (activeDrag) {
@@ -521,77 +523,109 @@
 
     let phoneEdge = "left";
     let desktopEdge = "right";
+    let desktopCorner = "";
+    let phoneCorner = "";
     let normCoord = normY;
     let proximity = 0.0;
 
-    if (isMultiSideSend) {
-      // Multi-Side Mode (when explicitly enabled by user):
-      // Only activates within strict 110px edge border!
-      const distLeft = clientX;
-      const distRight = screenW - clientX;
-      const distTop = clientY;
-      const distBottom = screenH - clientY;
-      const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-      const edgeReach = (minDist === distTop || minDist === distBottom) ? Math.min(90, screenH * 0.18) : Math.min(110, screenW * 0.24);
+    // Tight edge reach: only within final ~55-60px of bezel (inner 85% of screen is strict 0.0 dead-zone!)
+    const reachH = Math.min(58, screenW * 0.15);
+    const reachV = Math.min(58, screenH * 0.08);
 
-      if (minDist === distLeft) {
+    const distLeft = clientX;
+    const distRight = screenW - clientX;
+    const distTop = clientY;
+    const distBottom = screenH - clientY;
+
+    if (isMultiSideSend) {
+      // 4-Side Mode with Natural Directions & Smart Corner Sensing:
+      // Dragging DOWN -> Desktop BOTTOM
+      // Dragging UP -> Desktop TOP
+      // Dragging LEFT -> Desktop RIGHT
+      // Dragging RIGHT -> Desktop LEFT
+      const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.8) : 0.0;
+      const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.8) : 0.0;
+      const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.8) : 0.0;
+      const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.8) : 0.0;
+
+      // Sensed Corner Junctions (where 2 sides meet at corners):
+      if (proxL > 0.02 && proxT > 0.02) {
+        // Phone Top-Left Corner -> Desktop Top-Right Corner!
+        phoneCorner = "top-left";
+        desktopCorner = "top-right";
         phoneEdge = "left";
         desktopEdge = "right";
-        normCoord = normY;
-      } else if (minDist === distRight) {
+        normCoord = 0.0;
+        proximity = Math.min(1.0, Math.sqrt(proxL * proxL + proxT * proxT));
+      } else if (proxL > 0.02 && proxB > 0.02) {
+        // Phone Bottom-Left Corner -> Desktop Bottom-Right Corner!
+        phoneCorner = "bottom-left";
+        desktopCorner = "bottom-right";
+        phoneEdge = "left";
+        desktopEdge = "right";
+        normCoord = 1.0;
+        proximity = Math.min(1.0, Math.sqrt(proxL * proxL + proxB * proxB));
+      } else if (proxR > 0.02 && proxT > 0.02) {
+        // Phone Top-Right Corner -> Desktop Top-Left Corner!
+        phoneCorner = "top-right";
+        desktopCorner = "top-left";
         phoneEdge = "right";
         desktopEdge = "left";
-        normCoord = normY;
-      } else if (minDist === distTop) {
-        phoneEdge = "top";
-        desktopEdge = "bottom";
-        normCoord = normX;
+        normCoord = 0.0;
+        proximity = Math.min(1.0, Math.sqrt(proxR * proxR + proxT * proxT));
+      } else if (proxR > 0.02 && proxB > 0.02) {
+        // Phone Bottom-Right Corner -> Desktop Bottom-Left Corner!
+        phoneCorner = "bottom-right";
+        desktopCorner = "bottom-left";
+        phoneEdge = "right";
+        desktopEdge = "left";
+        normCoord = 1.0;
+        proximity = Math.min(1.0, Math.sqrt(proxR * proxR + proxB * proxB));
       } else {
-        phoneEdge = "bottom";
-        desktopEdge = "top";
-        normCoord = normX;
+        // Straight Edges
+        const maxProx = Math.max(proxL, proxR, proxT, proxB);
+        if (maxProx > 0.0) {
+          if (maxProx === proxL) {
+            phoneEdge = "left";
+            desktopEdge = "right";
+            normCoord = normY;
+            proximity = proxL;
+          } else if (maxProx === proxR) {
+            phoneEdge = "right";
+            desktopEdge = "left";
+            normCoord = normY;
+            proximity = proxR;
+          } else if (maxProx === proxT) {
+            // Dragging UP emerges from UP itself!
+            phoneEdge = "top";
+            desktopEdge = "top";
+            normCoord = normX;
+            proximity = proxT;
+          } else if (maxProx === proxB) {
+            // Dragging DOWN emerges from DOWN itself!
+            phoneEdge = "bottom";
+            desktopEdge = "bottom";
+            normCoord = normX;
+            proximity = proxB;
+          }
+        } else {
+          proximity = 0.0;
+        }
       }
 
-      if (targetEdgePref && targetEdgePref !== "auto") {
+      if (targetEdgePref && targetEdgePref !== "auto" && !desktopCorner) {
         desktopEdge = targetEdgePref;
       }
-
-      if (minDist < edgeReach) {
-        const ratio = (edgeReach - minDist) / edgeReach;
-        proximity = Math.min(1.0, Math.pow(ratio, 1.4));
-      }
     } else {
-      // Locked to Single Edge Mode (Default: Phone Left -> Desktop Right)
-      // Only activates within strict 110px border! Center touches have 0% proximity!
-      if (targetEdgePref === "left") {
-        phoneEdge = "right";
-        desktopEdge = "left";
-        normCoord = normY;
-        const edgeReach = Math.min(110, screenW * 0.25);
-        const dist = screenW - clientX;
-        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
-      } else if (targetEdgePref === "bottom") {
-        phoneEdge = "top";
-        desktopEdge = "bottom";
-        normCoord = normX;
-        const edgeReach = Math.min(90, screenH * 0.20);
-        const dist = clientY;
-        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
-      } else if (targetEdgePref === "top") {
-        phoneEdge = "bottom";
-        desktopEdge = "top";
-        normCoord = normX;
-        const edgeReach = Math.min(90, screenH * 0.20);
-        const dist = screenH - clientY;
-        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
+      // Default: Strictly Left Side Drag Only (Phone Left -> Desktop Right)
+      // All other edges and corners produce 0.0 proximity!
+      phoneEdge = "left";
+      desktopEdge = "right";
+      normCoord = normY;
+      if (distLeft < reachH) {
+        proximity = Math.pow((reachH - distLeft) / reachH, 1.8);
       } else {
-        // Default single edge: Phone Left Bezel -> Desktop Right Bezel
-        phoneEdge = "left";
-        desktopEdge = "right";
-        normCoord = normY;
-        const edgeReach = Math.min(110, screenW * 0.25);
-        const dist = clientX;
-        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
+        proximity = 0.0;
       }
     }
     const pressure = 0.5 + (proximity * 0.5);
@@ -610,12 +644,30 @@
       activeDrag.normCoord = normCoord;
       activeDrag.phoneEdge = phoneEdge;
       activeDrag.desktopEdge = desktopEdge;
+      activeDrag.phoneCorner = phoneCorner;
+      activeDrag.desktopCorner = desktopCorner;
     }
 
-    // Phone Edge Glow & Meniscus Bulb Directional Morphing for all 4 edges
+    // Phone Edge & Corner Bulbs
     const bulb = document.getElementById("phoneEdgeBulb");
-    if (proximity > 0.05) {
-      if (bulb) {
+    const cornerBulb = document.getElementById("phoneCornerBulb");
+
+    if (proximity > 0.04) {
+      if (phoneCorner && cornerBulb) {
+        if (bulb) {
+          bulb.style.opacity = "0";
+          bulb.style.display = "none";
+        }
+        cornerBulb.className = `phone-corner-bulb corner-${phoneCorner}`;
+        cornerBulb.style.display = "block";
+        cornerBulb.style.opacity = Math.min(1.0, proximity * 1.6);
+        const scale = 0.85 + proximity * 0.45;
+        cornerBulb.style.transform = `scale(${scale})`;
+      } else if (bulb) {
+        if (cornerBulb) {
+          cornerBulb.style.opacity = "0";
+          cornerBulb.style.display = "none";
+        }
         bulb.style.display = "block";
         bulb.style.opacity = Math.min(1.0, proximity * 1.8);
         const push = (1.0 - proximity) * -65;
@@ -652,6 +704,10 @@
         bulb.style.opacity = "0";
         bulb.style.display = "none";
       }
+      if (cornerBulb) {
+        cornerBulb.style.opacity = "0";
+        cornerBulb.style.display = "none";
+      }
     }
 
     if (dragGhost) {
@@ -676,7 +732,9 @@
     queueSpatialPacket({
       type: "drag_move",
       edge: desktopEdge,
+      corner: desktopCorner,
       phone_edge: phoneEdge,
+      phone_corner: phoneCorner,
       coord: normCoord,
       x: normX,
       y: normY,
@@ -711,9 +769,14 @@
     }
     document.body.classList.remove("is-dragging-active");
     const bulb = document.getElementById("phoneEdgeBulb");
+    const cornerBulb = document.getElementById("phoneCornerBulb");
     if (bulb) {
       bulb.style.opacity = "0";
       bulb.style.display = "none";
+    }
+    if (cornerBulb) {
+      cornerBulb.style.opacity = "0";
+      cornerBulb.style.display = "none";
     }
     if (dragGhost) {
       dragGhost.style.display = "none";
@@ -743,10 +806,11 @@
 
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
-    const edgeThreshold = 55;
+    const edgeThreshold = 44; // Tight, intentional 44px threshold
     let crossedThreshold = false;
     let dropPhoneEdge = drag.phoneEdge || "left";
     let dropDesktopEdge = drag.desktopEdge || "right";
+    let dropCorner = drag.desktopCorner || "";
     let dropCoord = drag.normCoord || 0.5;
     let waveX = 0;
     let waveY = clientY;
@@ -756,68 +820,80 @@
       const crossedRight = clientX >= screenW - edgeThreshold;
       const crossedTop = clientY <= edgeThreshold;
       const crossedBottom = clientY >= screenH - edgeThreshold;
-      crossedThreshold = crossedLeft || crossedRight || crossedTop || crossedBottom;
 
-      if (crossedLeft) {
+      // 1. Sensed Corner Junction Drops (file flicked towards 2 meeting sides)
+      if (crossedLeft && crossedTop) {
+        crossedThreshold = true;
+        dropCorner = "top-right";
+        dropPhoneEdge = "top-left";
+        dropDesktopEdge = "corner-top-right";
+        waveX = 0;
+        waveY = 0;
+      } else if (crossedLeft && crossedBottom) {
+        crossedThreshold = true;
+        dropCorner = "bottom-right";
+        dropPhoneEdge = "bottom-left";
+        dropDesktopEdge = "corner-bottom-right";
+        waveX = 0;
+        waveY = screenH;
+      } else if (crossedRight && crossedTop) {
+        crossedThreshold = true;
+        dropCorner = "top-left";
+        dropPhoneEdge = "top-right";
+        dropDesktopEdge = "corner-top-left";
+        waveX = screenW;
+        waveY = 0;
+      } else if (crossedRight && crossedBottom) {
+        crossedThreshold = true;
+        dropCorner = "bottom-left";
+        dropPhoneEdge = "bottom-right";
+        dropDesktopEdge = "corner-bottom-left";
+        waveX = screenW;
+        waveY = screenH;
+      } else if (crossedLeft) {
+        // Straight Left Bezel
+        crossedThreshold = true;
         dropPhoneEdge = "left";
         dropDesktopEdge = "right";
         dropCoord = clientY / screenH;
         waveX = 0;
         waveY = clientY;
       } else if (crossedRight) {
+        // Straight Right Bezel
+        crossedThreshold = true;
         dropPhoneEdge = "right";
         dropDesktopEdge = "left";
         dropCoord = clientY / screenH;
         waveX = screenW;
         waveY = clientY;
       } else if (crossedTop) {
+        // Straight Top Bezel (Dragging UP emerges from UP itself)
+        crossedThreshold = true;
         dropPhoneEdge = "top";
-        dropDesktopEdge = "bottom";
+        dropDesktopEdge = "top";
         dropCoord = clientX / screenW;
         waveX = clientX;
         waveY = 0;
       } else if (crossedBottom) {
+        // Straight Bottom Bezel (Dragging DOWN emerges from DOWN itself)
+        crossedThreshold = true;
         dropPhoneEdge = "bottom";
-        dropDesktopEdge = "top";
+        dropDesktopEdge = "bottom";
         dropCoord = clientX / screenW;
         waveX = clientX;
         waveY = screenH;
       }
     } else {
-      // Single-edge locked: verify only the configured primary border was crossed
-      if (drag.phoneEdge === "right") {
-        crossedThreshold = clientX >= screenW - edgeThreshold;
-        dropPhoneEdge = "right";
-        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "left";
-        dropCoord = clientY / screenH;
-        waveX = screenW;
-        waveY = clientY;
-      } else if (drag.phoneEdge === "top") {
-        crossedThreshold = clientY <= edgeThreshold;
-        dropPhoneEdge = "top";
-        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "bottom";
-        dropCoord = clientX / screenW;
-        waveX = clientX;
-        waveY = 0;
-      } else if (drag.phoneEdge === "bottom") {
-        crossedThreshold = clientY >= screenH - edgeThreshold;
-        dropPhoneEdge = "bottom";
-        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "top";
-        dropCoord = clientX / screenW;
-        waveX = clientX;
-        waveY = screenH;
-      } else {
-        // Default: Phone left edge
-        crossedThreshold = clientX <= edgeThreshold;
-        dropPhoneEdge = "left";
-        dropDesktopEdge = (targetEdgePref && targetEdgePref !== "auto") ? targetEdgePref : "right";
-        dropCoord = clientY / screenH;
-        waveX = 0;
-        waveY = clientY;
-      }
+      // Default: Strictly Left Side Drag Only
+      crossedThreshold = clientX <= edgeThreshold;
+      dropPhoneEdge = "left";
+      dropDesktopEdge = "right";
+      dropCoord = clientY / screenH;
+      waveX = 0;
+      waveY = clientY;
     }
 
-    if (targetEdgePref && targetEdgePref !== "auto") {
+    if (targetEdgePref && targetEdgePref !== "auto" && !dropCorner) {
       dropDesktopEdge = targetEdgePref;
     }
 
@@ -835,6 +911,7 @@
           url: drag.payload || "/media/continue.mp4",
           time: curTime,
           edge: dropDesktopEdge,
+          corner: dropCorner,
           coord: dropCoord,
           x: drag.normalizedX || 0.5,
           y: drag.normalizedY || 0.5
@@ -845,6 +922,7 @@
         try {
           const formData = new FormData();
           formData.append("edge", dropDesktopEdge);
+          if (dropCorner) formData.append("corner", dropCorner);
           formData.append("coord", dropCoord.toString());
           formData.append("x", (drag.normalizedX || 0.5).toString());
           formData.append("y", (drag.normalizedY || 0.5).toString());
