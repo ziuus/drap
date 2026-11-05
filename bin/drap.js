@@ -395,6 +395,18 @@ switch (command) {
     spawn("python3", [HUB_SCRIPT], { stdio: "inherit", detached: true });
     break;
 
+  case "test":
+  case "demo":
+    const testEdge = (args[1] || "left").toLowerCase();
+    const testName = args[2] || "Showcase_Drop.jpg";
+    try {
+      const pyCode = 'import json, sys; from websockets.sync.client import connect; ws = connect("ws://127.0.0.1:8080/ws"); ws.send(json.dumps({"type": "drag_drop", "filename": sys.argv[2], "size": 3480000, "edge": sys.argv[1], "coord": 0.5, "x": 0.5, "y": 0.5})); print(f"✨ Full-screen ambience surge triggered from {sys.argv[1]} edge!")';
+      execSync(`python3 -c '${pyCode}' "${testEdge}" "${testName}"`, { stdio: "inherit" });
+    } catch (e) {
+      console.error(`❌ Failed to trigger animation: ${e.message}`);
+    }
+    break;
+
   case "share":
     const filePath = args[1];
     if (!filePath) {
@@ -435,6 +447,7 @@ Security & Access Control:
   drap security <mode>    Set policy: open | prompt (default) | strict
 
 Visuals & Themes:
+  drap test [left|right|top|bottom] Trigger full-screen drop ambience surge on your desktop
   drap config liquid_glass on|off   Enable or disable ultra-realistic water ripple FX (default: off)
   drap theme <name>                 Switch active shader palette (aurora, plasma, solar, liquid)
 `);
