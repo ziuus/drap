@@ -15,11 +15,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Phone Dynamic Bezel Halo & Fluid Meniscus Bulb -->
-  <div class="phone-ambient-perimeter" id="phoneAmbientPerimeter"></div>
-  <div class="left-bezel-halo" id="leftBezelHalo"></div>
-  <div class="left-bezel-rim" id="leftBezelRim"></div>
-  <div class="phone-edge-bulb" id="phoneEdgeBulb"></div>
+  <!-- Phone Dynamic Ambience & Shockwave Layers -->
+  <div class="phone-edge-bulb" id="phoneEdgeBulb" style="display: none;"></div>
   <div class="mobile-ripple-container" id="mobileRippleContainer"></div>
   <div class="drag-scrim" id="dragScrim"></div>
 
@@ -81,27 +78,6 @@
 
       <div class="media-grid" id="mediaGrid">
         <!-- Dynamically rendered from device's persistent IndexedDB vault & laptop shares -->
-      </div>
-    </section>
-
-    <!-- Video Continuity Card -->
-    <section class="content-section" data-cat="video">
-      <div class="section-header">
-        <h2>Video Continuity</h2>
-      </div>
-
-      <div class="video-card card-item" data-cat="video" id="videoHandoffCard" data-item-type="video" data-url="/media/continue.mp4" data-title="Tokyo Motion.mp4" data-size="19 MB">
-        <div class="video-wrapper">
-          <video id="continuityVideo" src="/media/continue.mp4" playsinline loop preload="metadata" poster="/media/sample_photo3.jpg"></video>
-          <div class="video-overlay-play" id="videoPlayIndicator">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-          </div>
-        </div>
-        <div class="video-info">
-          <div class="video-title">Tokyo Motion.mp4</div>
-          <div class="video-time" id="videoTime">0:00 / 0:00 • Drag to Resume on Desktop</div>
-        </div>
-        <div class="card-lift-indicator"></div>
       </div>
     </section>
 

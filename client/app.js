@@ -79,8 +79,6 @@
   const tabBrowse = document.getElementById("tabBrowse");
   const tabTransfer = document.getElementById("tabTransfer");
   const mediaGrid = document.getElementById("mediaGrid");
-  const leftBezelHalo = document.getElementById("leftBezelHalo");
-  const leftBezelRim = document.getElementById("leftBezelRim");
   const dragAura = document.getElementById("dragAura");
   const dragGhost = document.getElementById("dragGhost");
   const ghostThumb = document.getElementById("ghostThumb");
@@ -569,6 +567,7 @@
     const bulb = document.getElementById("phoneEdgeBulb");
     if (proximity > 0.05) {
       if (bulb) {
+        bulb.style.display = "block";
         bulb.style.opacity = Math.min(1.0, proximity * 1.8);
         const push = (1.0 - proximity) * -65;
         const scale = 0.85 + proximity * 0.55;
@@ -579,57 +578,31 @@
           bulb.style.top = `${clientY}px`;
           bulb.style.bottom = "auto";
           bulb.style.transform = `translateY(-50%) translateX(${push}%) scale(${scale})`;
-          if (leftBezelRim) {
-            leftBezelRim.style.left = "0"; leftBezelRim.style.right = "auto";
-            leftBezelRim.style.top = "0"; leftBezelRim.style.bottom = "0";
-            leftBezelRim.style.width = "5px"; leftBezelRim.style.height = "100%";
-            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
-          }
         } else if (phoneEdge === "right") {
           bulb.style.left = "auto";
           bulb.style.right = "0";
           bulb.style.top = `${clientY}px`;
           bulb.style.bottom = "auto";
           bulb.style.transform = `translateY(-50%) translateX(${-push}%) rotate(180deg) scale(${scale})`;
-          if (leftBezelRim) {
-            leftBezelRim.style.left = "auto"; leftBezelRim.style.right = "0";
-            leftBezelRim.style.top = "0"; leftBezelRim.style.bottom = "0";
-            leftBezelRim.style.width = "5px"; leftBezelRim.style.height = "100%";
-            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
-          }
         } else if (phoneEdge === "top") {
           bulb.style.left = `${clientX}px`;
           bulb.style.right = "auto";
           bulb.style.top = "0";
           bulb.style.bottom = "auto";
           bulb.style.transform = `translateX(-50%) translateY(${push}%) rotate(90deg) scale(${scale})`;
-          if (leftBezelRim) {
-            leftBezelRim.style.left = "0"; leftBezelRim.style.right = "0";
-            leftBezelRim.style.top = "0"; leftBezelRim.style.bottom = "auto";
-            leftBezelRim.style.width = "100%"; leftBezelRim.style.height = "5px";
-            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
-          }
         } else if (phoneEdge === "bottom") {
           bulb.style.left = `${clientX}px`;
           bulb.style.right = "auto";
           bulb.style.top = "auto";
           bulb.style.bottom = "0";
           bulb.style.transform = `translateX(-50%) translateY(${-push}%) rotate(-90deg) scale(${scale})`;
-          if (leftBezelRim) {
-            leftBezelRim.style.left = "0"; leftBezelRim.style.right = "0";
-            leftBezelRim.style.top = "auto"; leftBezelRim.style.bottom = "0";
-            leftBezelRim.style.width = "100%"; leftBezelRim.style.height = "5px";
-            leftBezelRim.style.opacity = Math.min(1.0, proximity * 1.9);
-          }
         }
       }
-      if (leftBezelHalo) {
-        leftBezelHalo.style.opacity = Math.min(1.0, proximity * 1.8);
-      }
     } else {
-      if (leftBezelHalo) leftBezelHalo.style.opacity = "0";
-      if (leftBezelRim) leftBezelRim.style.opacity = "0";
-      if (bulb) bulb.style.opacity = "0";
+      if (bulb) {
+        bulb.style.opacity = "0";
+        bulb.style.display = "none";
+      }
     }
 
     if (dragGhost) {
@@ -688,10 +661,11 @@
       pendingSpatialPacket = null;
     }
     document.body.classList.remove("is-dragging-active");
-    if (leftBezelHalo) leftBezelHalo.style.opacity = "0";
-    if (leftBezelRim) leftBezelRim.style.opacity = "0";
     const bulb = document.getElementById("phoneEdgeBulb");
-    if (bulb) bulb.style.opacity = "0";
+    if (bulb) {
+      bulb.style.opacity = "0";
+      bulb.style.display = "none";
+    }
     if (dragGhost) {
       dragGhost.style.display = "none";
       dragGhost.classList.remove("is-photo-ghost");
@@ -803,7 +777,7 @@
       haptic([30, 40, 80]);
 
       if (drag.itemType === "video") {
-        const video = document.getElementById("continuityVideo");
+        const video = drag.cardElem ? drag.cardElem.querySelector("video") : null;
         const curTime = video ? video.currentTime : 0.0;
         if (video) video.pause();
 
