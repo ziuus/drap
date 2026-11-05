@@ -171,8 +171,62 @@
   let ws = null;
   const statusPill = document.getElementById("statusPill");
   let targetHost = localStorage.getItem("drap_target_host") || window.location.host;
-  let targetEdgePref = localStorage.getItem("drap_target_edge") || "auto";
-  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false";
+  let targetEdgePref = localStorage.getItem("drap_target_edge") || "right"; // Default: Right bezel
+  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") === "true"; // Disabled by default
+
+  let isProbing = false;
+  async function probeAndDiscoverGateway() {
+    if (isProbing || (ws && ws.readyState === WebSocket.OPEN)) return;
+    isProbing = true;
+
+    const candidates = [];
+    if (targetHost) candidates.push(targetHost);
+    candidates.push("drap.local:8080", "macbook.local:8080");
+
+    const hostOnly = targetHost.split(":")[0];
+    const ipMatch = hostOnly.match(/^(\d+\.\d+\.\d+)\.\d+$/);
+    if (ipMatch) {
+      const baseSubnet = ipMatch[1];
+      const curPort = targetHost.includes(":") ? targetHost.split(":")[1] : "8080";
+      // Probe common LAN IP range in fast parallel batches
+      for (let i = 2; i <= 254; i++) {
+        candidates.push(`${baseSubnet}.${i}:${curPort}`);
+      }
+    }
+
+    const batchSize = 25;
+    for (let i = 0; i < candidates.length; i += batchSize) {
+      if (ws && ws.readyState === WebSocket.OPEN) break;
+      const batch = candidates.slice(i, i + batchSize);
+      const results = await Promise.all(batch.map(async (host) => {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 450);
+          const res = await fetch(`http://${host}/api/status`, { signal: ctrl.signal });
+          clearTimeout(timer);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === "running") return host;
+          }
+        } catch (e) {}
+        return null;
+      }));
+
+      const found = results.find(h => Boolean(h));
+      if (found) {
+        console.log(`[drap] Auto-discovered laptop gateway at ${found}`);
+        targetHost = found;
+        localStorage.setItem("drap_target_host", found);
+        const hostBadge = document.getElementById("hostBadge");
+        if (hostBadge) hostBadge.textContent = found;
+        const targetIpInput = document.getElementById("inputCustomTarget");
+        if (targetIpInput) targetIpInput.value = found;
+        connectWS();
+        break;
+      }
+    }
+    isProbing = false;
+  }
 
   function connectWS() {
     if (ws) {
@@ -185,7 +239,10 @@
       console.warn("WebSocket init failed:", e);
     }
 
-    if (!ws) return;
+    if (!ws) {
+      probeAndDiscoverGateway();
+      return;
+    }
 
     ws.onopen = () => {
       if (statusPill) {
@@ -206,7 +263,10 @@
       }
       const targetDot = document.getElementById("targetStatusDot");
       if (targetDot) targetDot.classList.remove("connected");
-      setTimeout(connectWS, 2500);
+
+      // Auto-probe local subnet for new laptop IP
+      setTimeout(probeAndDiscoverGateway, 1000);
+      setTimeout(connectWS, 3000);
     };
 
     ws.onerror = () => {
@@ -335,18 +395,6 @@
         dragAura.style.opacity = "0.85";
         dragAura.style.transform = "translate3d(-50%, -50%, 0) scale(0.75)";
       }
-
-      // Prime spatial connection on desktop with instant shockwave ripple
-      const initialEdge = (targetEdgePref && targetEdgePref !== 'auto') ? targetEdgePref : 'right';
-      queueSpatialPacket({
-        type: "drag_start",
-        edge: initialEdge,
-        coord: y / window.innerHeight,
-        x: x / window.innerWidth,
-        y: y / window.innerHeight,
-        proximity: 0.20,
-        pressure: 0.5
-      });
     }
 
     card.addEventListener("touchstart", (e) => {
@@ -474,75 +522,76 @@
     let phoneEdge = "left";
     let desktopEdge = "right";
     let normCoord = normY;
-    let reach = screenW * 0.65;
     let proximity = 0.0;
 
     if (isMultiSideSend) {
-      // Find the closest border physically among all 4 edges
+      // Multi-Side Mode (when explicitly enabled by user):
+      // Only activates within strict 110px edge border!
       const distLeft = clientX;
       const distRight = screenW - clientX;
       const distTop = clientY;
       const distBottom = screenH - clientY;
       const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+      const edgeReach = (minDist === distTop || minDist === distBottom) ? Math.min(90, screenH * 0.18) : Math.min(110, screenW * 0.24);
 
       if (minDist === distLeft) {
         phoneEdge = "left";
         desktopEdge = "right";
         normCoord = normY;
-        reach = screenW * 0.65;
       } else if (minDist === distRight) {
         phoneEdge = "right";
         desktopEdge = "left";
         normCoord = normY;
-        reach = screenW * 0.65;
       } else if (minDist === distTop) {
         phoneEdge = "top";
         desktopEdge = "bottom";
         normCoord = normX;
-        reach = screenH * 0.38;
       } else {
         phoneEdge = "bottom";
         desktopEdge = "top";
         normCoord = normX;
-        reach = screenH * 0.38;
       }
 
       if (targetEdgePref && targetEdgePref !== "auto") {
         desktopEdge = targetEdgePref;
       }
 
-      proximity = Math.max(0.0, Math.min(1.0, (reach - minDist) / (reach * 0.80)));
+      if (minDist < edgeReach) {
+        const ratio = (edgeReach - minDist) / edgeReach;
+        proximity = Math.min(1.0, Math.pow(ratio, 1.4));
+      }
     } else {
-      // Locked to Single Edge Mode: only primary edge activates
+      // Locked to Single Edge Mode (Default: Phone Left -> Desktop Right)
+      // Only activates within strict 110px border! Center touches have 0% proximity!
       if (targetEdgePref === "left") {
         phoneEdge = "right";
         desktopEdge = "left";
         normCoord = normY;
-        reach = screenW * 0.65;
+        const edgeReach = Math.min(110, screenW * 0.25);
         const dist = screenW - clientX;
-        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
       } else if (targetEdgePref === "bottom") {
         phoneEdge = "top";
         desktopEdge = "bottom";
         normCoord = normX;
-        reach = screenH * 0.38;
+        const edgeReach = Math.min(90, screenH * 0.20);
         const dist = clientY;
-        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
       } else if (targetEdgePref === "top") {
         phoneEdge = "bottom";
         desktopEdge = "top";
         normCoord = normX;
-        reach = screenH * 0.38;
+        const edgeReach = Math.min(90, screenH * 0.20);
         const dist = screenH - clientY;
-        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
       } else {
         // Default single edge: Phone Left Bezel -> Desktop Right Bezel
         phoneEdge = "left";
         desktopEdge = "right";
         normCoord = normY;
-        reach = screenW * 0.65;
+        const edgeReach = Math.min(110, screenW * 0.25);
         const dist = clientX;
-        proximity = Math.max(0.0, Math.min(1.0, (reach - dist) / (reach * 0.80)));
+        if (dist < edgeReach) proximity = Math.pow((edgeReach - dist) / edgeReach, 1.4);
       }
     }
     const pressure = 0.5 + (proximity * 0.5);

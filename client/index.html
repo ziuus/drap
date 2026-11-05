@@ -168,11 +168,11 @@
       <div class="settings-section">
         <label class="settings-label">Desktop Screen Alignment</label>
         <select id="selectTargetEdge" class="settings-select">
-          <option value="auto">🧭 Auto (Flick in any direction: Left, Right, Up, Down)</option>
-          <option value="right">👉 Force Right Bezel (Phone on right side of laptop)</option>
-          <option value="left">👈 Force Left Bezel (Phone on left side of laptop)</option>
-          <option value="bottom">👆 Force Bottom Bezel (Phone below/in front of laptop)</option>
-          <option value="top">👇 Force Top Bezel (Phone above laptop screen)</option>
+          <option value="right" selected>👉 Right Bezel (Phone on right side of laptop)</option>
+          <option value="left">👈 Left Bezel (Phone on left side of laptop)</option>
+          <option value="bottom">👆 Bottom Bezel (Phone below / in front of laptop)</option>
+          <option value="top">👇 Top Bezel (Phone above laptop screen)</option>
+          <option value="auto">🧭 Multi-Directional Auto (Experimental)</option>
         </select>
       </div>
 
@@ -182,10 +182,10 @@
         <div class="toggle-card">
           <div class="toggle-info">
             <span class="toggle-title">Multi-Side Send</span>
-            <span class="toggle-subtitle" id="multiSideSubtitle">Flick towards any bezel (Left, Right, Up, Down)</span>
+            <span class="toggle-subtitle" id="multiSideSubtitle">Flick towards any bezel (Disabled by default)</span>
           </div>
           <label class="switch-toggle">
-            <input type="checkbox" id="toggleMultiSide" checked>
+            <input type="checkbox" id="toggleMultiSide">
             <span class="switch-slider"></span>
           </label>
         </div>

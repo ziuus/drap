@@ -354,9 +354,8 @@ class DrapOverlay:
             if "y" in data:
                 self.target_y = float(data["y"])
                 self.current_y = self.target_y
-            self.target_intensity = 0.55
-            self.current_intensity = 0.45
-            self.trigger_video_ripple(self.current_coord, self.active_edge)
+            self.target_intensity = 0.0
+            self.current_intensity = 0.0
             self.drawing_area.queue_draw()
 
         elif msg_type == "drag_edge_enter":

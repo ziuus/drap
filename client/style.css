@@ -98,35 +98,35 @@ body[data-theme="liquid"] .drag-aura {
 /* Card Drag Initial Pickup Ripple - 120Hz/60Hz Pure GPU Hardware Accelerated */
 .pickup-ripple {
   position: fixed;
-  width: 140px;
-  height: 140px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  transform: translate3d(-50%, -50%, 0) scale(0.10);
+  transform: translate3d(-50%, -50%, 0) scale(0.12);
   background: radial-gradient(
     circle at center,
-    rgba(255, 255, 255, 0.90) 0%,
-    rgba(255, 239, 184, 0.65) 28%,
-    rgba(210, 158, 255, 0.40) 52%,
-    rgba(96, 197, 255, 0.20) 72%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 239, 184, 0.60) 28%,
+    rgba(210, 158, 255, 0.35) 52%,
+    rgba(96, 197, 255, 0.15) 72%,
     transparent 100%
   );
-  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.90);
   pointer-events: none;
   z-index: 950;
   will-change: transform, opacity;
-  animation: pickupRippleAnim 0.85s cubic-bezier(0.15, 0.85, 0.35, 1) forwards;
+  animation: pickupRippleAnim 0.70s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes pickupRippleAnim {
   0% {
-    transform: translate3d(-50%, -50%, 0) scale(0.10);
-    opacity: 0.95;
+    transform: translate3d(-50%, -50%, 0) scale(0.12);
+    opacity: 1;
   }
-  30% {
+  35% {
     opacity: 0.85;
   }
   70% {
-    opacity: 0.35;
+    opacity: 0.25;
   }
   100% {
     transform: translate3d(-50%, -50%, 0) scale(2.2);
@@ -192,20 +192,18 @@ body[data-theme="liquid"] .drag-aura {
   }
 }
 
-/* Scrim / Blur Backdrop when Dragging */
+/* Lightweight Scrim Backdrop when Dragging (0% GPU Compositor Overhead) */
 .drag-scrim {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(9, 9, 11, 0.60);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(9, 9, 11, 0.65);
   opacity: 0;
   pointer-events: none;
   z-index: 700;
-  transition: opacity 0.2s ease-out;
+  transition: opacity 0.22s ease-out;
 }
 
 body.is-dragging-active .drag-scrim {
