@@ -15,11 +15,11 @@ use luts::Luts;
 use ws::{start_ws_client, WsMessage};
 
 thread_local! {
-    static WAKEUP_FN: RefCell<Option<Box<dyn Fn()>>> = RefCell::new(None);
+    static DISPATCH_FN: RefCell<Option<Box<dyn Fn()>>> = RefCell::new(None);
 }
 
-pub fn wakeup() {
-    WAKEUP_FN.with(|f| {
+pub fn dispatch() {
+    DISPATCH_FN.with(|f| {
         if let Some(ref cb) = *f.borrow() {
             cb();
         }
@@ -102,26 +102,91 @@ impl OverlayState {
     }
 }
 
-fn format_bytes(bytes: u64) -> String {
-    if bytes < 1024 {
-        format!("{} B", bytes)
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KB", bytes as f64 / 1024.0)
-    } else if bytes < 1024 * 1024 * 1024 {
-        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-    } else {
-        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
-    }
-}
+fn process_message(s: &mut OverlayState, msg: WsMessage) {
+    println!("[drap Rust Overlay] Event: type={} edge={:?} coord={:?} prox={:?}", msg.msg_type, msg.edge, msg.coord, msg.proximity);
+    match msg.msg_type.as_str() {
+        "drag_start" | "drag_move" => {
+            if let Some(corner) = msg.corner {
+                if !corner.is_empty() {
+                    s.active_corner = corner.to_lowercase();
+                    s.active_edge = format!("corner-{}", s.active_corner);
+                }
+            } else if let Some(edge) = msg.edge {
+                s.active_corner.clear();
+                s.active_edge = edge.to_lowercase();
+            }
+            if let Some(coord) = msg.coord {
+                s.target_coord = coord;
+                if msg.msg_type == "drag_start" {
+                    s.current_coord = coord;
+                }
+            }
+            if let Some(vy) = msg.vy {
+                s.current_vy = vy;
+            }
+            if let Some(prox) = msg.proximity {
+                s.target_intensity = if prox > 0.02 { prox.min(1.0) } else { 0.0 };
+            } else {
+                s.target_intensity = 0.85;
+            }
+            if let Some(t) = msg.theme {
+                s.theme = t.to_lowercase();
+            }
+        }
+        "drag_edge_enter" => {
+            if let Some(edge) = msg.edge {
+                s.active_corner.clear();
+                s.active_edge = edge.to_lowercase();
+            }
+            if let Some(coord) = msg.coord {
+                s.target_coord = coord;
+                s.current_coord = coord;
+            }
+            s.target_intensity = 0.85;
+        }
+        "drag_edge_leave" => {
+            s.target_intensity = 0.0;
+        }
+        "drag_drop" | "file_uploaded" => {
+            let edge = msg.edge.unwrap_or_else(|| "right".to_string()).to_lowercase();
+            let coord = msg.coord.unwrap_or(0.5);
+            let filename = msg.filename.unwrap_or_else(|| "Transferred File".to_string());
+            let size_str = msg.size_str
+                .or_else(|| msg.size_bytes.map(ws::format_bytes))
+                .unwrap_or_else(|| "Saved to ~/Downloads".to_string());
 
-fn rounded_rect(cr: &Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
-    let pi = std::f64::consts::PI;
-    cr.new_sub_path();
-    cr.arc(x + w - r, y + r, r, -pi / 2.0, 0.0);
-    cr.arc(x + w - r, y + h - r, r, 0.0, pi / 2.0);
-    cr.arc(x + r, y + h - r, r, pi / 2.0, pi);
-    cr.arc(x + r, y + r, r, pi, 3.0 * pi / 2.0);
-    cr.close_path();
+            s.confirm_active = true;
+            s.confirm_progress = 0.0;
+            s.confirm_start_time = Some(Instant::now());
+            s.confirm_edge = edge.clone();
+            s.confirm_coord = coord;
+
+            s.card_active = true;
+            s.card_progress = 0.0;
+            s.card_start_time = Some(Instant::now());
+            s.card_filename = filename;
+            s.card_size_str = size_str;
+            s.card_edge = edge;
+            s.card_coord = coord;
+            s.target_intensity = 0.0;
+        }
+        "video_resume" => {
+            let edge = msg.edge.unwrap_or_else(|| "right".to_string()).to_lowercase();
+            let coord = msg.coord.unwrap_or(0.5);
+            s.confirm_active = true;
+            s.confirm_progress = 0.0;
+            s.confirm_start_time = Some(Instant::now());
+            s.confirm_edge = edge;
+            s.confirm_coord = coord;
+            s.target_intensity = 0.0;
+        }
+        "set_effect" | "set_config" => {
+            if let Some(t) = msg.theme {
+                s.theme = t.to_lowercase();
+            }
+        }
+        _ => {}
+    }
 }
 
 fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, luts: &Luts) {
@@ -341,6 +406,16 @@ fn draw_fullscreen_surge(cr: &Context, width: f64, height: f64, progress: f64, e
     let _ = cr.restore();
 }
 
+fn rounded_rect(cr: &Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
+    let pi = std::f64::consts::PI;
+    cr.new_sub_path();
+    cr.arc(x + w - r, y + r, r, -pi / 2.0, 0.0);
+    cr.arc(x + w - r, y + h - r, r, 0.0, pi / 2.0);
+    cr.arc(x + r, y + h - r, r, pi / 2.0, pi);
+    cr.arc(x + r, y + r, r, pi, 3.0 * pi / 2.0);
+    cr.close_path();
+}
+
 fn draw_drop_card(cr: &Context, width: f64, height: f64, state: &OverlayState) {
     if !state.card_active {
         return;
@@ -489,6 +564,18 @@ fn main() {
         window.set_exclusive_zone(0);
         window.set_keyboard_mode(KeyboardMode::None);
 
+        if let Some(display) = gtk4::gdk::Display::default() {
+            let monitors = display.monitors();
+            for i in 0..monitors.n_items() {
+                if let Some(mon) = monitors.item(i).and_downcast::<gtk4::gdk::Monitor>() {
+                    if mon.connector().as_deref() == Some("eDP-1") {
+                        window.set_monitor(&mon);
+                        break;
+                    }
+                }
+            }
+        }
+
         // 2. Pre-computed high-speed LUT textures
         let luts = Rc::new(Luts::new());
         let state = Rc::new(RefCell::new(OverlayState::new()));
@@ -563,66 +650,7 @@ fn main() {
                     // Poll all incoming messages
                     if let Ok(rx_guard) = rx_ref.try_borrow() {
                         while let Ok(msg) = rx_guard.try_recv() {
-                            match msg.msg_type.as_str() {
-                                "drag_move" => {
-                                    if let Some(corner) = msg.corner {
-                                        if !corner.is_empty() {
-                                            s.active_corner = corner.to_lowercase();
-                                            s.active_edge = format!("corner-{}", s.active_corner);
-                                        }
-                                    } else if let Some(edge) = msg.edge {
-                                        s.active_corner.clear();
-                                        s.active_edge = edge.to_lowercase();
-                                    }
-                                    if let Some(coord) = msg.coord.or(msg.y) {
-                                        s.target_coord = coord;
-                                    }
-                                    if let Some(vy) = msg.velocity_y {
-                                        s.current_vy = vy;
-                                    }
-                                    s.target_intensity = 0.85;
-                                }
-                                "drag_edge_enter" => {
-                                    if let Some(edge) = msg.edge {
-                                        s.active_edge = edge.to_lowercase();
-                                    }
-                                    if let Some(coord) = msg.coord.or(msg.y) {
-                                        s.target_coord = coord;
-                                        s.current_coord = coord;
-                                    }
-                                    s.target_intensity = 0.85;
-                                }
-                                "drag_edge_leave" => {
-                                    s.target_intensity = 0.0;
-                                }
-                                "drag_drop" | "file_uploaded" => {
-                                    let edge = msg.edge.unwrap_or_else(|| "right".to_string()).to_lowercase();
-                                    let coord = msg.coord.or(msg.y).unwrap_or(0.5);
-                                    let filename = msg.filename.unwrap_or_else(|| "Transferred File".to_string());
-                                    let size_bytes = msg.size.unwrap_or(0);
-
-                                    s.confirm_active = true;
-                                    s.confirm_progress = 0.0;
-                                    s.confirm_start_time = Some(Instant::now());
-                                    s.confirm_edge = edge.clone();
-                                    s.confirm_coord = coord;
-
-                                    s.card_active = true;
-                                    s.card_progress = 0.0;
-                                    s.card_start_time = Some(Instant::now());
-                                    s.card_filename = filename;
-                                    s.card_size_str = format_bytes(size_bytes);
-                                    s.card_edge = edge;
-                                    s.card_coord = coord;
-                                    s.target_intensity = 0.0;
-                                }
-                                "set_effect" | "set_config" => {
-                                    if let Some(t) = msg.theme {
-                                        s.theme = t.to_lowercase();
-                                    }
-                                }
-                                _ => {}
-                            }
+                            process_message(&mut s, msg);
                         }
                     }
 
@@ -669,15 +697,30 @@ fn main() {
             })
         };
 
-        // Register wakeup function for background threads (zero idle CPU)
-        let wakeup_state = state.clone();
-        let wakeup_attach = attach_tick.clone();
-        WAKEUP_FN.with(|f| {
+        // Register immediate event dispatcher for WebSocket messages
+        let d_state = state.clone();
+        let d_da = drawing_area.clone();
+        let d_rx = rx_cell.clone();
+        let d_attach = attach_tick.clone();
+
+        DISPATCH_FN.with(|f| {
             *f.borrow_mut() = Some(Box::new(move || {
-                let mut s = wakeup_state.borrow_mut();
-                if !s.is_animating {
-                    s.is_animating = true;
-                    wakeup_attach();
+                let mut s = d_state.borrow_mut();
+                let mut dirty = false;
+
+                if let Ok(rx_guard) = d_rx.try_borrow() {
+                    while let Ok(msg) = rx_guard.try_recv() {
+                        process_message(&mut s, msg);
+                        dirty = true;
+                    }
+                }
+
+                if dirty {
+                    d_da.queue_draw();
+                    if !s.is_animating {
+                        s.is_animating = true;
+                        d_attach();
+                    }
                 }
             }));
         });
