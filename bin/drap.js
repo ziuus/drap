@@ -167,38 +167,87 @@ switch (command) {
   case "qr":
     try {
       let hostIp = "127.0.0.1";
+      let portalUrl = "";
+      let isRandom = false;
       try {
-        const raw = execSync("curl -s --max-time 1.2 http://127.0.0.1:8080/api/status").toString();
+        const raw = execSync("curl -s --max-time 1.2 http://127.0.0.1:8080/api/portal/status").toString();
         const info = JSON.parse(raw);
-        hostIp = info.host_ip || info.ip || "127.0.0.1";
-      } catch (e) {
+        isRandom = Boolean(info.random_portal_mode);
+        portalUrl = info.portal_url || "";
+      } catch (e) {}
+
+      if (!portalUrl) {
         try {
-          const ifaces = execSync("hostname -I 2>/dev/null").toString().trim().split(" ");
-          if (ifaces[0]) hostIp = ifaces[0];
-        } catch (e2) {}
+          const raw = execSync("curl -s --max-time 1.2 http://127.0.0.1:8080/api/status").toString();
+          const info = JSON.parse(raw);
+          hostIp = info.host_ip || info.ip || "127.0.0.1";
+        } catch (e) {
+          try {
+            const ifaces = execSync("hostname -I 2>/dev/null").toString().trim().split(" ");
+            if (ifaces[0]) hostIp = ifaces[0];
+          } catch (e2) {}
+        }
+        portalUrl = `http://${hostIp}:8080`;
       }
 
-      const gatewayUrl = `http://${hostIp}:8080`;
-      const pwaUrl = `https://${hostIp}:8443`;
-
       console.log("\n==================================================");
-      console.log("  💧 DRAP MOBILE PAIRING QR CODE");
+      console.log(`  💧 DRAP MOBILE PAIRING QR CODE ${isRandom ? "(Ephemeral Session)" : "(Fixed Portal)"}`);
       console.log("==================================================");
-      console.log("  Scan with your phone's camera to connect:\n");
+      console.log(isRandom
+        ? "  🔒 Ephemeral Random Portal: Fresh scan required per session\n"
+        : "  📱 Fixed Portal: Scan once or bookmark on your phone\n");
 
       try {
-        const qrOut = execSync(`qrencode -t ANSIUTF8 "${gatewayUrl}" 2>/dev/null`).toString();
+        const qrOut = execSync(`qrencode -t ANSIUTF8 "${portalUrl}" 2>/dev/null`).toString();
         console.log(qrOut);
       } catch (e) {
         console.log("  [ Install 'qrencode' to view ASCII QR in terminal ]\n");
       }
 
       console.log("--------------------------------------------------");
-      console.log(`  📱 Mobile Web App:  ${gatewayUrl}`);
-      console.log(`  🔒 Secure PWA:      ${pwaUrl}`);
+      console.log(`  📱 Portal URL:       ${portalUrl}`);
+      console.log(`  ⚙️  Portal Mode:      ${isRandom ? "RANDOM (Ephemeral QR)" : "FIXED (Open LAN)"}`);
+      console.log("  💡 Tip: Run 'drap rotate' to generate a fresh QR code");
       console.log("==================================================\n");
     } catch (e) {
       console.error("❌ Failed to generate QR code:", e.message);
+    }
+    break;
+
+  case "portal":
+    try {
+      const modeArg = args[1] ? args[1].toLowerCase() : "";
+      let targetEnabled = undefined;
+      if (modeArg === "on" || modeArg === "enable" || modeArg === "random") targetEnabled = true;
+      if (modeArg === "off" || modeArg === "disable" || modeArg === "fixed") targetEnabled = false;
+
+      const payload = targetEnabled !== undefined ? JSON.stringify({ enabled: targetEnabled }) : "{}";
+      const res = execSync(`curl -s -X POST -H "Content-Type: application/json" -d '${payload}' http://127.0.0.1:8080/api/portal/toggle`).toString();
+      const data = JSON.parse(res);
+      console.log("\n==================================================");
+      console.log(`  🔒 Ephemeral Portal Mode: ${data.random_portal_mode ? "ENABLED (Always Scan QR)" : "DISABLED (Fixed Portal)"}`);
+      console.log(`  📱 Active URL: ${data.portal_url}`);
+      console.log("==================================================\n");
+    } catch (e) {
+      console.error("❌ Failed to toggle portal mode:", e.message);
+    }
+    break;
+
+  case "rotate":
+    try {
+      const res = execSync(`curl -s -X POST http://127.0.0.1:8080/api/portal/rotate`).toString();
+      const data = JSON.parse(res);
+      console.log("\n==================================================");
+      console.log("  🔄 Rotated Ephemeral Portal Token!");
+      console.log(`  New Session URL: ${data.portal_url}`);
+      console.log("==================================================");
+      try {
+        const qrOut = execSync(`qrencode -t ANSIUTF8 "${data.portal_url}" 2>/dev/null`).toString();
+        console.log(qrOut);
+      } catch (e) {}
+      console.log("==================================================\n");
+    } catch (e) {
+      console.error("❌ Failed to rotate portal token:", e.message);
     }
     break;
 

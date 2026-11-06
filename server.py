@@ -13,6 +13,7 @@ import subprocess
 import threading
 import socket
 import struct
+import secrets
 from pathlib import Path
 from typing import Set, Optional, Dict, Any
 from datetime import datetime
@@ -229,6 +230,55 @@ class DeviceSecurity:
 
 device_sec = DeviceSecurity()
 
+class PortalSecurity:
+    """Ephemeral Random Portal Manager: generates dynamic QR tokens requiring fresh scan per session."""
+    def __init__(self):
+        self.enabled = False
+        self.active_token = secrets.token_urlsafe(8)
+        self.authorized_ips: Set[str] = set()
+        self._load()
+
+    def _load(self):
+        cfg_file = Path.home() / ".config" / "drap" / "config.json"
+        if cfg_file.exists():
+            try:
+                data = json.loads(cfg_file.read_text())
+                self.enabled = bool(data.get("random_portal_mode", False))
+            except Exception:
+                pass
+
+    def rotate_token(self) -> str:
+        self.active_token = secrets.token_urlsafe(8)
+        self.authorized_ips.clear()
+        return self.active_token
+
+    def set_enabled(self, enabled: bool):
+        self.enabled = enabled
+        if self.enabled and not self.active_token:
+            self.rotate_token()
+        cfg_file = Path.home() / ".config" / "drap" / "config.json"
+        cur = {}
+        if cfg_file.exists():
+            try:
+                cur = json.loads(cfg_file.read_text())
+            except Exception:
+                pass
+        cur["random_portal_mode"] = self.enabled
+        cfg_file.parent.mkdir(parents=True, exist_ok=True)
+        cfg_file.write_text(json.dumps(cur, indent=2))
+
+    def check_access(self, client_ip: str, token: Optional[str] = None) -> bool:
+        if not self.enabled:
+            return True
+        if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return True
+        if token and token == self.active_token:
+            self.authorized_ips.add(client_ip)
+            return True
+        return client_ip in self.authorized_ips
+
+portal_sec = PortalSecurity()
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
@@ -300,6 +350,12 @@ def launch_video_continuity(url_or_path: str, start_time: float):
 async def websocket_endpoint(websocket: WebSocket):
     client_ip = websocket.client.host if websocket.client else "unknown"
     user_agent = websocket.headers.get("user-agent", "")
+    portal_token = websocket.query_params.get("portal")
+
+    if not portal_sec.check_access(client_ip, portal_token):
+        await websocket.close(code=1008, reason="Ephemeral portal token required")
+        return
+
     if not device_sec.check_access(client_ip, user_agent):
         await websocket.close(code=1008, reason="Device not authorized")
         return
@@ -356,6 +412,9 @@ async def upload_file(
     """Handle multipart file upload, save to ~/Downloads, and notify overlay."""
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
+    portal_token = request.query_params.get("portal") or request.headers.get("x-drap-portal")
+    if not portal_sec.check_access(client_ip, portal_token):
+        raise HTTPException(status_code=403, detail="Ephemeral portal token required. Please scan desktop QR code.")
     if not device_sec.check_access(client_ip, user_agent):
         raise HTTPException(status_code=403, detail="Device not authorized. Run 'drap allow <ip>' on desktop.")
 
@@ -426,6 +485,9 @@ async def stage_upload(
     """Speculative Pre-Upload: Streams file to temporary staging area the instant drag begins."""
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
+    portal_token = request.query_params.get("portal") or request.headers.get("x-drap-portal")
+    if not portal_sec.check_access(client_ip, portal_token):
+        raise HTTPException(status_code=403, detail="Ephemeral portal token required. Please scan desktop QR code.")
     if not device_sec.check_access(client_ip, user_agent):
         raise HTTPException(status_code=403, detail="Device not authorized.")
 
@@ -445,8 +507,12 @@ async def stage_upload(
     }
 
 @app.post("/api/commit_upload")
-async def commit_upload(payload: Dict[str, Any]):
+async def commit_upload(request: Request, payload: Dict[str, Any]):
     """Instantly commits staged file into ~/Downloads with 0ms perceived latency."""
+    client_ip = request.client.host if request.client else "unknown"
+    portal_token = payload.get("portal") or request.query_params.get("portal") or request.headers.get("x-drap-portal")
+    if not portal_sec.check_access(client_ip, portal_token):
+        raise HTTPException(status_code=403, detail="Ephemeral portal token required.")
     stage_id = payload.get("stage_id")
     filename = payload.get("filename", "Transferred File")
     edge = payload.get("edge", "right")
@@ -689,6 +755,53 @@ async def set_security_mode(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Invalid mode. Choose open, prompt, or strict.")
     return {"status": "success", "mode": device_sec.mode}
 
+@app.get("/api/portal/status")
+async def get_portal_status(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    token = request.query_params.get("portal")
+    authorized = portal_sec.check_access(client_ip, token)
+    local_ip = get_local_ip()
+    portal_url = f"http://{local_ip}:8080/?portal={portal_sec.active_token}" if portal_sec.enabled else f"http://{local_ip}:8080"
+    return {
+        "random_portal_mode": portal_sec.enabled,
+        "token": portal_sec.active_token if portal_sec.enabled else "",
+        "portal_url": portal_url,
+        "is_authorized": authorized
+    }
+
+@app.post("/api/portal/toggle")
+async def toggle_portal_mode(payload: Dict[str, Any]):
+    enabled = bool(payload.get("enabled", not portal_sec.enabled))
+    portal_sec.set_enabled(enabled)
+    local_ip = get_local_ip()
+    portal_url = f"http://{local_ip}:8080/?portal={portal_sec.active_token}" if portal_sec.enabled else f"http://{local_ip}:8080"
+    await manager.broadcast({
+        "type": "portal_mode_changed",
+        "random_portal_mode": portal_sec.enabled,
+        "portal_url": portal_url
+    })
+    return {
+        "status": "success",
+        "random_portal_mode": portal_sec.enabled,
+        "portal_url": portal_url
+    }
+
+@app.post("/api/portal/rotate")
+async def rotate_portal_token():
+    new_token = portal_sec.rotate_token()
+    local_ip = get_local_ip()
+    portal_url = f"http://{local_ip}:8080/?portal={new_token}"
+    await manager.broadcast({
+        "type": "portal_rotated",
+        "token": new_token,
+        "portal_url": portal_url
+    })
+    return {
+        "status": "success",
+        "token": new_token,
+        "portal_url": portal_url
+    }
+
 @app.get("/api/config")
 async def get_config():
     cfg_file = Path.home() / ".config" / "drap" / "config.json"
@@ -863,12 +976,17 @@ def start_mdns_service():
 def print_startup_banner():
     ip = get_local_ip()
     port = 8080
-    url = f"http://{ip}:{port}"
-    https_url = f"https://{ip}:8443"
+    if portal_sec.enabled:
+        url = f"http://{ip}:{port}/?portal={portal_sec.active_token}"
+        https_url = f"https://{ip}:8443/?portal={portal_sec.active_token}"
+    else:
+        url = f"http://{ip}:{port}"
+        https_url = f"https://{ip}:8443"
     print("=" * 60)
     print("  🌌 DRAP FOR LINUX (Hyprland / Wayland)")
     print(f"  HTTP Web Gateway:        {url}")
     print(f"  HTTPS PWA Gateway:       {https_url}")
+    print(f"  Ephemeral Portal Mode:   {'ENABLED (Dynamic QR)' if portal_sec.enabled else 'DISABLED (Fixed URL)'}")
     print(f"  Downloads location:      {DOWNLOADS_DIR}")
     print("=" * 60)
     try:
@@ -878,7 +996,7 @@ def print_startup_banner():
             capture_output=True, text=True, check=False
         )
         if res.returncode == 0 and res.stdout:
-            print("\n  Scan with mobile camera to connect instantly:\n")
+            print(f"\n  Scan pairing QR code ({'Ephemeral Session' if portal_sec.enabled else 'Fixed Portal'}):\n")
             print(res.stdout)
     except Exception:
         pass

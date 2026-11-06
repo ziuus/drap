@@ -174,6 +174,12 @@
   let targetEdgePref = localStorage.getItem("drap_target_edge") || "right"; // Default: Right bezel
   let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false"; // Enabled by default (All edges active)
 
+  const urlParams = new URLSearchParams(window.location.search);
+  let currentPortalToken = urlParams.get("portal") || sessionStorage.getItem("drap_portal_token") || "";
+  if (urlParams.get("portal")) {
+    sessionStorage.setItem("drap_portal_token", urlParams.get("portal"));
+  }
+
   let isProbing = false;
   async function probeAndDiscoverGateway() {
     if (isProbing || (ws && ws.readyState === WebSocket.OPEN)) return;
@@ -233,8 +239,9 @@
       try { ws.close(); } catch (e) {}
     }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const tokenQuery = currentPortalToken ? `?portal=${encodeURIComponent(currentPortalToken)}` : "";
     try {
-      ws = new WebSocket(`${protocol}//${targetHost}/ws`);
+      ws = new WebSocket(`${protocol}//${targetHost}/ws${tokenQuery}`);
     } catch (e) {
       console.warn("WebSocket init failed:", e);
     }
@@ -352,10 +359,12 @@
         const formData = new FormData();
         formData.append("file", payload, drag.title);
         formData.append("stage_id", stageId);
+        if (currentPortalToken) formData.append("portal", currentPortalToken);
 
         const uploadEndpoint = (targetHost === window.location.host) ? "/api/stage_upload" : `http://${targetHost}/api/stage_upload`;
         const res = await fetch(uploadEndpoint, {
           method: "POST",
+          headers: currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {},
           body: formData,
           signal: abortCtrl.signal
         });
@@ -1013,14 +1022,18 @@
               const commitEndpoint = (targetHost === window.location.host) ? "/api/commit_upload" : `http://${targetHost}/api/commit_upload`;
               await fetch(commitEndpoint, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {})
+                },
                 body: JSON.stringify({
                   stage_id: drag.stageId,
                   filename: drag.title,
                   edge: dropDesktopEdge,
                   corner: dropCorner,
                   coord: dropCoord,
-                  item_type: drag.itemType
+                  item_type: drag.itemType,
+                  portal: currentPortalToken
                 })
               });
               return;
@@ -1034,6 +1047,7 @@
             formData.append("x", (drag.normalizedX || 0.5).toString());
             formData.append("y", (drag.normalizedY || 0.5).toString());
             formData.append("item_type", drag.itemType);
+            if (currentPortalToken) formData.append("portal", currentPortalToken);
 
             if (drag.payload instanceof File || drag.payload instanceof Blob) {
               formData.append("file", drag.payload, drag.title);
@@ -1044,7 +1058,11 @@
             }
 
             const uploadEndpoint = (targetHost === window.location.host) ? "/api/upload" : `http://${targetHost}/api/upload`;
-            await fetch(uploadEndpoint, { method: "POST", body: formData });
+            await fetch(uploadEndpoint, {
+              method: "POST",
+              headers: currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {},
+              body: formData
+            });
           } catch (e) {
             console.error("Upload error:", e);
           }
@@ -1412,6 +1430,63 @@
       localStorage.setItem("drap_target_edge", targetEdgePref);
       updateMultiSideUI();
       showToast(`Desktop alignment: ${targetEdgePref.toUpperCase()}`);
+    });
+  }
+
+  // 7. Ephemeral Portal Gatekeeper & Random QR Settings
+  const togglePortalMode = document.getElementById("togglePortalMode");
+  const portalModeSubtitle = document.getElementById("portalModeSubtitle");
+  const portalLockOverlay = document.getElementById("portalLockOverlay");
+  const btnRetryPortal = document.getElementById("btnRetryPortal");
+
+  async function checkPortalAuthorization() {
+    try {
+      const q = currentPortalToken ? `?portal=${encodeURIComponent(currentPortalToken)}` : "";
+      const res = await fetch(`http://${targetHost}/api/portal/status${q}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (togglePortalMode) togglePortalMode.checked = Boolean(data.random_portal_mode);
+        if (portalModeSubtitle) {
+          portalModeSubtitle.textContent = data.random_portal_mode
+            ? "Dynamic QR active (Fresh camera scan required)"
+            : "Fixed Portal (Open on LAN / Bookmarked)";
+        }
+        if (data.random_portal_mode && !data.is_authorized) {
+          if (portalLockOverlay) portalLockOverlay.style.display = "flex";
+        } else {
+          if (portalLockOverlay) portalLockOverlay.style.display = "none";
+        }
+      }
+    } catch (e) {}
+  }
+
+  checkPortalAuthorization();
+
+  if (togglePortalMode) {
+    togglePortalMode.addEventListener("change", async (e) => {
+      const enabled = e.target.checked;
+      try {
+        const res = await fetch(`http://${targetHost}/api/portal/toggle`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {})
+          },
+          body: JSON.stringify({ enabled, portal: currentPortalToken })
+        });
+        const data = await res.json();
+        showToast(enabled ? "Dynamic QR Mode: Enabled (Scan Required)" : "Fixed Portal: Open on LAN");
+        checkPortalAuthorization();
+      } catch (err) {
+        console.error("Portal toggle error:", err);
+      }
+    });
+  }
+
+  if (btnRetryPortal) {
+    btnRetryPortal.addEventListener("click", () => {
+      checkPortalAuthorization();
+      showToast("Checking portal authorization...");
     });
   }
 

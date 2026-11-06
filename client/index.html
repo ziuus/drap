@@ -192,6 +192,21 @@
         </div>
       </div>
 
+      <!-- Ephemeral Portal Mode (Always Scan QR) -->
+      <div class="settings-section">
+        <label class="settings-label">Security & QR Pairing</label>
+        <div class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-title">Ephemeral Portal (Dynamic QR)</span>
+            <span class="toggle-subtitle" id="portalModeSubtitle">Require fresh desktop QR code scan for every session</span>
+          </div>
+          <label class="switch-toggle">
+            <input type="checkbox" id="togglePortalMode">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+      </div>
+
       <!-- Spatial Lighting Effect -->
       <div class="settings-section">
         <label class="settings-label">Spatial Light Glow</label>
@@ -278,6 +293,21 @@
           <span class="conn-badge">Wayland Layer Shell (144Hz)</span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Ephemeral Portal Lock Screen (Dynamic QR Gating) -->
+  <div class="portal-lock-overlay" id="portalLockOverlay" style="display: none;">
+    <div class="portal-lock-card">
+      <div class="portal-lock-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h2>Dynamic Portal Locked</h2>
+      <p>This desktop is running in <strong>Ephemeral QR Mode</strong> for security and privacy.</p>
+      <div class="portal-lock-hint">
+        Please scan the pairing QR code displayed on your desktop screen or run <code>drap qr</code> in terminal to enter.
+      </div>
+      <button class="portal-btn-retry" id="btnRetryPortal" type="button">Check Authorization</button>
     </div>
   </div>
 
