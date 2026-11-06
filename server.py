@@ -481,6 +481,21 @@ async def commit_upload(payload: Dict[str, Any]):
 
     file_size = dest_path.stat().st_size
 
+    # Broadcast drop confirmation to overlay for assured visual animation
+    drop_msg = {
+        "type": "drag_drop",
+        "filename": dest_path.name,
+        "filepath": str(dest_path),
+        "size": file_size,
+        "edge": edge or "right",
+        "corner": corner,
+        "coord": float(coord) if coord is not None else 0.5,
+        "x": float(x) if x is not None else 0.5,
+        "y": float(y) if y is not None else 0.5,
+        "item_type": item_type
+    }
+    await manager.broadcast(drop_msg)
+
     # Desktop notification
     try:
         size_mb = file_size / (1024 * 1024)

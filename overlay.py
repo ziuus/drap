@@ -65,7 +65,7 @@ class DrapOverlay:
         self.target_pressure = 0.5
         self.current_pressure = 0.5
         self.edge_proximity = 0.0
-        self.effect_theme = "aurora"  # Options: "aurora", "liquid", "plasma", "solar"
+        self.effect_theme = "heavenly"  # Default: Drooop Heavenly White Radiance
 
         # Time & Inactivity Watchdog
         self.start_time = time.time()
@@ -138,13 +138,20 @@ class DrapOverlay:
         cy = lut_h / 2
         max_r = lut_w  # Reaches top (cy - max_r = 0) and bottom (cy + max_r = lut_h) with smooth 0.0 fade
 
-        for theme in ("aurora", "plasma", "solar", "liquid"):
+        for theme in ("heavenly", "aurora", "plasma", "solar", "liquid"):
             surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_w, lut_h)
             cr = cairo.Context(surf)
 
             # 1. Wide Atmospheric Ambient Wash layer
             wash_pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
-            if theme == "plasma":
+            if theme == "heavenly":
+                # Pure celestial white atmospheric wash
+                wash_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.58)
+                wash_pat.add_color_stop_rgba(0.28, 0.98, 0.99, 1.00, 0.38)
+                wash_pat.add_color_stop_rgba(0.60, 0.95, 0.98, 1.00, 0.18)
+                wash_pat.add_color_stop_rgba(0.85, 0.90, 0.95, 1.00, 0.06)
+                wash_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            elif theme == "plasma":
                 wash_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45)
                 wash_pat.add_color_stop_rgba(0.35, 0.55, 0.20, 0.88, 0.25)
                 wash_pat.add_color_stop_rgba(0.70, 0.25, 0.10, 0.50, 0.10)
@@ -165,7 +172,18 @@ class DrapOverlay:
             # 2. Primary Incandescent Chromatic Dispersion Core
             pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r * 0.90)
 
-            if theme == "plasma":
+            if theme == "heavenly":
+                # Drooop Heavenly Pure Incandescent White Bloom & Pearlescent Celestial Aura
+                pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Pure celestial specular core
+                pat.add_color_stop_rgba(0.18, 1.00, 1.00, 1.00, 1.00) # Sustained intense white brilliance
+                pat.add_color_stop_rgba(0.38, 0.99, 0.99, 1.00, 0.96) # Luminous heavenly pearl white
+                pat.add_color_stop_rgba(0.58, 0.96, 0.98, 1.00, 0.84) # Soft celestial glow
+                pat.add_color_stop_rgba(0.75, 0.92, 0.96, 1.00, 0.58) # Translucent heavenly white mist
+                pat.add_color_stop_rgba(0.88, 0.86, 0.93, 1.00, 0.26) # Outer feather
+                pat.add_color_stop_rgba(0.96, 0.82, 0.88, 1.00, 0.08) # Seamless dissolving edge
+                pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+
+            elif theme == "plasma":
                 # Electric violet & cyber indigo
                 pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
                 pat.add_color_stop_rgba(0.12, 0.95, 0.40, 1.00, 0.85)
@@ -214,7 +232,16 @@ class DrapOverlay:
             s_surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lut_w, lut_h)
             s_cr = cairo.Context(s_surf)
             s_pat = cairo.RadialGradient(cx, cy, 0, cx, cy, max_r)
-            if theme == "plasma":
+            if theme == "heavenly":
+                # Drooop Heavenly White Atmospheric Full-Screen Surge Wave
+                s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00) # Blinding white burst
+                s_pat.add_color_stop_rgba(0.20, 1.00, 1.00, 1.00, 0.98) # Sustained pure white core
+                s_pat.add_color_stop_rgba(0.42, 0.98, 0.99, 1.00, 0.88) # Heavenly pearl bloom
+                s_pat.add_color_stop_rgba(0.68, 0.94, 0.97, 1.00, 0.60) # Ethereal atmospheric wash
+                s_pat.add_color_stop_rgba(0.86, 0.88, 0.94, 1.00, 0.26) # Soft dissolving sky veil
+                s_pat.add_color_stop_rgba(0.96, 0.84, 0.90, 1.00, 0.08)
+                s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00)
+            elif theme == "plasma":
                 s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00)
                 s_pat.add_color_stop_rgba(0.12, 0.80, 0.95, 1.00, 0.98)
                 s_pat.add_color_stop_rgba(0.28, 0.95, 0.35, 0.98, 0.92)
@@ -443,7 +470,8 @@ class DrapOverlay:
             self.drawing_area.queue_draw()
 
         elif msg_type in ("drag_drop", "file_uploaded", "file_from_laptop"):
-            self.last_interaction_time = time.time()
+            now = time.time()
+            self.last_interaction_time = now
             if "corner" in data and data["corner"]:
                 self.confirm_edge = "corner-" + data["corner"].lower()
             elif "edge" in data:
@@ -460,9 +488,6 @@ class DrapOverlay:
             else:
                 self.confirm_coord = self.current_coord
             self.confirm_y = self.confirm_coord
-            self.active_edge = self.confirm_edge
-            self.current_coord = self.confirm_coord
-            self.target_coord = self.confirm_coord
 
             filename = data.get("filename", "Transferred File")
             size_bytes = data.get("size", 0)
@@ -473,16 +498,28 @@ class DrapOverlay:
             else:
                 size_str = f"{size_bytes} B"
 
-            # Surge to full brilliance on drop!
-            self.current_intensity = 1.0
-            self.target_intensity = 0.0
+            is_duplicate = self.confirm_active and (now - getattr(self, "confirm_start_time", 0.0) < 0.35)
 
-            # Trigger Full-Screen Confirmation Radiance Wave
-            self.confirm_active = True
-            self.confirm_progress = 0.0
+            if not is_duplicate:
+                self.active_edge = self.confirm_edge
+                self.current_coord = self.confirm_coord
+                self.target_coord = self.confirm_coord
 
-            # Trigger Confirmation Card
-            self.trigger_drop_card(filename, size_str, self.confirm_coord, self.confirm_edge)
+                # Surge to full brilliance on drop!
+                self.current_intensity = 1.0
+                self.target_intensity = 0.0
+
+                # Trigger Full-Screen Confirmation Radiance Wave
+                self.confirm_active = True
+                self.confirm_progress = 0.0
+                self.confirm_start_time = now
+
+                # Trigger Confirmation Card
+                self.trigger_drop_card(filename, size_str, self.confirm_coord, self.confirm_edge)
+            else:
+                self.card_filename = filename
+                self.card_size_str = size_str
+
             self._ensure_ticking()
             self.drawing_area.queue_draw()
 
@@ -512,7 +549,7 @@ class DrapOverlay:
         self.last_tick = now
 
         # Inactivity Watchdog: Auto-decay only if NOT confirming drop and NOT showing card
-        if not self.confirm_active and not self.card_active and (now - self.last_interaction_time > 0.45):
+        if not self.confirm_active and not self.card_active and (now - self.last_interaction_time > 3.0):
             self.target_intensity = 0.0
             self.edge_proximity = 0.0
 
@@ -734,7 +771,7 @@ class DrapOverlay:
         - Tier 2: Prismatic rainbow dispersion ring with chromatic refraction.
         - Tier 3: Molten incandescent white-hot core flare along the glass bezel.
         """
-        surf = self.luts.get(self.effect_theme, self.luts["aurora"])
+        surf = self.luts.get(self.effect_theme, self.luts.get("heavenly", self.luts.get("aurora")))
         lut_w = 512
         lut_h = 1024
 
@@ -1007,7 +1044,7 @@ class DrapOverlay:
         edge = getattr(self, "confirm_edge", "right")
         coord = getattr(self, "confirm_coord", 0.5)
 
-        surf = self.surge_luts.get(self.effect_theme, self.surge_luts["aurora"])
+        surf = self.surge_luts.get(self.effect_theme, self.surge_luts.get("heavenly", self.surge_luts.get("aurora")))
         lut_w = 512
         lut_h = 1024
 

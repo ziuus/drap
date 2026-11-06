@@ -16,7 +16,7 @@ impl Luts {
         let cy = (lut_h / 2) as f64;
         let max_r = lut_w as f64;
 
-        let themes = ["aurora", "plasma", "solar", "liquid"];
+        let themes = ["heavenly", "aurora", "plasma", "solar", "liquid"];
 
         for &theme in &themes {
             // 1. Edge Bulb LUT — High Luminance Chromatic Aura matching Drooop
@@ -26,6 +26,14 @@ impl Luts {
 
             let wash = RadialGradient::new(cx, cy, 0.0, cx, cy, max_r);
             match theme {
+                "heavenly" => {
+                    // Pure celestial white atmospheric wash
+                    wash.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.58);
+                    wash.add_color_stop_rgba(0.28, 0.98, 0.99, 1.00, 0.38);
+                    wash.add_color_stop_rgba(0.60, 0.95, 0.98, 1.00, 0.18);
+                    wash.add_color_stop_rgba(0.85, 0.90, 0.95, 1.00, 0.06);
+                    wash.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
                 "plasma" => {
                     wash.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.45);
                     wash.add_color_stop_rgba(0.35, 0.55, 0.20, 0.88, 0.25);
@@ -51,6 +59,17 @@ impl Luts {
             let pat = RadialGradient::new(cx, cy, 0.0, cx, cy, max_r * 0.90);
 
             match theme {
+                "heavenly" => {
+                    // Drooop Heavenly Pure Incandescent White Bloom & Pearlescent Celestial Aura
+                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00); // Pure celestial specular core
+                    pat.add_color_stop_rgba(0.18, 1.00, 1.00, 1.00, 1.00); // Sustained intense white brilliance
+                    pat.add_color_stop_rgba(0.38, 0.99, 0.99, 1.00, 0.96); // Luminous heavenly pearl white
+                    pat.add_color_stop_rgba(0.58, 0.96, 0.98, 1.00, 0.84); // Soft celestial glow
+                    pat.add_color_stop_rgba(0.75, 0.92, 0.96, 1.00, 0.58); // Translucent heavenly white mist
+                    pat.add_color_stop_rgba(0.88, 0.86, 0.93, 1.00, 0.26); // Outer feather
+                    pat.add_color_stop_rgba(0.96, 0.82, 0.88, 1.00, 0.08); // Seamless dissolving edge
+                    pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
                 "plasma" => {
                     // Cyberpunk Neon Violet / Electric Cyan
                     pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00);
@@ -107,6 +126,16 @@ impl Luts {
             let s_pat = RadialGradient::new(cx, cy, 0.0, cx, cy, max_r);
 
             match theme {
+                "heavenly" => {
+                    // Drooop Heavenly White Atmospheric Full-Screen Surge Wave
+                    s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00); // Blinding white burst
+                    s_pat.add_color_stop_rgba(0.20, 1.00, 1.00, 1.00, 0.98); // Sustained pure white core
+                    s_pat.add_color_stop_rgba(0.42, 0.98, 0.99, 1.00, 0.88); // Heavenly pearl bloom
+                    s_pat.add_color_stop_rgba(0.68, 0.94, 0.97, 1.00, 0.60); // Ethereal atmospheric wash
+                    s_pat.add_color_stop_rgba(0.86, 0.88, 0.94, 1.00, 0.26); // Soft dissolving sky veil
+                    s_pat.add_color_stop_rgba(0.96, 0.84, 0.90, 1.00, 0.08);
+                    s_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
                 "plasma" => {
                     s_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00);
                     s_pat.add_color_stop_rgba(0.12, 0.80, 0.95, 1.00, 0.98);

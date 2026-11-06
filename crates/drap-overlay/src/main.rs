@@ -64,15 +64,15 @@ impl OverlayState {
                     v.get("theme")
                         .and_then(|t| t.as_str())
                         .map(|s| s.to_lowercase())
-                        .unwrap_or_else(|| "aurora".to_string())
+                        .unwrap_or_else(|| "heavenly".to_string())
                 } else {
-                    "aurora".to_string()
+                    "heavenly".to_string()
                 }
             } else {
-                "aurora".to_string()
+                "heavenly".to_string()
             }
         } else {
-            "aurora".to_string()
+            "heavenly".to_string()
         };
 
         Self {
@@ -154,7 +154,9 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
             s.target_intensity = 1.0;
         }
         "drag_edge_leave" => {
-            s.target_intensity = 0.0;
+            if !s.confirm_active && !s.card_active {
+                s.target_intensity = 0.0;
+            }
         }
         "drag_drop" | "file_uploaded" | "file_from_laptop" => {
             let edge = if let Some(ref c) = msg.corner {
@@ -181,25 +183,34 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
                 .or_else(|| msg.size_bytes.map(ws::format_bytes))
                 .unwrap_or_else(|| "Saved to ~/Downloads".to_string());
 
-            s.active_edge = edge.clone();
-            s.current_coord = coord;
-            s.target_coord = coord;
-            s.current_intensity = 1.0;
-            s.target_intensity = 0.0;
+            let is_duplicate = if let Some(start) = s.confirm_start_time {
+                s.confirm_active && start.elapsed().as_secs_f64() < 0.35
+            } else {
+                false
+            };
 
-            s.confirm_active = true;
-            s.confirm_progress = 0.0;
-            s.confirm_start_time = Some(Instant::now());
-            s.confirm_edge = edge.clone();
-            s.confirm_coord = coord;
-
-            s.card_active = true;
-            s.card_progress = 0.0;
-            s.card_start_time = Some(Instant::now());
             s.card_filename = filename;
             s.card_size_str = size_str;
-            s.card_edge = edge;
-            s.card_coord = coord;
+
+            if !is_duplicate {
+                s.active_edge = edge.clone();
+                s.current_coord = coord;
+                s.target_coord = coord;
+                s.current_intensity = 1.0;
+                s.target_intensity = 0.0;
+
+                s.confirm_active = true;
+                s.confirm_progress = 0.0;
+                s.confirm_start_time = Some(Instant::now());
+                s.confirm_edge = edge.clone();
+                s.confirm_coord = coord;
+
+                s.card_active = true;
+                s.card_progress = 0.0;
+                s.card_start_time = Some(Instant::now());
+                s.card_edge = edge;
+                s.card_coord = coord;
+            }
 
             if let Some(t) = msg.theme {
                 s.theme = t.to_lowercase();
@@ -234,6 +245,7 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     }
 
     let surf = luts.luts.get(&state.theme)
+        .or_else(|| luts.luts.get("heavenly"))
         .or_else(|| luts.luts.get("aurora"))
         .expect("Theme LUT missing");
 
@@ -323,6 +335,7 @@ fn draw_fullscreen_surge(cr: &Context, width: f64, height: f64, progress: f64, e
     }
 
     let surf = luts.surge_luts.get(&state.theme)
+        .or_else(|| luts.surge_luts.get("heavenly"))
         .or_else(|| luts.surge_luts.get("aurora"))
         .expect("Surge LUT missing");
 

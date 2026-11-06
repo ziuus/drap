@@ -108,8 +108,8 @@
   if (tabBrowse) tabBrowse.addEventListener('click', () => setMode('browse'));
   if (tabTransfer) tabTransfer.addEventListener('click', () => setMode('transfer'));
 
-  // Effect Theme Selector
-  let activeTheme = localStorage.getItem("drap_effect_theme") || "liquid";
+  // Effect Theme Selector (Default: Drooop Heavenly White Radiance)
+  let activeTheme = localStorage.getItem("drap_effect_theme") || "heavenly";
   const themePills = document.querySelectorAll(".theme-pill");
 
   function setTheme(theme) {
@@ -172,7 +172,7 @@
   const statusPill = document.getElementById("statusPill");
   let targetHost = localStorage.getItem("drap_target_host") || window.location.host;
   let targetEdgePref = localStorage.getItem("drap_target_edge") || "right"; // Default: Right bezel
-  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") === "true"; // Disabled by default
+  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false"; // Enabled by default (All edges active)
 
   let isProbing = false;
   async function probeAndDiscoverGateway() {
@@ -298,6 +298,24 @@
     pendingSpatialPacket = packet;
     if (!rafSpatialId) {
       rafSpatialId = requestAnimationFrame(dispatchSpatialPacket);
+    }
+  }
+
+  // Stationary Hold Heartbeat (Sustains desktop ambient aura and prevents sleep while holding finger still)
+  let holdHeartbeatTimer = null;
+  function startHoldHeartbeat() {
+    if (holdHeartbeatTimer) clearInterval(holdHeartbeatTimer);
+    holdHeartbeatTimer = setInterval(() => {
+      if (activeDrag && lastClientX !== null && lastClientY !== null) {
+        onDragStreaming(lastClientX, lastClientY);
+      }
+    }, 40); // 25Hz living heartbeat
+  }
+
+  function stopHoldHeartbeat() {
+    if (holdHeartbeatTimer) {
+      clearInterval(holdHeartbeatTimer);
+      holdHeartbeatTimer = null;
     }
   }
 
@@ -436,29 +454,39 @@
         dragAura.style.opacity = "0.85";
         dragAura.style.transform = "translate3d(-50%, -50%, 0) scale(0.75)";
       }
+
+      // Immediately register initial spatial state & start stationary hold heartbeat
+      lastClientX = x;
+      lastClientY = y;
+      onDragStreaming(x, y);
+      startHoldHeartbeat();
     }
 
     card.addEventListener("touchstart", (e) => {
       const t = e.touches[0];
       startX = t.clientX;
       startY = t.clientY;
+      lastClientX = t.clientX;
+      lastClientY = t.clientY;
       touchStartTime = Date.now();
       isScrolling = false;
       isHoldLifted = false;
 
-      // In Browse Mode: Set 220ms timer for Hold-to-Lift
+      // In Browse Mode: Set 200ms timer for Hold-to-Lift
       if (currentMode === 'browse') {
         clearTimeout(holdTimer);
         holdTimer = setTimeout(() => {
           if (!isScrolling && !activeDrag) {
             startActiveDrag(startX, startY);
           }
-        }, 220);
+        }, 200);
       }
     }, { passive: true });
 
     card.addEventListener("touchmove", (e) => {
       const t = e.touches[0];
+      lastClientX = t.clientX;
+      lastClientY = t.clientY;
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
 
@@ -466,23 +494,22 @@
       if (!isHoldLifted && !activeDrag) {
         // In Transfer Mode: Immediate intentional flick in any direction
         if (currentMode === 'transfer') {
-          if (Math.abs(dx) > 35 || Math.abs(dy) > 35) {
+          if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
             e.preventDefault();
             startActiveDrag(t.clientX, t.clientY);
           }
           return;
         }
 
-        // In Browse Mode: Vertical motion is strictly browsing / scrolling!
-        if (Math.abs(dy) > 12) {
+        // In Browse Mode: Vertical motion is strictly browsing / scrolling if dominant
+        if (Math.abs(dy) > 22 && Math.abs(dy) > Math.abs(dx) * 1.5) {
           isScrolling = true;
           clearTimeout(holdTimer);
           return;
         }
 
-        // In Browse Mode: ONLY start drag on an intentional, large horizontal flick (> 75px)
-        // This completely eliminates accidental drag start and jumping sides while browsing!
-        if (Math.abs(dx) > 75 && Math.abs(dx) > Math.abs(dy) * 2.0) {
+        // In Browse Mode: Natural intentional horizontal flick to bezel
+        if (Math.abs(dx) > 38 && Math.abs(dx) > Math.abs(dy) * 1.2) {
           clearTimeout(holdTimer);
           e.preventDefault();
           startActiveDrag(t.clientX, t.clientY);
@@ -499,6 +526,7 @@
 
     card.addEventListener("touchend", (e) => {
       clearTimeout(holdTimer);
+      stopHoldHeartbeat();
       if (activeDrag) {
         const t = e.changedTouches[0];
         finishDrag(t.clientX, t.clientY);
@@ -517,6 +545,7 @@
 
     card.addEventListener("touchcancel", () => {
       clearTimeout(holdTimer);
+      stopHoldHeartbeat();
       if (activeDrag) finishDrag(9999, 9999);
       card.classList.remove("is-lifted", "is-dragging");
       isHoldLifted = false;
@@ -569,9 +598,9 @@
     let normCoord = normY;
     let proximity = 0.0;
 
-    // Tight edge reach: only within final ~55-60px of bezel (inner 85% of screen is strict 0.0 dead-zone!)
-    const reachH = Math.min(58, screenW * 0.15);
-    const reachV = Math.min(58, screenH * 0.08);
+    // Generous edge reach zone: smooth, organic ramp-up as you approach any bezel
+    const reachH = Math.min(130, Math.max(90, screenW * 0.32));
+    const reachV = Math.min(120, Math.max(80, screenH * 0.20));
 
     const distLeft = clientX;
     const distRight = screenW - clientX;
@@ -584,10 +613,10 @@
       // Dragging UP -> Desktop TOP
       // Dragging LEFT -> Desktop RIGHT
       // Dragging RIGHT -> Desktop LEFT
-      const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.8) : 0.0;
-      const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.8) : 0.0;
-      const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.8) : 0.0;
-      const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.8) : 0.0;
+      const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.15) : 0.0;
+      const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.15) : 0.0;
+      const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.15) : 0.0;
+      const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.15) : 0.0;
 
       // Sensed Corner Junctions (where 2 sides meet at corners):
       if (proxL > 0.02 && proxT > 0.02) {
@@ -664,7 +693,7 @@
       desktopEdge = "right";
       normCoord = normY;
       if (distLeft < reachH) {
-        proximity = Math.pow((reachH - distLeft) / reachH, 1.8);
+        proximity = Math.pow((reachH - distLeft) / reachH, 1.15);
       } else {
         proximity = 0.0;
       }
@@ -843,11 +872,11 @@
 
     const drag = activeDrag;
     activeDrag = null;
-    sendWS({ type: "drag_edge_leave" });
 
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
-    const edgeThreshold = 44; // Tight, intentional 44px threshold
+    const edgeThreshold = Math.min(68, Math.max(54, screenW * 0.18)); // Generous, reliable drop threshold
+    const edgeThresholdV = Math.min(68, Math.max(54, screenH * 0.12));
     let crossedThreshold = false;
     let dropPhoneEdge = drag.phoneEdge || "left";
     let dropDesktopEdge = drag.desktopEdge || "right";
@@ -859,8 +888,8 @@
     if (isMultiSideSend) {
       const crossedLeft = clientX <= edgeThreshold;
       const crossedRight = clientX >= screenW - edgeThreshold;
-      const crossedTop = clientY <= edgeThreshold;
-      const crossedBottom = clientY >= screenH - edgeThreshold;
+      const crossedTop = clientY <= edgeThresholdV;
+      const crossedBottom = clientY >= screenH - edgeThresholdV;
 
       // 1. Sensed Corner Junction Drops (file flicked towards 2 meeting sides)
       if (crossedLeft && crossedTop) {
@@ -1022,7 +1051,8 @@
         })();
       }
     } else {
-      // User cancelled drag or released back into library: Cancel speculative pre-upload
+      // User cancelled drag or released back into library: notify overlay to fade out
+      sendWS({ type: "drag_edge_leave" });
       if (drag && drag.stageAbort) {
         drag.stageAbort.abort();
         if (drag.stageId) {
