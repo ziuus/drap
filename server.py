@@ -931,47 +931,25 @@ def start_https_server():
         print("[drap HTTPS] Secure HTTPS server running at https://0.0.0.0:8443 (Required for PWA install)")
 
 def start_mdns_service():
-    """Pure-Python mDNS responder for drap.local and macbook.local on UDP 5353 (Zeroconf)."""
-    def mdns_worker():
-        MCAST_GRP = "224.0.0.251"
-        MCAST_PORT = 5353
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            sock.bind(("", MCAST_PORT))
-            mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
-            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
-            print("[drap mDNS] Zeroconf responder active for 'drap.local' & 'macbook.local'")
-
-            while True:
-                data, addr = sock.recvfrom(2048)
-                if not data or len(data) < 12:
-                    continue
-                flags = struct.unpack(">H", data[2:4])[0]
-                if (flags & 0x8000) != 0:
-                    continue  # Ignore DNS responses
-                
-                lower = data.lower()
-                if b"drap" in lower or b"macbook" in lower:
-                    cur_ip = get_local_ip()
-                    if not cur_ip or cur_ip == "127.0.0.1":
-                        continue
-                    query_id = struct.unpack(">H", data[:2])[0]
-                    for target_name in ("drap.local", "macbook.local"):
-                        parts = target_name.split(".")
-                        qname = b"".join(bytes([len(p)]) + p.encode() for p in parts) + b"\x00"
-                        header = struct.pack(">HHHHHH", query_id, 0x8400, 0, 1, 0, 0)
-                        ip_bytes = socket.inet_aton(cur_ip)
-                        answer = qname + struct.pack(">HHIH", 1, 0x8001, 120, 4) + ip_bytes
-                        resp = header + answer
-                        sock.sendto(resp, (MCAST_GRP, MCAST_PORT))
-        except Exception as e:
-            print(f"[drap mDNS] Note: {e}")
-
-    t = threading.Thread(target=mdns_worker, daemon=True)
-    t.start()
+    """Pure-Python mDNS responder / Zeroconf advertiser for drap.local and _http._tcp.local."""
+    try:
+        from zeroconf import Zeroconf, ServiceInfo
+        ip = get_local_ip()
+        if not ip or ip == "127.0.0.1":
+            return
+        zc = Zeroconf()
+        info = ServiceInfo(
+            "_http._tcp.local.",
+            "Drap Web Gateway._http._tcp.local.",
+            addresses=[socket.inet_aton(ip)],
+            port=8080,
+            properties={"path": "/"},
+            server="drap.local."
+        )
+        zc.register_service(info)
+        print(f"[drap mDNS] Zeroconf active: drap.local -> {ip}")
+    except Exception as e:
+        print(f"[drap mDNS] Zeroconf error: {e}")
 
 def print_startup_banner():
     ip = get_local_ip()
