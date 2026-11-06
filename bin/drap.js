@@ -77,6 +77,21 @@ function stopServices() {
 }
 
 switch (command) {
+  case "version":
+  case "-v":
+  case "--version":
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(PROJECT_DIR, "package.json"), "utf8"));
+      let gitHash = "release";
+      try {
+        gitHash = execSync(`git -C "${PROJECT_DIR}" rev-parse --short HEAD 2>/dev/null`).toString().trim();
+      } catch (e) {}
+      console.log(`💧 Drap v${pkg.version} (${gitHash}) - Spatial Transfer for Linux (Wayland / Hyprland)`);
+    } catch (e) {
+      console.log("💧 Drap v1.0.0");
+    }
+    break;
+
   case "on":
   case "start":
     if (areProcessesRunning() || isSystemdActive()) {
@@ -256,23 +271,30 @@ switch (command) {
     console.log("  💧 UPDATING DRAP TO LATEST VERSION");
     console.log("==================================================");
     try {
-      console.log("==> Fetching latest release from GitHub...");
+      console.log("==> Checking remote repository for latest releases and tags...");
+      execSync(`git -C "${PROJECT_DIR}" fetch --tags origin 2>/dev/null || true`);
       const pullOut = execSync(`git -C "${PROJECT_DIR}" pull --ff-only 2>&1`).toString();
       console.log(pullOut.trim());
 
       const commit = execSync(`git -C "${PROJECT_DIR}" rev-parse --short HEAD`).toString().trim();
       const commitMsg = execSync(`git -C "${PROJECT_DIR}" log -1 --pretty=%B`).toString().trim().split("\n")[0];
-      console.log(`==> Current commit: ${commit} ("${commitMsg}")`);
+      let latestTag = "v1.0.0";
+      try {
+        latestTag = execSync(`git -C "${PROJECT_DIR}" describe --tags --abbrev=0 2>/dev/null`).toString().trim();
+      } catch (e) {}
 
-      console.log("==> Updating system files and daemons...");
+      console.log(`==> Installed Version: ${latestTag} (${commit})`);
+      console.log(`==> Latest Change: "${commitMsg}"`);
+
+      console.log("==> Rebuilding and synchronizing system services...");
       execSync(`bash "${path.join(PROJECT_DIR, "install.sh")}"`, { stdio: "inherit" });
 
-      console.log("==> Restarting Drap services...");
+      console.log("==> Restarting Drap daemon and spatial overlay...");
       stopServices();
       setTimeout(() => {
         startServices();
         console.log("\n==================================================");
-        console.log(`✨ Drap successfully updated to commit ${commit}!`);
+        console.log(`✨ Drap successfully updated to ${latestTag} (${commit})!`);
         console.log("==================================================\n");
       }, 700);
     } catch (e) {

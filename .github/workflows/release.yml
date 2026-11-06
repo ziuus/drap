@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libgtk4-layer-shell-dev libcairo2-dev libglib2.0-dev pkg-config
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release Overlay Binary
+        run: |
+          cargo build --release --manifest-path crates/drap-overlay/Cargo.toml
+          strip crates/drap-overlay/target/release/drap-overlay
+          mkdir -p bin
+          cp crates/drap-overlay/target/release/drap-overlay bin/drap-overlay
+          chmod +x bin/drap-overlay
+
+      - name: Package Release Tarball
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="linux-x86_64"
+          TAR_NAME="drap-v${VERSION}-${ARCH}.tar.gz"
+          
+          # Create clean release directory structure
+          mkdir -p dist/drap
+          cp -r bin client config certs docs install.sh run.sh server.py hub.py overlay.py package.json README.md dist/drap/
+          
+          tar -czf "$TAR_NAME" -C dist drap
+          sha256sum "$TAR_NAME" > "${TAR_NAME}.sha256"
+          
+          echo "TAR_NAME=$TAR_NAME" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.TAR_NAME }}
+            ${{ env.TAR_NAME }}.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true
