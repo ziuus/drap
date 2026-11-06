@@ -1266,8 +1266,48 @@
     });
   }
 
+  // Handle Incoming Native System Share Target (Android / Mobile System Share Sheet)
+  async function checkSystemShareTarget() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("shared") === "true") {
+      try {
+        const shareCache = await caches.open("drap-share-cache");
+        const metaRes = await shareCache.match("/shared-meta");
+        if (metaRes) {
+          const meta = await metaRes.json();
+          const importedFiles = [];
+          for (let i = 0; i < (meta.fileCount || 0); i++) {
+            const fileRes = await shareCache.match(`/shared-file-${i}`);
+            if (fileRes) {
+              const blob = await fileRes.blob();
+              const fMeta = (meta.filesMeta && meta.filesMeta[i]) || {};
+              const file = new File([blob], fMeta.name || `Shared_Item_${i+1}`, { type: fMeta.type || blob.type });
+              importedFiles.push(file);
+              await shareCache.delete(`/shared-file-${i}`);
+            }
+          }
+          await shareCache.delete("/shared-meta");
+
+          if (importedFiles.length > 0) {
+            await handleFilesSelected(importedFiles);
+            showToast(`Received ${importedFiles.length} file${importedFiles.length > 1 ? 's' : ''} from phone share! Flick to drop.`);
+          } else if (meta.text || meta.url) {
+            const shareText = (meta.text || "") + (meta.url ? " " + meta.url : "");
+            const textInput = document.getElementById("quickTextInput");
+            if (textInput) textInput.value = shareText.trim();
+            showToast("Shared text loaded into clipboard bar");
+          }
+        }
+      } catch (e) {
+        console.error("Error retrieving shared target:", e);
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
   // Load Saved Library from IndexedDB & Laptop Shares
   async function loadLibrary() {
+    await checkSystemShareTarget();
     const saved = await getAllMediaFromDB();
     if (saved && saved.length > 0) {
       mediaGrid.innerHTML = "";
