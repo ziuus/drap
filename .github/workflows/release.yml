@@ -46,7 +46,7 @@ jobs:
           
           # Create clean release directory structure
           mkdir -p dist/drap
-          cp -r bin client config certs docs install.sh run.sh server.py hub.py overlay.py package.json README.md dist/drap/
+          cp -r bin client certs docs install.sh run.sh server.py hub.py overlay.py localsend_service.py package.json README.md LICENSE dist/drap/
           
           tar -czf "$TAR_NAME" -C dist drap
           sha256sum "$TAR_NAME" > "${TAR_NAME}.sha256"
