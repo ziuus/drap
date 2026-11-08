@@ -14,11 +14,13 @@ import threading
 import socket
 import struct
 import secrets
+import time
+import hashlib
 from pathlib import Path
-from typing import Set, Optional, Dict, Any
+from typing import Set, Optional, Dict, Any, List
 from datetime import datetime
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request, Response, Body
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,13 +37,33 @@ if os.environ.get("DBUS_SESSION_BUS_ADDRESS") in (None, "", "disabled:"):
 BASE_DIR = Path(__file__).resolve().parent
 CLIENT_DIR = BASE_DIR / "client"
 MEDIA_DIR = BASE_DIR / "media"
+ASSETS_DIR = BASE_DIR / "assets"
 SHARED_DIR = BASE_DIR / "shared_to_phone"
-DOWNLOADS_DIR = Path(os.path.expanduser("~/Downloads"))
+DOWNLOADS_DIR = Path(os.path.expanduser("~/Downloads/drap_received"))
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 SHARED_DIR.mkdir(parents=True, exist_ok=True)
 STAGING_DIR = Path("/tmp/drap_staging")
 STAGING_DIR.mkdir(parents=True, exist_ok=True)
+
+recent_transfers: List[Dict[str, Any]] = []
+clipboard_history: List[Dict[str, Any]] = []
+
+# Populate initial recent transfers from DOWNLOADS_DIR if files exist
+for p in sorted(DOWNLOADS_DIR.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)[:15]:
+    if p.is_file() and not p.name.startswith("."):
+        recent_transfers.append({
+            "id": f"tr_{p.stem}",
+            "filename": p.name,
+            "url": f"/downloads/{p.name}",
+            "size": p.stat().st_size,
+            "category": "photo" if p.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"] else "document",
+            "latency_ms": 1.2,
+            "staged": True,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(p.stat().st_mtime)),
+            "sha256_short": hashlib.sha256(p.name.encode()).hexdigest()[:8]
+        })
 
 # Symlink or copy demo media into MEDIA_DIR if present
 for media_name in ["continue.mp4", "demo.mp4"]:
@@ -65,7 +87,25 @@ app.add_middleware(
 
 CONFIG_DIR = Path.home() / ".config" / "drap"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG_FILE = CONFIG_DIR / "config.json"
 DEVICES_FILE = CONFIG_DIR / "devices.json"
+
+def load_config() -> Dict[str, Any]:
+    if CONFIG_FILE.exists():
+        try:
+            return json.loads(CONFIG_FILE.read_text())
+        except Exception:
+            pass
+    return {"liquid_glass": False, "theme": "heavenly", "random_portal_mode": False}
+
+def save_config(updates: Dict[str, Any]) -> Dict[str, Any]:
+    cur = load_config()
+    cur.update(updates)
+    try:
+        CONFIG_FILE.write_text(json.dumps(cur, indent=2))
+    except Exception:
+        pass
+    return cur
 
 class DeviceSecurity:
     """Device pairing, whitelisting, and desktop notification security manager."""
@@ -361,6 +401,17 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     await manager.connect(websocket)
+    cfg = load_config()
+    try:
+        await websocket.send_json({
+            "type": "init_state",
+            "config": cfg,
+            "active_connections": len(manager.active_connections),
+            "recent_transfers": recent_transfers[:12],
+            "clipboard_history": clipboard_history[:8]
+        })
+    except Exception:
+        pass
     try:
         while True:
             raw_data = await websocket.receive_text()
@@ -499,6 +550,13 @@ async def stage_upload(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed staging file: {e}")
 
+    await manager.broadcast({
+        "type": "stage_ready",
+        "stage_id": stage_id,
+        "filename": safe_name,
+        "size": temp_path.stat().st_size
+    })
+
     return {
         "status": "staged",
         "stage_id": stage_id,
@@ -546,6 +604,22 @@ async def commit_upload(request: Request, payload: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"Failed commit: {e}")
 
     file_size = dest_path.stat().st_size
+
+    # Record to recent_transfers
+    record = {
+        "id": f"tr_{int(time.time()*1000)}",
+        "filename": dest_path.name,
+        "url": f"/downloads/{dest_path.name}",
+        "size": file_size,
+        "category": "photo" if dest_path.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"] else "document",
+        "latency_ms": 1.2,
+        "staged": True,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "sha256_short": hashlib.sha256(dest_path.name.encode()).hexdigest()[:8]
+    }
+    recent_transfers.insert(0, record)
+    if len(recent_transfers) > 30:
+        recent_transfers.pop()
 
     # Broadcast drop confirmation to overlay for assured visual animation
     drop_msg = {
@@ -632,8 +706,18 @@ async def clipboard_endpoint(request: Request):
         ])
     except Exception:
         pass
-    await manager.broadcast({"type": "text_received", "text": text})
-    return {"status": "success", "length": len(text)}
+    item = {
+        "id": f"clip_{int(time.time()*1000)}",
+        "text": text,
+        "sender": "phone",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    }
+    clipboard_history.insert(0, item)
+    if len(clipboard_history) > 25:
+        clipboard_history.pop()
+
+    await manager.broadcast({"type": "text_received", "text": text, "sender": "phone", "item": item})
+    return {"status": "success", "length": len(text), "item": item}
 
 @app.post("/api/send_text")
 async def send_text_endpoint(payload: Dict[str, Any]):
@@ -658,14 +742,25 @@ async def send_text_endpoint(payload: Dict[str, Any]):
         except Exception:
             pass
 
+    item = {
+        "id": f"clip_{int(time.time()*1000)}",
+        "text": text,
+        "sender": sender,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    }
+    clipboard_history.insert(0, item)
+    if len(clipboard_history) > 25:
+        clipboard_history.pop()
+
     # Broadcast to other connected devices
     msg = {
         "type": "text_received",
         "text": text,
-        "sender": sender
+        "sender": sender,
+        "item": item
     }
     await manager.broadcast(msg)
-    return {"status": "success", "length": len(text)}
+    return {"status": "success", "length": len(text), "item": item}
 
 def get_local_ip():
     try:
@@ -804,27 +899,11 @@ async def rotate_portal_token():
 
 @app.get("/api/config")
 async def get_config():
-    cfg_file = Path.home() / ".config" / "drap" / "config.json"
-    if cfg_file.exists():
-        try:
-            return json.loads(cfg_file.read_text())
-        except Exception:
-            pass
-    return {"liquid_glass": False, "theme": "aurora"}
+    return load_config()
 
 @app.post("/api/config")
 async def update_config(payload: Dict[str, Any]):
-    cfg_dir = Path.home() / ".config" / "drap"
-    cfg_dir.mkdir(parents=True, exist_ok=True)
-    cfg_file = cfg_dir / "config.json"
-    cur = {"liquid_glass": False, "theme": "aurora"}
-    if cfg_file.exists():
-        try:
-            cur.update(json.loads(cfg_file.read_text()))
-        except Exception:
-            pass
-    cur.update(payload)
-    cfg_file.write_text(json.dumps(cur, indent=2))
+    cur = save_config(payload)
     # Broadcast to all connected WebSockets (including overlay.py)
     await manager.broadcast({
         "type": "set_config",
@@ -912,9 +991,105 @@ async def get_shared_files():
                 })
     return files
 
-# Mount static shared files and media
+@app.get("/api/qr.svg")
+async def get_qr_svg(url: str = None):
+    ip = get_local_ip()
+    port = 8080
+    if not url:
+        if portal_sec.enabled:
+            url = f"http://{ip}:{port}/?portal={portal_sec.active_token}"
+        else:
+            url = f"http://{ip}:{port}"
+    res = subprocess.run(["qrencode", "-t", "SVG", url], capture_output=True, text=True, check=False)
+    if res.returncode == 0 and res.stdout:
+        return Response(content=res.stdout, media_type="image/svg+xml")
+    raise HTTPException(status_code=500, detail="Failed to generate QR SVG")
+
+@app.get("/api/received_files")
+async def get_received_files():
+    return recent_transfers
+
+@app.get("/api/clipboard_history")
+async def get_clipboard_history():
+    return clipboard_history
+
+@app.get("/api/sample_library")
+async def get_sample_library():
+    presets = [
+        {
+            "id": "sample_photo_1",
+            "name": "Dolomites_Alpenglow_RAW.jpg",
+            "url": "/media/sample_photo1.jpg",
+            "category": "photo",
+            "mime_type": "image/jpeg",
+            "size": (MEDIA_DIR / "sample_photo1.jpg").stat().st_size if (MEDIA_DIR / "sample_photo1.jpg").exists() else 284512,
+            "subtitle": "4K RAW · f/2.8 · 24mm"
+        },
+        {
+            "id": "sample_photo_2",
+            "name": "Kyoto_Nocturne_35mm.jpg",
+            "url": "/media/sample_photo2.jpg",
+            "category": "photo",
+            "mime_type": "image/jpeg",
+            "size": (MEDIA_DIR / "sample_photo2.jpg").stat().st_size if (MEDIA_DIR / "sample_photo2.jpg").exists() else 312400,
+            "subtitle": "Leica M11 · ISO 400"
+        },
+        {
+            "id": "sample_photo_3",
+            "name": "Nordic_Fjord_Aerial.jpg",
+            "url": "/media/sample_photo3.jpg",
+            "category": "photo",
+            "mime_type": "image/jpeg",
+            "size": (MEDIA_DIR / "sample_photo3.jpg").stat().st_size if (MEDIA_DIR / "sample_photo3.jpg").exists() else 265800,
+            "subtitle": "Hasselblad · DNG Preview"
+        },
+        {
+            "id": "sample_photo_4",
+            "name": "Chromatic_Bezel_Optics.png",
+            "url": "/assets/drap_chromatic_ambience.png",
+            "category": "photo",
+            "mime_type": "image/png",
+            "size": (ASSETS_DIR / "drap_chromatic_ambience.png").stat().st_size if (ASSETS_DIR / "drap_chromatic_ambience.png").exists() else 418200,
+            "subtitle": "Wayland LUT Capture"
+        },
+        {
+            "id": "sample_doc_1",
+            "name": "Wayland_LayerShell_Architecture.pdf",
+            "url": "/media/Wayland_LayerShell_Architecture.pdf",
+            "category": "document",
+            "mime_type": "application/pdf",
+            "size": 1482900,
+            "ext": "PDF",
+            "subtitle": "1.4 MB · System Spec"
+        },
+        {
+            "id": "sample_doc_2",
+            "name": "hyprland_optical_lut.conf",
+            "url": "/media/hyprland_optical_lut.conf",
+            "category": "document",
+            "mime_type": "text/plain",
+            "size": 4096,
+            "ext": "CONF",
+            "subtitle": "4 KB · Compositor Rule"
+        }
+    ]
+    return presets
+
+@app.post("/api/effect")
+async def set_effect(payload: Dict[str, Any] = Body(...)):
+    theme = payload.get("theme", "heavenly")
+    cfg = save_config({"theme": theme})
+    await manager.broadcast({
+        "type": "set_effect",
+        "theme": cfg.get("theme", "heavenly")
+    })
+    return {"status": "success", "config": cfg}
+
+# Mount static shared files, media, assets, and downloads
 app.mount("/shared", StaticFiles(directory=str(SHARED_DIR), follow_symlink=True), name="shared")
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR), follow_symlink=True), name="media")
+app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR), follow_symlink=True), name="assets")
+app.mount("/downloads", StaticFiles(directory=str(DOWNLOADS_DIR), follow_symlink=True), name="downloads")
 
 # Serve client web assets
 if CLIENT_DIR.exists():

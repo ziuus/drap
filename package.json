@@ -8,10 +8,13 @@
     "drooop": "./bin/drooop.js"
   },
   "scripts": {
-    "dev": "tsx server.ts",
-    "start": "tsx server.ts",
-    "build": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "start": "./run.sh",
+    "gui": "python3 hub.py",
+    "test": "python3 test_spatial_transfer.py",
+    "ts:dev": "tsx server.ts",
+    "ts:start": "tsx server.ts",
+    "ts:build": "tsc --noEmit",
+    "ts:lint": "tsc --noEmit"
   },
   "keywords": [
     "drap",
