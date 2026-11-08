@@ -1,0 +1,5 @@
+{
+  "name": "drap — Spatial Cross-Device Continuity & Transfer System",
+  "description": "Hardware-accelerated spatial cross-device file transfer, optical chromatic bezel portals, and video continuity system for Linux (Wayland / Hyprland) and mobile PWAs.",
+  "requestFramePermissions": []
+}

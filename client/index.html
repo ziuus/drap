@@ -1,105 +1,356 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>drap</title>
+  <title>drap — Spatial Cross-Device Continuity & Transfer System</title>
+  <meta name="description" content="Hardware-accelerated spatial cross-device file transfer, optical chromatic bezel portals, and video continuity system for Linux (Wayland / Hyprland) and mobile PWAs.">
+  <meta property="og:title" content="drap — Spatial Cross-Device Continuity & Transfer System">
+  <meta property="og:description" content="Hardware-accelerated spatial cross-device file transfer, optical chromatic bezel portals, and video continuity system for Linux (Wayland / Hyprland) and mobile PWAs.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="drap">
   <meta name="theme-color" content="#09090b">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-  <!-- Phone Dynamic Ambience & Shockwave Layers -->
+<body data-theme="heavenly">
+  <!-- Full-Viewport Handset Optical Layers (Active during touch/pointer drag) -->
   <div class="phone-edge-bulb" id="phoneEdgeBulb" style="display: none;"></div>
   <div class="phone-corner-bulb" id="phoneCornerBulb" style="display: none;"></div>
   <div class="mobile-ripple-container" id="mobileRippleContainer"></div>
   <div class="drag-scrim" id="dragScrim"></div>
 
-  <!-- Main View -->
-  <main class="app-shell" id="appShell">
-    <!-- Header: Ultra-Clean Minimalist Bar -->
-    <header class="app-header">
-      <div class="brand-row">
-        <div class="brand-left">
-          <div class="logo">drap</div>
-          <div class="status-indicator connected" id="statusPill" title="Connected">
-            <span class="status-dot"></span>
+  <!-- Top Navigation Bar (Strict 3-Zone Contract on Desktop) -->
+  <header class="top-nav-bar" id="topNavBar">
+    <a href="#workspace" class="brand-wordmark" id="brandWordmark">drap</a>
+
+    <nav class="top-nav-links" aria-label="Primary Navigation">
+      <a href="#workspace" class="nav-link active" data-nav-target="workspace">Spatial Studio</a>
+      <a href="#transfers" class="nav-link" data-nav-target="transfers">Transfer Vault</a>
+      <a href="#security" class="nav-link" data-nav-target="security">QR &amp; Security</a>
+      <a href="#wayland" class="nav-link" data-nav-target="wayland">Wayland Config</a>
+    </nav>
+
+    <div class="top-nav-action">
+      <button type="button" id="openQrModalBtn" class="btn-primary-nav">Pair Handset QR</button>
+    </div>
+  </header>
+
+  <!-- Main Responsive Dual-Surface Continuity Workspace -->
+  <div class="continuity-workspace" id="workspace">
+    <!-- LEFT COLUMN: Interactive Handset Surface (Full-screen on Mobile, 430px Chassis on Desktop) -->
+    <main class="app-shell" id="appShell">
+      <!-- Handset Optical Bezel Indicator Frame -->
+      <div class="handset-bezel-glow" id="handsetBezelGlow"></div>
+
+      <!-- Handset Header -->
+      <header class="app-header">
+        <div class="brand-row">
+          <div class="brand-left">
+            <span class="logo">drap</span>
+            <div class="status-indicator connected" id="statusPill" title="WebSocket Signaling Active">
+              <span class="status-dot"></span>
+              <span class="status-text" id="connectionStatusText">Connected</span>
+            </div>
+          </div>
+
+          <div class="header-controls">
+            <button id="toggleModeQuickBtn" class="btn-mode-toggle" type="button" title="Switch Drag Gesture Mode">
+              <span id="quickModeLabel">Direct Flick</span>
+            </button>
+            <button id="openSettingsBtn" class="btn-settings" type="button" aria-label="Preferences">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
-        <!-- Sleek Settings Gear Button -->
-        <button id="openSettingsBtn" class="btn-settings" type="button" aria-label="Settings">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- Library Section -->
-    <section class="content-section">
-      <div class="section-header">
-        <div class="section-title-wrap">
-          <h2>Local Device Library</h2>
-          <span class="file-count" id="fileCountBadge">Loading...</span>
+        <!-- Spatial Gesture Guidance Banner -->
+        <div class="gesture-hint-bar" id="gestureHintBar">
+          <span class="hint-direction-icon" aria-hidden="true">⇄</span>
+          <span id="gestureHintText">Drag any card toward the screen bezel to ignite the optical portal</span>
         </div>
+      </header>
+
+      <!-- Library Section -->
+      <section class="content-section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2>Device Media Library</h2>
+            <span class="file-count" id="fileCountBadge">Loading...</span>
+          </div>
+          <!-- Segmented Category Filter Controls -->
+          <div class="category-scroll" role="tablist" aria-label="Filter media">
+            <button type="button" class="cat-pill active" data-cat="all">All</button>
+            <button type="button" class="cat-pill" data-cat="photo">Photos</button>
+            <button type="button" class="cat-pill" data-cat="video">Video</button>
+            <button type="button" class="cat-pill" data-cat="document">Docs</button>
+          </div>
+        </div>
+
+        <!-- Device Media & Files Action Bar -->
+        <div class="local-media-toolbar">
+          <label for="pickerPhotos" class="btn-picker-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Add Photos</span>
+          </label>
+          <input type="file" id="pickerPhotos" multiple accept="image/*,video/*" style="display: none;">
+
+          <label for="pickerFiles" class="btn-picker-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Add Files</span>
+          </label>
+          <input type="file" id="pickerFiles" multiple accept="*/*" style="display: none;">
+
+          <label for="pickerFolder" class="btn-picker-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Folder</span>
+          </label>
+          <input type="file" id="pickerFolder" webkitdirectory directory multiple style="display: none;">
+
+          <button id="btnClearLibrary" class="btn-picker-icon" type="button" title="Reset Custom Added Files">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+
+        <!-- Inline Reset Confirmation Bar (Replaces browser confirm()) -->
+        <div class="inline-confirm-bar" id="clearConfirmBar" style="display: none;">
+          <span>Reset custom files and restore default media?</span>
+          <div class="inline-confirm-actions">
+            <button type="button" id="confirmClearYes" class="btn-confirm-danger">Reset</button>
+            <button type="button" id="confirmClearNo" class="btn-confirm-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="media-grid" id="mediaGrid">
+          <!-- Dynamically populated from seeded library, IndexedDB vault, and laptop shares -->
+        </div>
+      </section>
+
+      <!-- Video Continuity Handoff Card -->
+      <section class="content-section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2>Video Continuity</h2>
+            <span class="meta-separator">·</span>
+            <span class="section-sub-note">Flick to resume on desktop</span>
+          </div>
+        </div>
+
+        <div class="card-item video-continuity-card" id="videoHandoffCard" data-cat="video" data-item-type="video" data-title="Optical Fluid Caustics — 4K60 HDR" data-size="48.2 MB" data-file="/media/sample_photo1.jpg">
+          <div class="video-wrapper">
+            <canvas id="continuityVideoCanvas" width="480" height="220"></canvas>
+            <button type="button" class="video-overlay-play" id="videoPlayToggleBtn" aria-label="Play or Pause Continuity Stream">
+              <svg id="playIconSvg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display: none;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg id="pauseIconSvg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+            <div class="video-timecode-overlay" id="videoTimecodeOverlay">00:14.2 / 02:45.0</div>
+          </div>
+          <div class="card-meta video-meta-row">
+            <div class="video-meta-text">
+              <span class="title">Optical Fluid Caustics — 4K60 HDR</span>
+              <span class="sub" id="videoTime">Playing at 60 FPS · Drag to bezel for mpv handoff</span>
+            </div>
+            <button type="button" class="btn-instant-beam" id="btnInstantVideoBeam" title="Beam Video Timestamp to Desktop">
+              Beam
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Clipboard Sync Bar -->
+      <section class="content-section">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2>Wayland Clipboard Sync</h2>
+            <span class="meta-separator">·</span>
+            <span class="section-sub-note">wl-copy bridge</span>
+          </div>
+        </div>
+        <div class="clipboard-box">
+          <input type="text" id="quickTextInput" placeholder="Paste link, command, or snippet for desktop...">
+          <button id="quickSendBtn" type="button">Send</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- RIGHT COLUMN: Live Wayland Layer-Shell Desktop Monitor Stage & Control Hub -->
+    <aside class="desktop-stage-panel" id="desktopStagePanel">
+      <!-- Live Wayland Monitor Stage (eDP-1 · 1920x1080 Layer-Shell Canvas) -->
+      <section class="stage-monitor-shell">
+        <div class="stage-monitor-topbar">
+          <div class="stage-monitor-title">
+            <h3>Wayland Layer-Shell Monitor Stage</h3>
+            <span class="meta-separator">·</span>
+            <span class="mono-meta" id="stageMonitorSpec">eDP-1 · 144Hz Bilinear LUT</span>
+          </div>
+
+          <!-- Shader Palette Selector -->
+          <div class="stage-shader-bar" role="radiogroup" aria-label="Optical Shader Theme">
+            <button type="button" class="shader-tab active" data-theme-select="heavenly">Heavenly</button>
+            <button type="button" class="shader-tab" data-theme-select="aurora">Aurora</button>
+            <button type="button" class="shader-tab" data-theme-select="liquid">Liquid</button>
+            <button type="button" class="shader-tab" data-theme-select="plasma">Plasma</button>
+            <button type="button" class="shader-tab" data-theme-select="solar">Solar</button>
+          </div>
+        </div>
+
+        <!-- The 16:9 / 16:10 Hyprland Desktop Monitor Viewport -->
+        <div class="wayland-monitor-frame" id="waylandMonitorFrame">
+          <!-- Simulated Hyprland Desktop Wallpaper & Workspace Windows -->
+          <div class="hyprland-desktop-backdrop">
+            <div class="hypr-top-waybar">
+              <div class="waybar-workspaces">
+                <span class="ws-num active">1</span>
+                <span class="ws-num">2</span>
+                <span class="ws-num">3</span>
+              </div>
+              <div class="waybar-center mono-meta">drap-aurora · ext-layer-shell-v1</div>
+              <div class="waybar-right mono-meta" id="waybarTelemetry">0.00 ms · Idle</div>
+            </div>
+
+            <!-- Desktop Workspace Content Area -->
+            <div class="hypr-windows-grid">
+              <!-- Left Desktop Window: Bidirectional Dropzone & Live Receive Stream -->
+              <div class="hypr-window" id="hyprDropzoneWindow">
+                <div class="hypr-win-header">
+                  <span class="hypr-win-title">~/Downloads/drap_received</span>
+                  <span class="hypr-win-sub mono-meta" id="stagingStatusBadge">Speculative Staging Ready</span>
+                </div>
+                <div class="hypr-win-body">
+                  <!-- Desktop-to-Phone Push Dropzone -->
+                  <label for="desktopPushFileInput" class="desktop-push-dropzone" id="desktopPushDropzone">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <div class="dropzone-copy">
+                      <strong>Beam File from Desktop to Phone</strong>
+                      <span>Drop any file here or click to push to handset library</span>
+                    </div>
+                  </label>
+                  <input type="file" id="desktopPushFileInput" multiple style="display: none;">
+
+                  <!-- Latest Received Files on Desktop -->
+                  <div class="desktop-received-list" id="desktopReceivedList">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Desktop Window: Continuity MPV Player / Optical Inspector -->
+              <div class="hypr-window" id="hyprContinuityWindow">
+                <div class="hypr-win-header">
+                  <span class="hypr-win-title" id="continuityWinTitle">mpv · Continuity Player</span>
+                  <span class="hypr-win-sub mono-meta" id="continuityTimestampLabel">Standby</span>
+                </div>
+                <div class="hypr-win-body continuity-player-body">
+                  <canvas id="desktopMpvCanvas" width="380" height="175"></canvas>
+                  <div class="mpv-osd-bar">
+                    <span id="mpvOsdStatus">Flick video card on handset to handoff stream</span>
+                    <span class="mono-meta" id="mpvOsdTime">00:00.0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HARDWARE-ACCELERATED WAYLAND LAYER-SHELL OVERLAY CANVAS (1920x1080 logical space) -->
+          <canvas id="desktopOverlayCanvas" width="1280" height="720"></canvas>
+        </div>
+
+        <!-- Interactive Bezel Surge & Optical Test Toolbar -->
+        <div class="stage-bezel-controls">
+          <div class="bezel-trigger-group">
+            <span class="control-group-label">Simulate Bezel Handoff:</span>
+            <button type="button" class="btn-bezel-sim" data-sim-edge="right">Right Bezel</button>
+            <button type="button" class="btn-bezel-sim" data-sim-edge="left">Left Bezel</button>
+            <button type="button" class="btn-bezel-sim" data-sim-edge="top">Top Bezel</button>
+            <button type="button" class="btn-bezel-sim" data-sim-edge="bottom">Bottom Bezel</button>
+            <button type="button" class="btn-bezel-sim" data-sim-edge="corner-top-right">Corner Portal</button>
+          </div>
+
+          <label class="liquid-caustics-toggle">
+            <input type="checkbox" id="stageLiquidToggle" checked>
+            <span>Liquid Glass Caustics</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Bottom Secondary Workspace Grid: Transfer Vault, QR Pairing & Security, Wayland Config -->
+      <div class="stage-bottom-grid">
+        <!-- Transfer & Clipboard Vault Card -->
+        <section class="stage-info-card" id="transfers">
+          <div class="card-head-row">
+            <h4>Clipboard &amp; Transfer Log</h4>
+            <span class="mono-meta" id="vaultCountLabel">Live Sync</span>
+          </div>
+
+          <!-- Desktop-to-Phone Clipboard Push -->
+          <div class="desktop-clip-push">
+            <input type="text" id="desktopClipInput" placeholder="Push text or command from desktop to phone...">
+            <button type="button" id="desktopClipSendBtn">Push</button>
+          </div>
+
+          <div class="clipboard-history-list" id="clipboardHistoryList">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- QR Pairing, Ephemeral Portal & Device Access Control Card -->
+        <section class="stage-info-card" id="security">
+          <div class="card-head-row">
+            <h4>Mobile QR Pairing &amp; Security</h4>
+            <div class="security-mode-segmented" role="group" aria-label="Security Mode">
+              <button type="button" class="sec-mode-btn" data-sec-mode="open">Open</button>
+              <button type="button" class="sec-mode-btn active" data-sec-mode="prompt">Prompt</button>
+              <button type="button" class="sec-mode-btn" data-sec-mode="strict">Strict</button>
+            </div>
+          </div>
+
+          <div class="qr-security-split">
+            <div class="qr-preview-box" id="qrPreviewBox" title="Click to enlarge pairing QR">
+              <img id="liveQrImg" src="/api/qr.svg" alt="Handset Pairing QR Code" width="96" height="96" referrerPolicy="no-referrer">
+            </div>
+            <div class="qr-meta-column">
+              <div class="qr-url-line mono-meta" id="livePortalUrlText">Loading gateway URL...</div>
+              <p class="qr-help-copy">Scan with your phone camera on LAN or drag cards directly in the left handset viewport.</p>
+              <div class="qr-action-buttons">
+                <button type="button" id="btnRotatePortal" class="btn-secondary-sm">Rotate QR Token</button>
+                <button type="button" id="btnCopyPortalUrl" class="btn-secondary-sm">Copy Link</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="authorized-devices-list" id="authorizedDevicesList">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
       </div>
 
-      <!-- Device Media & Files Action Bar -->
-      <div class="local-media-toolbar">
-        <label for="pickerPhotos" class="btn-picker-pill">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <span>Photos & Media</span>
-        </label>
-        <input type="file" id="pickerPhotos" multiple accept="image/*,video/*" style="display: none;">
+      <!-- Native Linux Wayland / Hyprland Architecture & CLI Reference -->
+      <section class="stage-info-card wayland-config-card" id="wayland">
+        <div class="card-head-row">
+          <div>
+            <h4>Native Linux Wayland &amp; Hyprland Integration</h4>
+            <p class="card-sub-desc">Zero-CPU idle GTK4 Layer-Shell overlay (`ext-layer-shell-v1`), 512×1024 ARGB32 bilinear LUTs, and LocalSend v2 bridge.</p>
+          </div>
+          <button type="button" id="btnCopyHyprConfig" class="btn-secondary-sm">Copy hyprland.conf</button>
+        </div>
+        <pre class="code-snippet-block mono-meta" id="hyprConfigCode">layerrule = noblur, drap-aurora
+layerrule = noanim, drap-aurora
+exec-once = drap on   # Launches FastAPI/Node Gateway + GTK4 Layer-Shell Overlay</pre>
+      </section>
+    </aside>
+  </div>
 
-        <label for="pickerFiles" class="btn-picker-pill">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span>All Files</span>
-        </label>
-        <input type="file" id="pickerFiles" multiple accept="*/*" style="display: none;">
-
-        <label for="pickerFolder" class="btn-picker-pill">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span>Folder</span>
-        </label>
-        <input type="file" id="pickerFolder" webkitdirectory directory multiple style="display: none;">
-
-        <button id="btnClearLibrary" class="btn-picker-icon" type="button" title="Clear Added Local Media">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      </div>
-
-      <div class="media-grid" id="mediaGrid">
-        <!-- Dynamically rendered from device's persistent IndexedDB vault & laptop shares -->
-      </div>
-    </section>
-
-    <!-- Simple Clipboard Sync Bar -->
-    <section class="content-section">
-      <div class="section-header">
-        <h2>Quick Clipboard</h2>
-      </div>
-      <div class="clipboard-box">
-        <input type="text" id="quickTextInput" placeholder="Paste link or text to send to desktop...">
-        <button id="quickSendBtn" type="button">Send</button>
-      </div>
-    </section>
-
-    <div style="height: 60px;"></div>
-  </main>
-
-  <!-- Prismatic Chromatic Dispersion Aura (Exact Match to Droop Phone Photo) -->
+  <!-- Prismatic Chromatic Dispersion Aura under Finger/Cursor -->
   <div class="drag-aura" id="dragAura"></div>
 
-  <!-- Clean Floating Drag Ghost -->
+  <!-- Floating Drag Ghost with 3D Velocity Tilt & Anisotropic Surface-Tension Squeeze -->
   <div class="drag-ghost" id="dragGhost">
     <div class="ghost-thumb" id="ghostThumb"></div>
     <div class="ghost-info">
@@ -108,50 +359,69 @@
     </div>
   </div>
 
-  <!-- Toast Notice -->
-  <div class="toast" id="toast"></div>
+  <!-- Non-Blocking Toast Notice -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <!-- Photo Lightbox -->
   <div class="lightbox" id="lightbox">
-    <button class="lightbox-close" id="lightboxClose">&times;</button>
-    <img id="lightboxImg" src="" alt="View">
+    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Close Preview">&times;</button>
+    <img id="lightboxImg" src="/media/sample_photo1.jpg" alt="Media Preview" referrerPolicy="no-referrer">
     <div class="lightbox-footer">
-      <div id="lightboxTitle">Photo</div>
-      <a id="lightboxDownload" href="#" download>Save</a>
+      <span id="lightboxTitle">Photo</span>
+      <span class="meta-separator">·</span>
+      <a id="lightboxDownload" href="/media/sample_photo1.jpg" download>Download Original</a>
     </div>
   </div>
 
-  <!-- Sleek Frosted Glass Settings Modal Sheet -->
+  <!-- QR Pairing Modal -->
+  <div class="settings-modal" id="qrModal">
+    <div class="settings-sheet qr-modal-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-top-row">
+        <h3>Pair Mobile Handset</h3>
+        <button class="sheet-close-btn" id="closeQrModalBtn" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="qr-modal-content">
+        <div class="qr-large-frame">
+          <img id="modalQrImg" src="/api/qr.svg" alt="Scan QR Code to Pair Handset" width="200" height="200" referrerPolicy="no-referrer">
+        </div>
+        <div class="qr-modal-url mono-meta" id="modalPortalUrl">http://127.0.0.1:3000</div>
+        <p class="qr-modal-desc">Scan with your phone camera to open the full-screen spatial touchpad, or drag cards directly between the Handset and Wayland Monitor Stage.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sleek Frosted Glass Preferences Sheet -->
   <div class="settings-modal" id="settingsModal">
     <div class="settings-sheet">
       <div class="sheet-handle"></div>
-      
+
       <div class="sheet-top-row">
-        <h3>Preferences</h3>
+        <h3>Spatial Preferences</h3>
         <button class="sheet-close-btn" id="closeSettingsBtn" type="button" aria-label="Close">&times;</button>
       </div>
 
       <!-- Target Desktop / Destination Section -->
       <div class="settings-section">
-        <label class="settings-label">Target Destination Desktop</label>
+        <label class="settings-label">Target Destination Workstation</label>
         <div class="target-device-card" id="targetDeviceCard">
           <div class="target-device-header">
             <div class="target-device-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             </div>
             <div class="target-device-meta">
-              <strong id="targetDeviceName">Desktop (Hyprland)</strong>
-              <small id="targetDeviceIp">Connecting...</small>
+              <strong id="targetDeviceName">Hyprland Workstation (eDP-1)</strong>
+              <small id="targetDeviceIp" class="mono-meta">Connected · 0.4ms Staging</small>
             </div>
             <span class="target-status-dot connected" id="targetStatusDot"></span>
           </div>
 
           <!-- Discovered LAN Peers List -->
           <div class="peers-box" id="peersBox">
-            <div class="peers-box-title">Discovered Devices on Network:</div>
+            <div class="peers-box-title">Discovered LocalSend &amp; Drap Peers</div>
             <div class="peers-list" id="peersList">
               <div class="peer-item active">
-                <span>🖥️ Connected Host Gateway</span>
+                <span>Hyprland Workstation (eDP-1)</span>
                 <span class="peer-tag">Active</span>
               </div>
             </div>
@@ -159,7 +429,7 @@
 
           <!-- Manual Destination IP / Port -->
           <div class="custom-target-row">
-            <input type="text" id="inputCustomTarget" class="input-target-ip" placeholder="Target Host:Port (e.g. 10.176.13.201:8080)">
+            <input type="text" id="inputCustomTarget" class="input-target-ip mono-meta" placeholder="Host:Port (e.g. 192.168.1.50:3000)">
             <button type="button" id="btnApplyTarget" class="btn-apply-target">Set Target</button>
           </div>
         </div>
@@ -167,13 +437,13 @@
 
       <!-- Target Bezel Edge Override -->
       <div class="settings-section">
-        <label class="settings-label">Desktop Screen Alignment</label>
+        <label class="settings-label" for="selectTargetEdge">Desktop Monitor Bezel Alignment</label>
         <select id="selectTargetEdge" class="settings-select">
-          <option value="right" selected>👉 Right Bezel (Phone on right side of laptop)</option>
-          <option value="left">👈 Left Bezel (Phone on left side of laptop)</option>
-          <option value="bottom">👆 Bottom Bezel (Phone below / in front of laptop)</option>
-          <option value="top">👇 Top Bezel (Phone above laptop screen)</option>
-          <option value="auto">🧭 Multi-Directional Auto (Experimental)</option>
+          <option value="auto" selected>Omnidirectional 4-Edge &amp; Corner Auto-Routing</option>
+          <option value="right">Right Bezel (Phone on right side of monitor)</option>
+          <option value="left">Left Bezel (Phone on left side of monitor)</option>
+          <option value="bottom">Bottom Bezel (Phone in front of monitor)</option>
+          <option value="top">Top Bezel (Phone above monitor)</option>
         </select>
       </div>
 
@@ -182,23 +452,23 @@
         <label class="settings-label">Directional Gestures</label>
         <div class="toggle-card">
           <div class="toggle-info">
-            <span class="toggle-title">Multi-Side Send</span>
-            <span class="toggle-subtitle" id="multiSideSubtitle">Flick towards any bezel (Disabled by default)</span>
+            <span class="toggle-title">Omnidirectional 4-Edge &amp; Corner Portals</span>
+            <span class="toggle-subtitle" id="multiSideSubtitle">Flick toward Left, Right, Top, Bottom, or any Corner</span>
           </div>
           <label class="switch-toggle">
-            <input type="checkbox" id="toggleMultiSide">
+            <input type="checkbox" id="toggleMultiSide" checked>
             <span class="switch-slider"></span>
           </label>
         </div>
       </div>
 
-      <!-- Ephemeral Portal Mode (Always Scan QR) -->
+      <!-- Ephemeral Portal Mode -->
       <div class="settings-section">
-        <label class="settings-label">Security & QR Pairing</label>
+        <label class="settings-label">Session Security &amp; Dynamic QR</label>
         <div class="toggle-card">
           <div class="toggle-info">
-            <span class="toggle-title">Ephemeral Portal (Dynamic QR)</span>
-            <span class="toggle-subtitle" id="portalModeSubtitle">Require fresh desktop QR code scan for every session</span>
+            <span class="toggle-title">Ephemeral Portal Token</span>
+            <span class="toggle-subtitle" id="portalModeSubtitle">Require fresh QR token authorization per session</span>
           </div>
           <label class="switch-toggle">
             <input type="checkbox" id="togglePortalMode">
@@ -209,7 +479,7 @@
 
       <!-- Spatial Lighting Effect -->
       <div class="settings-section">
-        <label class="settings-label">Spatial Light Glow</label>
+        <label class="settings-label">Optical Bezel LUT Palette</label>
         <div class="theme-grid">
           <button class="theme-pill active" data-theme="heavenly" type="button">
             <span class="theme-glow-dot heavenly-dot"></span>
@@ -219,6 +489,10 @@
             <span class="theme-glow-dot aurora-dot"></span>
             <span>Aurora</span>
           </button>
+          <button class="theme-pill" data-theme="liquid" type="button">
+            <span class="theme-glow-dot liquid-dot"></span>
+            <span>Liquid</span>
+          </button>
           <button class="theme-pill" data-theme="plasma" type="button">
             <span class="theme-glow-dot plasma-dot"></span>
             <span>Plasma</span>
@@ -227,56 +501,48 @@
             <span class="theme-glow-dot solar-dot"></span>
             <span>Solar</span>
           </button>
-          <button class="theme-pill" data-theme="liquid" type="button">
-            <span class="theme-glow-dot liquid-dot"></span>
-            <span>Liquid</span>
-          </button>
         </div>
       </div>
 
       <!-- Gesture Transfer Mode -->
       <div class="settings-section">
-        <label class="settings-label">Transfer Gesture Mode</label>
+        <label class="settings-label">Touch &amp; Pointer Gesture Mode</label>
         <div class="mode-toggle-group">
-          <button class="mode-pill active" id="tabBrowse" type="button" data-mode="browse">
-            <strong>Browse & Lift</strong>
-            <span>Hold 200ms to lift, flick to transfer</span>
+          <button class="mode-pill" id="tabBrowse" type="button" data-mode="browse">
+            <strong>Browse &amp; Hold-to-Lift</strong>
+            <span>Hold 180ms or flick horizontally to lift card</span>
           </button>
-          <button class="mode-pill" id="tabTransfer" type="button" data-mode="transfer">
-            <strong>Direct Flick</strong>
-            <span>Immediate left swipe transfers card</span>
+          <button class="mode-pill active" id="tabTransfer" type="button" data-mode="transfer">
+            <strong>Immediate Spatial Flick</strong>
+            <span>Instant drag in any direction toward bezel</span>
           </button>
         </div>
       </div>
 
       <!-- PWA Installation Section -->
       <div class="settings-section install-section">
-        <label class="settings-label">Install Standalone App</label>
+        <label class="settings-label">Standalone Handset Installation</label>
         <div class="install-card">
           <div class="install-card-info">
-            <img src="/icon-192.png" width="42" height="42" alt="drap" style="border-radius: 10px;">
+            <img src="/icon-192.png" width="40" height="40" alt="drap icon" style="border-radius: 10px;" referrerPolicy="no-referrer">
             <div>
-              <strong>Install drap App</strong>
-              <small>Fullscreen spatial gestures, no browser bars</small>
+              <strong>Install drap Standalone PWA</strong>
+              <small>Full-screen edge-to-edge bezel gestures without browser chrome</small>
             </div>
           </div>
-          
+
           <button id="pwaInstallBtn" class="btn-pwa-install" type="button">
-            Install App
+            Install Standalone App
           </button>
 
-          <div class="install-guide-steps">
+          <div class="install-guide-steps" id="pwaGuideSteps">
             <div class="guide-row">
               <span class="guide-tag">Android</span>
-              <span>Tap Chrome menu <strong>⋮</strong> &rarr; <strong>Add to Home screen</strong> (or Install app)</span>
-            </div>
-            <div class="guide-row">
-              <span class="guide-tag" style="background: rgba(251, 84, 43, 0.2); color: #fb542b; border-color: rgba(251, 84, 43, 0.4);">Brave</span>
-              <span>Tap menu <strong>⋮</strong> &rarr; <strong>Add to Home screen</strong> (or enable <em>brave://flags/#unsafely-treat-insecure-origin-as-secure</em>)</span>
+              <span>Open browser menu <strong>⋮</strong> &rarr; <strong>Add to Home screen</strong></span>
             </div>
             <div class="guide-row">
               <span class="guide-tag">iOS</span>
-              <span>Tap Safari <strong>Share ⎋</strong> &rarr; <strong>Add to Home Screen ⊕</strong></span>
+              <span>Tap Safari <strong>Share</strong> &rarr; <strong>Add to Home Screen</strong></span>
             </div>
           </div>
         </div>
@@ -285,12 +551,12 @@
       <!-- Connection Details -->
       <div class="settings-section">
         <div class="conn-info-row">
-          <span>Connected Host</span>
-          <span class="conn-badge" id="hostBadge">10.25.254.201</span>
+          <span>Active Gateway</span>
+          <span class="conn-badge mono-meta" id="hostBadge">127.0.0.1:3000</span>
         </div>
         <div class="conn-info-row">
           <span>Desktop Protocol</span>
-          <span class="conn-badge">Wayland Layer Shell (144Hz)</span>
+          <span class="conn-badge mono-meta">Wayland Layer-Shell · LocalSend v2</span>
         </div>
       </div>
     </div>
@@ -300,14 +566,14 @@
   <div class="portal-lock-overlay" id="portalLockOverlay" style="display: none;">
     <div class="portal-lock-card">
       <div class="portal-lock-icon">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       </div>
-      <h2>Dynamic Portal Locked</h2>
-      <p>This desktop is running in <strong>Ephemeral QR Mode</strong> for security and privacy.</p>
+      <h2>Ephemeral Portal Locked</h2>
+      <p>This workstation requires a session QR token to authorize spatial file transfers.</p>
       <div class="portal-lock-hint">
-        Please scan the pairing QR code displayed on your desktop screen or run <code>drap qr</code> in terminal to enter.
+        Scan the pairing QR code on the desktop monitor or run <code class="mono-meta">drap qr</code> in your terminal.
       </div>
-      <button class="portal-btn-retry" id="btnRetryPortal" type="button">Check Authorization</button>
+      <button class="portal-btn-retry" id="btnRetryPortal" type="button">Verify Authorization</button>
     </div>
   </div>
 

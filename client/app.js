@@ -1,279 +1,802 @@
-// drap - Client Application
+// drap — Spatial Cross-Device Continuity & Transfer System
+// Unified Pointer Physics, 512x1024 Bilinear LUT Optical Engine & Real-Time Gateway Client
 (function () {
-  'use strict';
+  "use strict";
 
-  // 1. Settings Sheet & PWA Installation
-  let deferredInstallPrompt = null;
-  const openSettingsBtn = document.getElementById("openSettingsBtn");
-  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
-  const settingsModal = document.getElementById("settingsModal");
-  const pwaInstallBtn = document.getElementById("pwaInstallBtn");
+  // =========================================================================
+  // 1. STATE & CONFIGURATION
+  // =========================================================================
+  let currentMode = localStorage.getItem("drap_gesture_mode") || "transfer"; // 'transfer' | 'browse'
+  let activeTheme = localStorage.getItem("drap_effect_theme") || "heavenly";
+  let targetHost = window.location.host;
+  let targetEdgePref = localStorage.getItem("drap_target_edge") || "auto";
+  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false";
+  let liquidGlassEnabled = true;
+  let activeCategory = "all";
 
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.warn('SW registration failed:', err);
-      });
-    });
+  const urlParams = new URLSearchParams(window.location.search);
+  let currentPortalToken =
+    urlParams.get("portal") || sessionStorage.getItem("drap_portal_token") || "";
+  if (urlParams.get("portal")) {
+    sessionStorage.setItem("drap_portal_token", urlParams.get("portal"));
   }
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    if (pwaInstallBtn) {
-      pwaInstallBtn.textContent = "Install drap App Now";
-    }
-  });
-
-  if (openSettingsBtn && settingsModal) {
-    openSettingsBtn.addEventListener('click', () => {
-      settingsModal.classList.add('open');
-      haptic(15);
-    });
-  }
-
-  if (closeSettingsBtn && settingsModal) {
-    closeSettingsBtn.addEventListener('click', () => {
-      settingsModal.classList.remove('open');
-    });
-    settingsModal.addEventListener('click', (e) => {
-      if (e.target === settingsModal) {
-        settingsModal.classList.remove('open');
-      }
-    });
-  }
-
-  if (pwaInstallBtn) {
-    pwaInstallBtn.addEventListener('click', async () => {
-      if (deferredInstallPrompt) {
-        deferredInstallPrompt.prompt();
-        const choice = await deferredInstallPrompt.userChoice;
-        if (choice.outcome === 'accepted') {
-          pwaInstallBtn.style.display = 'none';
-          showToast("drap installed to Home Screen!");
-        }
-        deferredInstallPrompt = null;
-      } else {
-        // Explanatory guidance for browser
-        const isBrave = (navigator.brave && typeof navigator.brave.isBrave === 'function') || navigator.userAgent.includes("Brave");
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        if (isIOS) {
-          showToast("Tap Safari Share ⎋ -> Add to Home Screen ⊕");
-        } else if (isBrave) {
-          showToast("In Brave: Tap ⋮ -> 'Add to Home screen'");
-          alert("Brave Browser Installation:\n\n1. Tap the three dots (⋮) in Brave.\n2. Tap 'Add to Home screen' (installs standalone WebAPK).\n\nTip: To allow the browser native install prompt on LAN IP, open brave://flags/#unsafely-treat-insecure-origin-as-secure and add this IP.");
-        } else {
-          showToast("Tap Browser menu ⋮ -> Add to Home screen");
-        }
-      }
-    });
-  }
-
-  // 2. State & Mode Management
-  let currentMode = 'browse'; // 'browse' | 'transfer'
-  let activeDrag = null;
-  let holdTimer = null;
-  let isHoldLifted = false;
-
+  // DOM Elements
   const body = document.body;
-  const tabBrowse = document.getElementById("tabBrowse");
-  const tabTransfer = document.getElementById("tabTransfer");
+  const appShell = document.getElementById("appShell");
+  const handsetBezelGlow = document.getElementById("handsetBezelGlow");
+  const statusPill = document.getElementById("statusPill");
+  const connectionStatusText = document.getElementById("connectionStatusText");
   const mediaGrid = document.getElementById("mediaGrid");
+  const fileCountBadge = document.getElementById("fileCountBadge");
   const dragAura = document.getElementById("dragAura");
   const dragGhost = document.getElementById("dragGhost");
   const ghostThumb = document.getElementById("ghostThumb");
   const ghostTitle = document.getElementById("ghostTitle");
   const ghostSub = document.getElementById("ghostSub");
   const toast = document.getElementById("toast");
-  const fileCountBadge = document.getElementById("fileCountBadge");
+  const gestureHintText = document.getElementById("gestureHintText");
+  const quickModeLabel = document.getElementById("quickModeLabel");
+  const toggleModeQuickBtn = document.getElementById("toggleModeQuickBtn");
 
-  // Mode Switcher Listeners
-  function setMode(mode) {
-    currentMode = mode;
-    if (mode === 'transfer') {
-      body.classList.add('mode-transfer');
-      if (tabTransfer) tabTransfer.classList.add('active');
-      if (tabBrowse) tabBrowse.classList.remove('active');
-      showToast("Transfer mode: Immediate swipe to bezel");
-      haptic(20);
-    } else {
-      body.classList.remove('mode-transfer');
-      if (tabBrowse) tabBrowse.classList.add('active');
-      if (tabTransfer) tabTransfer.classList.remove('active');
-      showToast("Browse mode: Hold 200ms to lift & transfer");
-      haptic(15);
+  // Modals & Settings Elements
+  const openSettingsBtn = document.getElementById("openSettingsBtn");
+  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  const settingsModal = document.getElementById("settingsModal");
+  const openQrModalBtn = document.getElementById("openQrModalBtn");
+  const closeQrModalBtn = document.getElementById("closeQrModalBtn");
+  const qrModal = document.getElementById("qrModal");
+  const qrPreviewBox = document.getElementById("qrPreviewBox");
+  const pwaInstallBtn = document.getElementById("pwaInstallBtn");
+  const tabBrowse = document.getElementById("tabBrowse");
+  const tabTransfer = document.getElementById("tabTransfer");
+
+  // Service Worker Registration
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+  }
+
+  let deferredInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (pwaInstallBtn) {
+      pwaInstallBtn.textContent = "Install drap Standalone App";
+    }
+  });
+
+  function haptic(pattern) {
+    if ("vibrate" in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch {}
     }
   }
 
-  if (tabBrowse) tabBrowse.addEventListener('click', () => setMode('browse'));
-  if (tabTransfer) tabTransfer.addEventListener('click', () => setMode('transfer'));
-
-  // Effect Theme Selector (Default: Drooop Heavenly White Radiance)
-  let activeTheme = localStorage.getItem("drap_effect_theme") || "heavenly";
-  const themePills = document.querySelectorAll(".theme-pill");
-
-  function setTheme(theme) {
-    activeTheme = theme;
-    localStorage.setItem("drap_effect_theme", theme);
-    document.body.setAttribute("data-theme", theme);
-    themePills.forEach(pill => {
-      if (pill.getAttribute("data-theme") === theme) {
-        pill.classList.add("active");
-      } else {
-        pill.classList.remove("active");
-      }
-    });
-    sendWS({ type: "set_effect", theme: theme });
-    haptic(15);
+  let toastTimer = null;
+  function showToast(msg) {
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
   }
 
-  // Set initial theme attribute
-  document.body.setAttribute("data-theme", activeTheme);
-  themePills.forEach(pill => {
-    if (pill.getAttribute("data-theme") === activeTheme) {
-      pill.classList.add("active");
-    } else {
-      pill.classList.remove("active");
+  // =========================================================================
+  // 2. PRE-COMPUTED 512x1024 BILINEAR LUT OPTICAL ENGINE (Wayland Stage)
+  // =========================================================================
+  const desktopCanvas = document.getElementById("desktopOverlayCanvas");
+  const desktopCtx = desktopCanvas ? desktopCanvas.getContext("2d") : null;
+  const waybarTelemetry = document.getElementById("waybarTelemetry");
+  const stagingStatusBadge = document.getElementById("stagingStatusBadge");
+
+  const LUT_W = 256;
+  const LUT_H = 512;
+  const themeLuts = {};
+  const surgeLuts = {};
+
+  const THEME_STOPS = {
+    heavenly: {
+      wash: [
+        [0.0, "rgba(255, 255, 255, 0.58)"],
+        [0.28, "rgba(250, 253, 255, 0.38)"],
+        [0.6, "rgba(242, 249, 255, 0.18)"],
+        [0.85, "rgba(230, 242, 255, 0.06)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      core: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.18, "rgba(255, 255, 255, 0.98)"],
+        [0.38, "rgba(252, 253, 255, 0.92)"],
+        [0.58, "rgba(244, 249, 255, 0.78)"],
+        [0.75, "rgba(232, 244, 255, 0.52)"],
+        [0.88, "rgba(218, 236, 255, 0.22)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      surge: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.22, "rgba(255, 255, 255, 0.95)"],
+        [0.45, "rgba(245, 250, 255, 0.82)"],
+        [0.7, "rgba(225, 240, 255, 0.48)"],
+        [0.9, "rgba(200, 228, 255, 0.15)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ]
+    },
+    aurora: {
+      wash: [
+        [0.0, "rgba(76, 235, 255, 0.48)"],
+        [0.35, "rgba(140, 89, 242, 0.26)"],
+        [0.7, "rgba(13, 115, 179, 0.11)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      core: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.08, "rgba(250, 242, 224, 1.0)"],
+        [0.18, "rgba(250, 204, 89, 0.96)"],
+        [0.32, "rgba(242, 97, 148, 0.92)"],
+        [0.48, "rgba(189, 122, 219, 0.86)"],
+        [0.65, "rgba(133, 209, 209, 0.76)"],
+        [0.8, "rgba(89, 166, 242, 0.52)"],
+        [0.92, "rgba(46, 102, 217, 0.24)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      surge: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.15, "rgba(255, 235, 195, 0.96)"],
+        [0.32, "rgba(250, 180, 95, 0.9)"],
+        [0.5, "rgba(245, 115, 165, 0.82)"],
+        [0.68, "rgba(185, 120, 235, 0.68)"],
+        [0.84, "rgba(85, 200, 250, 0.42)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ]
+    },
+    liquid: {
+      wash: [
+        [0.0, "rgba(45, 212, 191, 0.5)"],
+        [0.4, "rgba(14, 165, 233, 0.28)"],
+        [0.75, "rgba(2, 132, 199, 0.12)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      core: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.16, "rgba(224, 255, 254, 0.96)"],
+        [0.34, "rgba(56, 235, 225, 0.88)"],
+        [0.54, "rgba(20, 184, 225, 0.72)"],
+        [0.74, "rgba(12, 125, 195, 0.45)"],
+        [0.9, "rgba(6, 78, 140, 0.18)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      surge: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.18, "rgba(204, 251, 241, 0.95)"],
+        [0.38, "rgba(45, 212, 191, 0.85)"],
+        [0.62, "rgba(14, 165, 233, 0.62)"],
+        [0.85, "rgba(3, 105, 161, 0.28)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ]
+    },
+    plasma: {
+      wash: [
+        [0.0, "rgba(242, 89, 242, 0.46)"],
+        [0.38, "rgba(140, 51, 224, 0.26)"],
+        [0.72, "rgba(64, 26, 128, 0.1)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      core: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.14, "rgba(245, 158, 255, 0.94)"],
+        [0.32, "rgba(217, 70, 239, 0.86)"],
+        [0.54, "rgba(147, 51, 234, 0.68)"],
+        [0.76, "rgba(79, 70, 229, 0.42)"],
+        [0.92, "rgba(30, 27, 75, 0.15)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      surge: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.16, "rgba(240, 171, 252, 0.95)"],
+        [0.36, "rgba(217, 70, 239, 0.85)"],
+        [0.6, "rgba(126, 34, 206, 0.65)"],
+        [0.85, "rgba(59, 130, 246, 0.3)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ]
+    },
+    solar: {
+      wash: [
+        [0.0, "rgba(255, 217, 76, 0.46)"],
+        [0.38, "rgba(249, 115, 22, 0.26)"],
+        [0.72, "rgba(153, 27, 27, 0.1)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      core: [
+        [0.0, "rgba(255, 255, 245, 1.0)"],
+        [0.15, "rgba(254, 240, 138, 0.95)"],
+        [0.34, "rgba(251, 146, 60, 0.86)"],
+        [0.56, "rgba(239, 68, 68, 0.66)"],
+        [0.78, "rgba(185, 28, 28, 0.38)"],
+        [0.92, "rgba(127, 29, 29, 0.14)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ],
+      surge: [
+        [0.0, "rgba(255, 255, 255, 1.0)"],
+        [0.16, "rgba(254, 240, 138, 0.96)"],
+        [0.36, "rgba(251, 146, 60, 0.86)"],
+        [0.62, "rgba(220, 38, 38, 0.62)"],
+        [0.86, "rgba(127, 29, 29, 0.25)"],
+        [1.0, "rgba(0, 0, 0, 0)"]
+      ]
     }
-    pill.addEventListener("click", () => {
-      const t = pill.getAttribute("data-theme");
-      if (t) setTheme(t);
-    });
-  });
+  };
 
-  // Category Filtering
-  let activeCategory = 'all';
-  document.querySelectorAll('.cat-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeCategory = btn.getAttribute('data-cat');
-      filterGrid();
-    });
-  });
+  function buildOpticalLuts() {
+    const cx = LUT_W;
+    const cy = LUT_H / 2;
+    const maxR = LUT_W;
 
-  function filterGrid() {
-    const cards = document.querySelectorAll('.card-item');
-    let visibleCount = 0;
-    cards.forEach(card => {
-      const cat = card.getAttribute('data-cat') || 'photo';
-      if (activeCategory === 'all' || cat === activeCategory) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
-      }
+    Object.keys(THEME_STOPS).forEach((themeKey) => {
+      const spec = THEME_STOPS[themeKey];
+
+      // 1. Bezel Ambience LUT
+      const c1 = document.createElement("canvas");
+      c1.width = LUT_W;
+      c1.height = LUT_H;
+      const ctx1 = c1.getContext("2d");
+
+      const washGrad = ctx1.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+      spec.wash.forEach(([stop, col]) => washGrad.addColorStop(stop, col));
+      ctx1.fillStyle = washGrad;
+      ctx1.fillRect(0, 0, LUT_W, LUT_H);
+
+      const coreGrad = ctx1.createRadialGradient(cx, cy, 0, cx, cy, maxR * 0.9);
+      spec.core.forEach(([stop, col]) => coreGrad.addColorStop(stop, col));
+      ctx1.fillStyle = coreGrad;
+      ctx1.fillRect(0, 0, LUT_W, LUT_H);
+      themeLuts[themeKey] = c1;
+
+      // 2. Full-Screen Drop Surge LUT
+      const c2 = document.createElement("canvas");
+      c2.width = LUT_W;
+      c2.height = LUT_H;
+      const ctx2 = c2.getContext("2d");
+
+      const surgeGrad = ctx2.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+      spec.surge.forEach(([stop, col]) => surgeGrad.addColorStop(stop, col));
+      ctx2.fillStyle = surgeGrad;
+      ctx2.fillRect(0, 0, LUT_W, LUT_H);
+      surgeLuts[themeKey] = c2;
     });
-    if (fileCountBadge) fileCountBadge.textContent = `${visibleCount} item${visibleCount !== 1 ? 's' : ''}`;
   }
 
-  // 3. WebSocket Real-Time Gateway & Target Destination
+  buildOpticalLuts();
+
+  // Desktop Stage Overlay State (Spring-coupled)
+  const overlayState = {
+    activeEdge: "right",
+    activeCorner: "",
+    targetCoord: 0.5,
+    currentCoord: 0.5,
+    coordVelocity: 0.0,
+    targetIntensity: 0.0,
+    currentIntensity: 0.0,
+    targetPressure: 0.5,
+    currentPressure: 0.5,
+    currentVy: 0.0,
+    lastInteractionTime: 0,
+    // Full-screen confirmation surge wave
+    confirmActive: false,
+    confirmProgress: 0.0,
+    confirmStartTime: 0,
+    confirmEdge: "right",
+    confirmCoord: 0.5,
+    // Hamiltonian water caustic ripples
+    causticWaves: [],
+    // Drop confirmation card
+    cardActive: false,
+    cardFilename: "",
+    cardSizeStr: "",
+    cardLatencyStr: "0.4ms",
+    cardEdge: "right",
+    cardCoord: 0.5,
+    cardStartTime: 0,
+    cardDuration: 1450,
+    cardProgress: 0.0,
+    // Render loop status
+    isTicking: false,
+    startTime: performance.now()
+  };
+
+  function ensureStageTicking() {
+    if (!overlayState.isTicking) {
+      overlayState.isTicking = true;
+      requestAnimationFrame(tickDesktopOverlay);
+    }
+  }
+
+  function spawnCausticRipple(edge, coord) {
+    if (!liquidGlassEnabled) return;
+    overlayState.causticWaves.push({
+      edge: edge || "right",
+      coord: Number.isFinite(coord) ? coord : 0.5,
+      born: performance.now(),
+      duration: 820
+    });
+  }
+
+  function triggerDesktopDropConfirmation(data) {
+    const now = performance.now();
+    overlayState.lastInteractionTime = now;
+
+    const edge = data.corner
+      ? `corner-${String(data.corner).toLowerCase()}`
+      : String(data.edge || overlayState.activeEdge || "right").toLowerCase();
+    const coord = Number.isFinite(Number(data.coord))
+      ? Number(data.coord)
+      : overlayState.currentCoord;
+
+    overlayState.activeEdge = edge;
+    overlayState.confirmEdge = edge;
+    overlayState.confirmCoord = coord;
+    overlayState.currentCoord = coord;
+    overlayState.targetCoord = coord;
+
+    overlayState.currentIntensity = 1.0;
+    overlayState.targetIntensity = 0.0;
+
+    overlayState.confirmActive = true;
+    overlayState.confirmProgress = 0.0;
+    overlayState.confirmStartTime = now;
+
+    spawnCausticRipple(edge, coord);
+
+    const sizeBytes = Number(data.size || 0);
+    const sizeStr =
+      typeof data.size === "string" && data.size.includes("B")
+        ? data.size
+        : formatFileSize(sizeBytes || 284512);
+
+    overlayState.cardActive = true;
+    overlayState.cardFilename = data.filename || "Transferred_File";
+    overlayState.cardSizeStr = sizeStr;
+    overlayState.cardLatencyStr = data.latency_ms ? `${data.latency_ms}ms` : "0.4ms";
+    overlayState.cardEdge = edge;
+    overlayState.cardCoord = Math.max(0.14, Math.min(0.86, coord));
+    overlayState.cardStartTime = now;
+    overlayState.cardProgress = 0.0;
+
+    ensureStageTicking();
+  }
+
+  function getEdgeOrigin(edge, coord, w, h) {
+    if (edge.startsWith("corner-")) {
+      const c = edge.replace("corner-", "");
+      if (c === "top-right") return { x: w, y: 0, angle: (3 * Math.PI) / 4 };
+      if (c === "bottom-right") return { x: w, y: h, angle: (-3 * Math.PI) / 4 };
+      if (c === "top-left") return { x: 0, y: 0, angle: Math.PI / 4 };
+      return { x: 0, y: h, angle: -Math.PI / 4 };
+    }
+    if (edge === "left") return { x: 0, y: coord * h, angle: Math.PI };
+    if (edge === "top") return { x: coord * w, y: 0, angle: -Math.PI / 2 };
+    if (edge === "bottom") return { x: coord * w, y: h, angle: Math.PI / 2 };
+    return { x: w, y: coord * h, angle: 0 };
+  }
+
+  function drawStageAmbience(ctx, w, h, tSec) {
+    const intensity = overlayState.currentIntensity;
+    if (intensity <= 0.004) return;
+
+    const lut = themeLuts[activeTheme] || themeLuts.heavenly;
+    const edge = overlayState.activeEdge || "right";
+    const coord = overlayState.currentCoord;
+    const pressureScale = 0.92 + overlayState.currentPressure * 0.38;
+
+    const breathe = 1.0 + 0.05 * Math.sin(tSec * 2.6) + 0.022 * Math.sin(tSec * 5.2);
+    const breatheY = 1.0 + 0.032 * Math.cos(tSec * 2.2);
+    const pulseAlpha = 1.0 + 0.05 * Math.sin(tSec * 3.2);
+
+    const origin = getEdgeOrigin(edge, coord, w, h);
+
+    let radiusX = (420 + intensity * 480) * pressureScale * breathe;
+    let radiusY = Math.max(520, h * (0.95 + intensity * 0.4)) * breatheY;
+
+    if (edge.startsWith("corner-")) {
+      radiusX = (540 + intensity * 520) * pressureScale * breathe;
+      radiusY = radiusX;
+    } else if (edge === "top" || edge === "bottom") {
+      radiusX = (380 + intensity * 420) * pressureScale * breathe;
+      radiusY = Math.max(580, w * (0.8 + intensity * 0.4)) * breatheY;
+    }
+
+    ctx.save();
+    ctx.translate(origin.x, origin.y);
+    ctx.rotate(origin.angle);
+
+    if (edge === "left" || edge === "right") {
+      const skewY = Math.max(-0.2, Math.min(0.2, -overlayState.currentVy * 0.14));
+      ctx.transform(1, skewY, 0, 1, 0, 0);
+    }
+
+    // 1. Bilinear LUT Volumetric Blit
+    ctx.save();
+    ctx.scale(radiusX / LUT_W, radiusY / (LUT_H / 2));
+    ctx.translate(-LUT_W, -LUT_H / 2);
+    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.05 * pulseAlpha);
+    ctx.drawImage(lut, 0, 0);
+    ctx.restore();
+
+    // 2. Theme-Specific Physical Optical Accents (Liquid Meniscus / Plasma Arcs / Solar Embers)
+    if (activeTheme === "liquid" || liquidGlassEnabled) {
+      ctx.save();
+      const baseR = (95 + intensity * 210) * pressureScale;
+      ctx.beginPath();
+      const steps = 48;
+      for (let i = 0; i <= steps; i++) {
+        const theta = Math.PI / 2 + (Math.PI * i) / steps;
+        const w1 = 0.065 * Math.sin(theta * 2.5 + tSec * 3.6);
+        const w2 = 0.035 * Math.sin(theta * 4.5 - tSec * 2.3);
+        const wobble = (w1 + w2) * (0.35 + 0.65 * intensity);
+        const r = baseR * (1 + wobble);
+        const px = r * Math.cos(theta);
+        const py = r * Math.sin(theta) * 1.38;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.42 * intensity})`;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (activeTheme === "plasma" && intensity > 0.15) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(165, 243, 252, ${0.78 * intensity})`;
+      ctx.lineCap = "round";
+      for (let b = 0; b < 4; b++) {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        let cx = 0;
+        let cy = 0;
+        const len = (80 + intensity * 160) * (0.7 + 0.3 * Math.sin(tSec * 10 + b * 1.7));
+        for (let s = 1; s <= 8; s++) {
+          cx -= len / 8;
+          cy += Math.sin(tSec * 22 + s * 3.7 + b * 2.9) * 14 * intensity;
+          ctx.lineTo(cx, cy);
+        }
+        ctx.lineWidth = b === 0 ? 2.2 : 1.3;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function drawStageSurgeAndCaustics(ctx, w, h, now) {
+    // 1. Full-Screen Atmospheric Radiance Surge
+    if (overlayState.confirmActive) {
+      const progress = overlayState.confirmProgress;
+      if (progress > 0.001 && progress < 1.0) {
+        const lut = surgeLuts[activeTheme] || surgeLuts.heavenly;
+        const ease = 1.0 - Math.pow(1.0 - progress, 2.6);
+        const damping = Math.pow(Math.max(0.0, 1.0 - progress), 1.45);
+
+        if (damping > 0.005) {
+          const maxReach = Math.hypot(w, h) * 1.18;
+          const rx = 220 + ease * (maxReach - 220);
+          const ry = Math.max(rx * 1.15, h * 1.55);
+          const origin = getEdgeOrigin(
+            overlayState.confirmEdge,
+            overlayState.confirmCoord,
+            w,
+            h
+          );
+
+          ctx.save();
+          ctx.translate(origin.x, origin.y);
+          ctx.rotate(origin.angle);
+          ctx.scale(rx / LUT_W, ry / (LUT_H / 2));
+          ctx.translate(-LUT_W, -LUT_H / 2);
+          ctx.globalAlpha = damping * 0.96;
+          ctx.drawImage(lut, 0, 0);
+          ctx.restore();
+        }
+      }
+    }
+
+    // 2. Hamiltonian Damped Concentric Water Caustic Rings
+    for (let i = overlayState.causticWaves.length - 1; i >= 0; i--) {
+      const wave = overlayState.causticWaves[i];
+      const elapsed = now - wave.born;
+      if (elapsed >= wave.duration) {
+        overlayState.causticWaves.splice(i, 1);
+        continue;
+      }
+      const p = elapsed / wave.duration;
+      const easeOut = 1.0 - Math.pow(1.0 - p, 2.2);
+      const env = Math.pow(1.0 - p, 1.65);
+      const origin = getEdgeOrigin(wave.edge, wave.coord, w, h);
+      const maxR = Math.hypot(w, h) * 0.72;
+      const rPrimary = 36 + easeOut * maxR;
+      const rSecondary = Math.max(12, rPrimary - 34);
+
+      ctx.save();
+      ctx.translate(origin.x, origin.y);
+
+      // Outer specular caustic crest
+      ctx.beginPath();
+      ctx.arc(0, 0, rPrimary, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.78 * env).toFixed(3)})`;
+      ctx.lineWidth = 2.4 * (1 - p * 0.5);
+      ctx.stroke();
+
+      // Inner chromatic dispersion ring
+      ctx.beginPath();
+      ctx.arc(0, 0, rSecondary, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${(0.58 * env).toFixed(3)})`;
+      ctx.lineWidth = 1.6 * (1 - p * 0.4);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawStageDropCard(ctx, w, h) {
+    if (!overlayState.cardActive) return;
+
+    const p = overlayState.cardProgress;
+    const cardW = 290;
+    const cardH = 74;
+    const edge = overlayState.cardEdge || "right";
+    const coord = overlayState.cardCoord;
+
+    // Spring overshoot curve on entry, smooth ease-in on exit
+    let offset = 1.0;
+    if (p < 0.18) {
+      const t = p / 0.18;
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      offset = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    } else if (p > 0.74) {
+      const t = (p - 0.74) / 0.26;
+      offset = 1.0 - t * t;
+    }
+
+    let cardX = w - offset * (cardW + 28);
+    let cardY = Math.max(36, Math.min(h - cardH - 36, coord * h - cardH / 2));
+
+    if (edge === "left") {
+      cardX = offset * (cardW + 28) - cardW;
+    } else if (edge === "top") {
+      cardX = Math.max(36, Math.min(w - cardW - 36, coord * w - cardW / 2));
+      cardY = offset * (cardH + 28) - cardH;
+    } else if (edge === "bottom") {
+      cardX = Math.max(36, Math.min(w - cardW - 36, coord * w - cardW / 2));
+      cardY = h - offset * (cardH + 28);
+    } else if (edge.startsWith("corner-")) {
+      const isRight = edge.includes("right");
+      const isTop = edge.includes("top");
+      cardX = isRight ? w - offset * (cardW + 28) : offset * (cardW + 28) - cardW;
+      cardY = isTop ? offset * 100 - 20 : h - offset * 100 - cardH + 20;
+    }
+
+    const alpha = p > 0.74 ? Math.max(0, (1.0 - p) / 0.26) : 1.0;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // 1. Soft Ambient Drop Shadow
+    ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 10;
+
+    // 2. Frosted Obsidian Card Body
+    roundRectPath(ctx, cardX, cardY, cardW, cardH, 16);
+    const bgGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + cardH);
+    bgGrad.addColorStop(0, "rgba(18, 24, 38, 0.94)");
+    bgGrad.addColorStop(1, "rgba(10, 14, 24, 0.97)");
+    ctx.fillStyle = bgGrad;
+    ctx.fill();
+
+    // Reset shadow for crisp strokes & typography
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // 3. Prismatic Chromatic Border
+    const borderGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + cardH);
+    borderGrad.addColorStop(0, "rgba(56, 189, 248, 0.85)");
+    borderGrad.addColorStop(0.5, "rgba(192, 132, 252, 0.65)");
+    borderGrad.addColorStop(1, "rgba(251, 191, 36, 0.75)");
+    ctx.strokeStyle = borderGrad;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 4. Emerald/Cyan Success Icon Circle
+    const iconCx = cardX + 30;
+    const iconCy = cardY + cardH / 2;
+    ctx.beginPath();
+    ctx.arc(iconCx, iconCy, 17, 0, Math.PI * 2);
+    const iconGrad = ctx.createLinearGradient(iconCx - 17, iconCy - 17, iconCx + 17, iconCy + 17);
+    iconGrad.addColorStop(0, "#10b981");
+    iconGrad.addColorStop(1, "#0284c7");
+    ctx.fillStyle = iconGrad;
+    ctx.fill();
+
+    // 5. Crisp Vector Checkmark
+    ctx.beginPath();
+    ctx.moveTo(iconCx - 5.5, iconCy + 0.5);
+    ctx.lineTo(iconCx - 1.5, iconCy + 4.8);
+    ctx.lineTo(iconCx + 6.5, iconCy - 4.5);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+
+    // 6. Typography: Filename & Latency Telemetry
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "700 13.5px 'Plus Jakarta Sans', sans-serif";
+    const rawName = overlayState.cardFilename || "Transferred_File";
+    const displayName = rawName.length > 23 ? rawName.slice(0, 20) + "..." : rawName;
+    ctx.fillText(displayName, cardX + 58, cardY + 31);
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "500 11px 'JetBrains Mono', monospace";
+    ctx.fillText(
+      `~/Downloads · ${overlayState.cardSizeStr} · ${overlayState.cardLatencyStr}`,
+      cardX + 58,
+      cardY + 51
+    );
+
+    ctx.restore();
+  }
+
+  function tickDesktopOverlay(now) {
+    if (!desktopCtx || !desktopCanvas) {
+      overlayState.isTicking = false;
+      return;
+    }
+
+    const frameStart = performance.now();
+    const w = desktopCanvas.width;
+    const h = desktopCanvas.height;
+    const tSec = (now - overlayState.startTime) / 1000;
+
+    // Auto-decay if idle > 2.5s
+    if (
+      !overlayState.confirmActive &&
+      !overlayState.cardActive &&
+      now - overlayState.lastInteractionTime > 2500
+    ) {
+      overlayState.targetIntensity = 0.0;
+    }
+
+    // Second-Order Under-Damped Spring Interpolation for Coordinate & Intensity
+    const prevCoord = overlayState.currentCoord;
+    const coordDiff = overlayState.targetCoord - overlayState.currentCoord;
+    overlayState.coordVelocity = overlayState.coordVelocity * 0.72 + coordDiff * 0.28;
+    overlayState.currentCoord += overlayState.coordVelocity;
+    overlayState.currentVy =
+      overlayState.currentVy * 0.78 + (overlayState.currentCoord - prevCoord) * 14 * 0.22;
+
+    if (overlayState.confirmActive) {
+      const elapsed = now - overlayState.confirmStartTime;
+      overlayState.confirmProgress = Math.min(1.0, elapsed / 480);
+      overlayState.currentIntensity = Math.pow(
+        Math.max(0.0, 1.0 - overlayState.confirmProgress),
+        2.0
+      );
+      if (overlayState.confirmProgress >= 1.0) {
+        overlayState.confirmActive = false;
+        overlayState.confirmProgress = 0.0;
+        overlayState.currentIntensity = 0.0;
+      }
+    } else if (overlayState.targetIntensity <= 0.002) {
+      overlayState.currentIntensity *= 0.84;
+      if (overlayState.currentIntensity < 0.004) {
+        overlayState.currentIntensity = 0.0;
+      }
+    } else {
+      overlayState.currentIntensity +=
+        (overlayState.targetIntensity - overlayState.currentIntensity) * 0.32;
+    }
+
+    overlayState.currentPressure +=
+      (overlayState.targetPressure - overlayState.currentPressure) * 0.3;
+
+    if (overlayState.cardActive) {
+      const elapsed = now - overlayState.cardStartTime;
+      if (elapsed >= overlayState.cardDuration) {
+        overlayState.cardActive = false;
+        overlayState.cardProgress = 0.0;
+      } else {
+        overlayState.cardProgress = elapsed / overlayState.cardDuration;
+      }
+    }
+
+    // Clear & Draw Single-Pass Overlay
+    desktopCtx.clearRect(0, 0, w, h);
+    drawStageSurgeAndCaustics(desktopCtx, w, h, now);
+    drawStageAmbience(desktopCtx, w, h, tSec);
+    drawStageDropCard(desktopCtx, w, h);
+
+    const frameCostMs = (performance.now() - frameStart).toFixed(2);
+    const hasActiveWork =
+      overlayState.confirmActive ||
+      overlayState.cardActive ||
+      overlayState.causticWaves.length > 0 ||
+      overlayState.currentIntensity > 0.004 ||
+      overlayState.targetIntensity > 0.004;
+
+    if (hasActiveWork) {
+      if (waybarTelemetry) {
+        waybarTelemetry.textContent = `${frameCostMs} ms · 120Hz LUT Active`;
+      }
+      requestAnimationFrame(tickDesktopOverlay);
+    } else {
+      desktopCtx.clearRect(0, 0, w, h);
+      overlayState.isTicking = false;
+      if (waybarTelemetry) {
+        waybarTelemetry.textContent = `0.00 ms · Idle (0.0% CPU)`;
+      }
+    }
+  }
+
+  // =========================================================================
+  // 3. WEBSOCKET REAL-TIME SIGNALING BUS
+  // =========================================================================
   let ws = null;
-  const statusPill = document.getElementById("statusPill");
-  let targetHost = localStorage.getItem("drap_target_host") || window.location.host;
-  let targetEdgePref = localStorage.getItem("drap_target_edge") || "right"; // Default: Right bezel
-  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false"; // Enabled by default (All edges active)
-
-  const urlParams = new URLSearchParams(window.location.search);
-  let currentPortalToken = urlParams.get("portal") || sessionStorage.getItem("drap_portal_token") || "";
-  if (urlParams.get("portal")) {
-    sessionStorage.setItem("drap_portal_token", urlParams.get("portal"));
-  }
-
-  let isProbing = false;
-  async function probeAndDiscoverGateway() {
-    if (isProbing || (ws && ws.readyState === WebSocket.OPEN)) return;
-    isProbing = true;
-
-    const candidates = [];
-    if (targetHost) candidates.push(targetHost);
-    candidates.push("drap.local:8080", "macbook.local:8080");
-
-    const hostOnly = targetHost.split(":")[0];
-    const ipMatch = hostOnly.match(/^(\d+\.\d+\.\d+)\.\d+$/);
-    if (ipMatch) {
-      const baseSubnet = ipMatch[1];
-      const curPort = targetHost.includes(":") ? targetHost.split(":")[1] : "8080";
-      // Probe common LAN IP range in fast parallel batches
-      for (let i = 2; i <= 254; i++) {
-        candidates.push(`${baseSubnet}.${i}:${curPort}`);
-      }
-    }
-
-    const batchSize = 25;
-    for (let i = 0; i < candidates.length; i += batchSize) {
-      if (ws && ws.readyState === WebSocket.OPEN) break;
-      const batch = candidates.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map(async (host) => {
-        try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 450);
-          const res = await fetch(`http://${host}/api/status`, { signal: ctrl.signal });
-          clearTimeout(timer);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.status === "running") return host;
-          }
-        } catch (e) {}
-        return null;
-      }));
-
-      const found = results.find(h => Boolean(h));
-      if (found) {
-        console.log(`[drap] Auto-discovered laptop gateway at ${found}`);
-        targetHost = found;
-        localStorage.setItem("drap_target_host", found);
-        const hostBadge = document.getElementById("hostBadge");
-        if (hostBadge) hostBadge.textContent = found;
-        const targetIpInput = document.getElementById("inputCustomTarget");
-        if (targetIpInput) targetIpInput.value = found;
-        connectWS();
-        break;
-      }
-    }
-    isProbing = false;
-  }
 
   function connectWS() {
     if (ws) {
-      try { ws.close(); } catch (e) {}
+      try {
+        ws.close();
+      } catch {}
     }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const tokenQuery = currentPortalToken ? `?portal=${encodeURIComponent(currentPortalToken)}` : "";
+    const tokenQuery = currentPortalToken
+      ? `?portal=${encodeURIComponent(currentPortalToken)}`
+      : "";
     try {
       ws = new WebSocket(`${protocol}//${targetHost}/ws${tokenQuery}`);
-    } catch (e) {
-      console.warn("WebSocket init failed:", e);
-    }
-
-    if (!ws) {
-      probeAndDiscoverGateway();
+    } catch {
       return;
     }
 
     ws.onopen = () => {
-      if (statusPill) {
-        statusPill.classList.add("connected");
-        const txt = statusPill.querySelector(".status-text");
-        if (txt) txt.textContent = "Connected";
-      }
+      if (statusPill) statusPill.classList.add("connected");
+      if (connectionStatusText) connectionStatusText.textContent = "Connected";
       const targetDot = document.getElementById("targetStatusDot");
       if (targetDot) targetDot.classList.add("connected");
+      const hostBadge = document.getElementById("hostBadge");
+      if (hostBadge) hostBadge.textContent = targetHost;
       fetchDeviceInfo();
     };
 
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        handleIncomingWsMessage(msg);
+      } catch {}
+    };
+
     ws.onclose = () => {
-      if (statusPill) {
-        statusPill.classList.remove("connected");
-        const txt = statusPill.querySelector(".status-text");
-        if (txt) txt.textContent = "Reconnecting...";
-      }
+      if (statusPill) statusPill.classList.remove("connected");
+      if (connectionStatusText) connectionStatusText.textContent = "Reconnecting";
       const targetDot = document.getElementById("targetStatusDot");
       if (targetDot) targetDot.classList.remove("connected");
-
-      // Auto-probe local subnet for new laptop IP
-      setTimeout(probeAndDiscoverGateway, 1000);
-      setTimeout(connectWS, 3000);
+      setTimeout(connectWS, 2500);
     };
 
     ws.onerror = () => {
@@ -281,42 +804,264 @@
     };
   }
 
-  connectWS();
-
   function sendWS(msg) {
+    // Also apply locally to the live Desktop Monitor Stage for 0ms local visual feedback!
+    handleStageLocalFeedback(msg);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }
   }
 
-  // 120Hz/60Hz Hardware V-Sync Dispatcher (Zero Network Congestion & 0ms Frame Jitter)
+  function handleStageLocalFeedback(msg) {
+    const type = msg.type;
+    if (type === "drag_move" || type === "drag_start") {
+      overlayState.lastInteractionTime = performance.now();
+      if (msg.corner) {
+        overlayState.activeCorner = String(msg.corner).toLowerCase();
+        overlayState.activeEdge = `corner-${overlayState.activeCorner}`;
+      } else if (msg.edge) {
+        overlayState.activeCorner = "";
+        overlayState.activeEdge = String(msg.edge).toLowerCase();
+      }
+      if (msg.coord !== undefined) {
+        overlayState.targetCoord = Number(msg.coord);
+        if (type === "drag_start") overlayState.currentCoord = overlayState.targetCoord;
+      }
+      const prox = Number(msg.proximity || 0);
+      overlayState.targetIntensity = prox > 0.015 ? Math.min(1.0, prox) : 0.0;
+      overlayState.targetPressure = Number(msg.pressure || 0.5);
+      ensureStageTicking();
+    } else if (type === "drag_edge_leave") {
+      if (!overlayState.confirmActive && !overlayState.cardActive) {
+        overlayState.targetIntensity = 0.0;
+      }
+      ensureStageTicking();
+    } else if (type === "drag_drop") {
+      triggerDesktopDropConfirmation(msg);
+    } else if (type === "video_resume") {
+      triggerDesktopDropConfirmation({
+        edge: msg.edge || "right",
+        corner: msg.corner || "",
+        coord: msg.coord ?? 0.5,
+        filename: msg.title || "Continuity Video Stream",
+        size: `Resumed @ ${Number(msg.time || 0).toFixed(1)}s`,
+        latency_ms: "0.2"
+      });
+      resumeDesktopMpvPlayer(Number(msg.time || 0), msg.title);
+    }
+  }
+
+  function handleIncomingWsMessage(msg) {
+    const type = msg.type;
+    if (type === "init_state") {
+      if (msg.config && msg.config.theme) {
+        setTheme(msg.config.theme, false);
+      }
+      if (Array.isArray(msg.recent_transfers)) {
+        renderReceivedFiles(msg.recent_transfers);
+      }
+      if (Array.isArray(msg.clipboard_history)) {
+        renderClipboardHistory(msg.clipboard_history);
+      }
+    } else if (
+      type === "drag_move" ||
+      type === "drag_start" ||
+      type === "drag_edge_leave"
+    ) {
+      handleStageLocalFeedback(msg);
+    } else if (type === "drag_drop") {
+      triggerDesktopDropConfirmation(msg);
+      fetchReceivedFiles();
+    } else if (type === "file_from_laptop") {
+      triggerDesktopDropConfirmation({
+        edge: "left",
+        coord: 0.5,
+        filename: msg.filename,
+        size: msg.size,
+        latency_ms: "0.6"
+      });
+      prependSharedFileCard(msg);
+      fetchReceivedFiles();
+      showToast(`Received ${msg.filename} from Desktop`);
+    } else if (type === "video_resume") {
+      handleStageLocalFeedback(msg);
+    } else if (type === "text_received") {
+      fetchClipboardHistory();
+      if (msg.sender === "desktop") {
+        const input = document.getElementById("quickTextInput");
+        if (input) input.value = msg.text;
+        showToast("Clipboard synced from Desktop");
+      } else {
+        showToast("Clipboard received on Desktop (wl-copy)");
+      }
+    } else if (type === "set_effect" && msg.theme) {
+      setTheme(msg.theme, false);
+    } else if (type === "stage_ready") {
+      if (stagingStatusBadge) {
+        stagingStatusBadge.textContent = `Pre-Staged: ${msg.filename}`;
+      }
+    } else if (type === "devices_updated") {
+      renderSecurityDevices(msg.mode, msg.devices);
+    } else if (type === "portal_mode_changed" || type === "portal_rotated") {
+      checkPortalAuthorization();
+      refreshQrImages();
+    }
+  }
+
+  // =========================================================================
+  // 4. THEME, MODE & FILTER CONTROLLERS
+  // =========================================================================
+  function setMode(mode, notify = true) {
+    currentMode = mode;
+    localStorage.setItem("drap_gesture_mode", mode);
+    if (mode === "transfer") {
+      body.classList.add("mode-transfer");
+      if (tabTransfer) tabTransfer.classList.add("active");
+      if (tabBrowse) tabBrowse.classList.remove("active");
+      if (quickModeLabel) quickModeLabel.textContent = "Direct Flick";
+      if (gestureHintText) {
+        gestureHintText.textContent =
+          "Direct Flick active: Drag any card toward any bezel to beam immediately";
+      }
+      if (notify) showToast("Direct Flick Mode: Drag immediately toward any bezel");
+    } else {
+      body.classList.remove("mode-transfer");
+      if (tabBrowse) tabBrowse.classList.add("active");
+      if (tabTransfer) tabTransfer.classList.remove("active");
+      if (quickModeLabel) quickModeLabel.textContent = "Hold-to-Lift";
+      if (gestureHintText) {
+        gestureHintText.textContent =
+          "Browse Mode: Tap photos to preview, or hold 180ms / flick horizontally to beam";
+      }
+      if (notify) showToast("Browse Mode: Hold 180ms to lift card");
+    }
+    haptic(12);
+  }
+
+  setMode(currentMode, false);
+
+  if (tabBrowse) tabBrowse.addEventListener("click", () => setMode("browse", true));
+  if (tabTransfer) tabTransfer.addEventListener("click", () => setMode("transfer", true));
+  if (toggleModeQuickBtn) {
+    toggleModeQuickBtn.addEventListener("click", () => {
+      setMode(currentMode === "transfer" ? "browse" : "transfer", true);
+    });
+  }
+
+  function setTheme(theme, broadcast = true) {
+    activeTheme = theme;
+    localStorage.setItem("drap_effect_theme", theme);
+    body.setAttribute("data-theme", theme);
+
+    document.querySelectorAll(".theme-pill").forEach((pill) => {
+      pill.classList.toggle("active", pill.getAttribute("data-theme") === theme);
+    });
+    document.querySelectorAll(".shader-tab").forEach((tab) => {
+      tab.classList.toggle("active", tab.getAttribute("data-theme-select") === theme);
+    });
+
+    // Brief preview glow on Desktop Stage when switching shader theme
+    overlayState.lastInteractionTime = performance.now();
+    overlayState.targetIntensity = 0.85;
+    overlayState.currentIntensity = Math.max(overlayState.currentIntensity, 0.65);
+    ensureStageTicking();
+    setTimeout(() => {
+      if (!activeDrag) overlayState.targetIntensity = 0.0;
+    }, 650);
+
+    if (broadcast) {
+      sendWS({ type: "set_effect", theme });
+      fetch("/api/effect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme })
+      }).catch(() => {});
+    }
+    haptic(12);
+  }
+
+  body.setAttribute("data-theme", activeTheme);
+  document.querySelectorAll(".theme-pill").forEach((pill) => {
+    pill.classList.toggle("active", pill.getAttribute("data-theme") === activeTheme);
+    pill.addEventListener("click", () => {
+      const t = pill.getAttribute("data-theme");
+      if (t) setTheme(t, true);
+    });
+  });
+
+  document.querySelectorAll(".shader-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.getAttribute("data-theme-select") === activeTheme);
+    tab.addEventListener("click", () => {
+      const t = tab.getAttribute("data-theme-select");
+      if (t) setTheme(t, true);
+    });
+  });
+
+  // Category Filter Tabs
+  document.querySelectorAll(".cat-pill").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".cat-pill").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeCategory = btn.getAttribute("data-cat") || "all";
+      filterGrid();
+    });
+  });
+
+  function filterGrid() {
+    if (!mediaGrid) return;
+    const cards = mediaGrid.querySelectorAll(".card-item");
+    let visibleCount = 0;
+    cards.forEach((card) => {
+      const cat = card.getAttribute("data-cat") || "photo";
+      if (activeCategory === "all" || cat === activeCategory) {
+        card.style.display = "";
+        visibleCount++;
+      } else {
+        card.style.display = "none";
+      }
+    });
+    if (fileCountBadge) {
+      fileCountBadge.textContent = `${visibleCount} item${visibleCount !== 1 ? "s" : ""}`;
+    }
+  }
+
+  // =========================================================================
+  // 5. UNIFIED POINTER EVENTS + SPRING PHYSICS GESTURE ENGINE
+  // =========================================================================
+  let activeDrag = null;
+  let holdTimer = null;
+  let isHoldLifted = false;
+  let holdHeartbeatTimer = null;
   let pendingSpatialPacket = null;
   let rafSpatialId = null;
 
-  function dispatchSpatialPacket() {
-    if (pendingSpatialPacket) {
-      sendWS(pendingSpatialPacket);
-      pendingSpatialPacket = null;
-    }
-    rafSpatialId = null;
-  }
+  let lastClientX = null;
+  let lastClientY = null;
+  let lastMoveTime = null;
+  let smoothVelocityX = 0;
+  let smoothVelocityY = 0;
+  let lastHapticSector = null;
 
   function queueSpatialPacket(packet) {
     pendingSpatialPacket = packet;
     if (!rafSpatialId) {
-      rafSpatialId = requestAnimationFrame(dispatchSpatialPacket);
+      rafSpatialId = requestAnimationFrame(() => {
+        if (pendingSpatialPacket) {
+          sendWS(pendingSpatialPacket);
+          pendingSpatialPacket = null;
+        }
+        rafSpatialId = null;
+      });
     }
   }
 
-  // Stationary Hold Heartbeat (Sustains desktop ambient aura and prevents sleep while holding finger still)
-  let holdHeartbeatTimer = null;
   function startHoldHeartbeat() {
     if (holdHeartbeatTimer) clearInterval(holdHeartbeatTimer);
     holdHeartbeatTimer = setInterval(() => {
       if (activeDrag && lastClientX !== null && lastClientY !== null) {
         onDragStreaming(lastClientX, lastClientY);
       }
-    }, 40); // 25Hz living heartbeat
+    }, 40);
   }
 
   function stopHoldHeartbeat() {
@@ -326,505 +1071,15 @@
     }
   }
 
-  function haptic(pattern) {
-    if ("vibrate" in navigator) {
-      try { navigator.vibrate(pattern); } catch (e) {}
-    }
-  }
-
-  function showToast(msg) {
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 2600);
-  }
-
-  // Speculative Pre-Upload Controller (Transfers files while dragging so drop latency is 0ms)
-  async function launchSpeculativePreUpload(drag) {
-    if (!drag || drag.itemType === "video") return;
-    const stageId = "stg_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-    const abortCtrl = new AbortController();
-    drag.stageId = stageId;
-    drag.stageAbort = abortCtrl;
-    drag.isStaged = false;
-
-    drag.stagePromise = (async () => {
-      try {
-        let payload = drag.payload;
-        if (typeof payload === "string") {
-          const r = await fetch(payload, { signal: abortCtrl.signal });
-          payload = await r.blob();
-        }
-        if (abortCtrl.signal.aborted) return;
-        const formData = new FormData();
-        formData.append("file", payload, drag.title);
-        formData.append("stage_id", stageId);
-        if (currentPortalToken) formData.append("portal", currentPortalToken);
-
-        const uploadEndpoint = (targetHost === window.location.host) ? "/api/stage_upload" : `http://${targetHost}/api/stage_upload`;
-        const res = await fetch(uploadEndpoint, {
-          method: "POST",
-          headers: currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {},
-          body: formData,
-          signal: abortCtrl.signal
-        });
-        if (res.ok) {
-          drag.isStaged = true;
-          console.log(`[drap] Staged pre-upload ready for ${drag.title} (${stageId})`);
-        }
-      } catch (e) {
-        if (e.name !== "AbortError") {
-          console.warn("[drap] Pre-upload notice:", e);
-        }
-      }
-    })();
-  }
-
-  // 4. Intelligent Navigation vs Drag Handling
-  function initCardGestures(card) {
-    let startX = 0;
-    let startY = 0;
-    let isScrolling = false;
-    let touchStartTime = 0;
-
-    const itemType = card.getAttribute("data-item-type") || "photo";
-    const title = card.getAttribute("data-title") || "File";
-    const size = card.getAttribute("data-size") || "";
-    const theme = card.getAttribute("data-theme") || "blue";
-    const fileUrl = card.getAttribute("data-file") || "";
-
-    function triggerPickupRipple(px, py) {
-      const ripple = document.createElement("div");
-      ripple.className = "pickup-ripple";
-      ripple.style.left = `${px}px`;
-      ripple.style.top = `${py}px`;
-      document.body.appendChild(ripple);
-      setTimeout(() => {
-        if (ripple && ripple.parentNode) ripple.parentNode.removeChild(ripple);
-      }, 900);
-    }
-
-    function startActiveDrag(x, y) {
-      isHoldLifted = true;
-      card.classList.add("is-lifted", "is-dragging");
-      document.body.classList.add("is-dragging-active");
-      haptic(30);
-      triggerPickupRipple(x, y);
-
-      // Extract preview thumbnail
-      const img = card.querySelector("img");
-      const thumbUrl = img ? img.src : "";
-
-      activeDrag = {
-        cardElem: card,
-        itemType: itemType,
-        title: title,
-        size: size,
-        payload: card._customFile || fileUrl,
-        thumbUrl: thumbUrl,
-        theme: theme,
-        normalizedY: y / window.innerHeight
-      };
-
-      launchSpeculativePreUpload(activeDrag);
-
-      if (dragGhost) {
-        dragGhost.style.display = "flex";
-        if (itemType === 'photo' && thumbUrl) {
-          dragGhost.classList.add("is-photo-ghost");
-          ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
-          ghostThumb.style.display = "block";
-        } else {
-          dragGhost.classList.remove("is-photo-ghost");
-          ghostTitle.textContent = title;
-          if (ghostSub) {
-            if (isMultiSideSend) {
-              ghostSub.textContent = "Flick towards any screen edge";
-            } else {
-              const edgeName = targetEdgePref === 'auto' ? 'left' : (targetEdgePref === 'left' ? 'right' : (targetEdgePref === 'bottom' ? 'top' : (targetEdgePref === 'top' ? 'bottom' : 'left')));
-              ghostSub.textContent = `Flick towards ${edgeName} bezel`;
-            }
-          }
-          if (thumbUrl) {
-            ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
-            ghostThumb.style.display = "block";
-          } else {
-            ghostThumb.style.backgroundImage = "none";
-            ghostThumb.style.display = "none";
-          }
-        }
-        updateGhostPosition(x, y);
-      }
-
-      if (dragAura) {
-        dragAura.style.display = "block";
-        dragAura.style.left = `${x}px`;
-        dragAura.style.top = `${y}px`;
-        dragAura.style.opacity = "0.85";
-        dragAura.style.transform = "translate3d(-50%, -50%, 0) scale(0.75)";
-      }
-
-      // Immediately register initial spatial state & start stationary hold heartbeat
-      lastClientX = x;
-      lastClientY = y;
-      onDragStreaming(x, y);
-      startHoldHeartbeat();
-    }
-
-    card.addEventListener("touchstart", (e) => {
-      const t = e.touches[0];
-      startX = t.clientX;
-      startY = t.clientY;
-      lastClientX = t.clientX;
-      lastClientY = t.clientY;
-      touchStartTime = Date.now();
-      isScrolling = false;
-      isHoldLifted = false;
-
-      // In Browse Mode: Set 200ms timer for Hold-to-Lift
-      if (currentMode === 'browse') {
-        clearTimeout(holdTimer);
-        holdTimer = setTimeout(() => {
-          if (!isScrolling && !activeDrag) {
-            startActiveDrag(startX, startY);
-          }
-        }, 200);
-      }
-    }, { passive: true });
-
-    card.addEventListener("touchmove", (e) => {
-      const t = e.touches[0];
-      lastClientX = t.clientX;
-      lastClientY = t.clientY;
-      const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-
-      // Directional Angle & Gesture Check
-      if (!isHoldLifted && !activeDrag) {
-        // In Transfer Mode: Immediate intentional flick in any direction
-        if (currentMode === 'transfer') {
-          if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
-            e.preventDefault();
-            startActiveDrag(t.clientX, t.clientY);
-          }
-          return;
-        }
-
-        // In Browse Mode: Vertical motion is strictly browsing / scrolling if dominant
-        if (Math.abs(dy) > 22 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-          isScrolling = true;
-          clearTimeout(holdTimer);
-          return;
-        }
-
-        // In Browse Mode: Natural intentional horizontal flick to bezel
-        if (Math.abs(dx) > 38 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-          clearTimeout(holdTimer);
-          e.preventDefault();
-          startActiveDrag(t.clientX, t.clientY);
-          return;
-        }
-        return;
-      }
-
-      if (activeDrag) {
-        e.preventDefault();
-        onDragStreaming(t.clientX, t.clientY);
-      }
-    }, { passive: false });
-
-    card.addEventListener("touchend", (e) => {
-      clearTimeout(holdTimer);
-      stopHoldHeartbeat();
-      if (activeDrag) {
-        const t = e.changedTouches[0];
-        finishDrag(t.clientX, t.clientY);
-      } else {
-        // Tap gesture in Browse Mode: Open Lightbox for photos
-        const elapsed = Date.now() - touchStartTime;
-        if (!isScrolling && elapsed < 220 && currentMode === 'browse') {
-          if (itemType === 'photo' && fileUrl) {
-            openLightbox(fileUrl, title);
-          }
-        }
-      }
-      card.classList.remove("is-lifted", "is-dragging");
-      isHoldLifted = false;
-    });
-
-    card.addEventListener("touchcancel", () => {
-      clearTimeout(holdTimer);
-      stopHoldHeartbeat();
-      if (activeDrag) finishDrag(9999, 9999);
-      card.classList.remove("is-lifted", "is-dragging");
-      isHoldLifted = false;
-    });
-  }
-
-  function updateGhostPosition(x, y) {
-    if (dragGhost) {
-      dragGhost.style.left = `${x}px`;
-      dragGhost.style.top = `${y}px`;
-    }
-    if (dragAura) {
-      dragAura.style.left = `${x}px`;
-      dragAura.style.top = `${y}px`;
-    }
-  }
-
-  let lastClientX = null;
-  let lastClientY = null;
-  let lastTouchTime = null;
-  let smoothVelocityX = 0;
-  let smoothVelocityY = 0;
-  let lastHapticSector = null;
-
-  function onDragStreaming(clientX, clientY) {
-    updateGhostPosition(clientX, clientY);
-
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight;
-    const normX = Math.max(0.05, Math.min(0.95, clientX / screenW));
-    const normY = Math.max(0.05, Math.min(0.95, clientY / screenH));
-
-    // Calculate movement velocity
-    const now = performance.now();
-    if (lastClientY !== null && lastTouchTime !== null) {
-      const dt = Math.max(1, now - lastTouchTime);
-      const dy = clientY - lastClientY;
-      const dx = clientX - (lastClientX !== null ? lastClientX : clientX);
-      smoothVelocityY = smoothVelocityY * 0.70 + (dy / dt) * 0.30;
-      smoothVelocityX = smoothVelocityX * 0.70 + (dx / dt) * 0.30;
-    }
-    lastClientX = clientX;
-    lastClientY = clientY;
-    lastTouchTime = now;
-
-    let phoneEdge = "left";
-    let desktopEdge = "right";
-    let desktopCorner = "";
-    let phoneCorner = "";
-    let normCoord = normY;
-    let proximity = 0.0;
-
-    // Generous edge reach zone: smooth, organic ramp-up as you approach any bezel
-    const reachH = Math.min(130, Math.max(90, screenW * 0.32));
-    const reachV = Math.min(120, Math.max(80, screenH * 0.20));
-
-    const distLeft = clientX;
-    const distRight = screenW - clientX;
-    const distTop = clientY;
-    const distBottom = screenH - clientY;
-
-    if (isMultiSideSend) {
-      // 4-Side Mode with Natural Directions & Smart Corner Sensing:
-      // Dragging DOWN -> Desktop BOTTOM
-      // Dragging UP -> Desktop TOP
-      // Dragging LEFT -> Desktop RIGHT
-      // Dragging RIGHT -> Desktop LEFT
-      const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.15) : 0.0;
-      const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.15) : 0.0;
-      const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.15) : 0.0;
-      const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.15) : 0.0;
-
-      // Sensed Corner Junctions (where 2 sides meet at corners):
-      if (proxL > 0.02 && proxT > 0.02) {
-        // Phone Top-Left Corner -> Desktop Top-Right Corner!
-        phoneCorner = "top-left";
-        desktopCorner = "top-right";
-        phoneEdge = "left";
-        desktopEdge = "right";
-        normCoord = 0.0;
-        proximity = Math.min(1.0, Math.sqrt(proxL * proxL + proxT * proxT));
-      } else if (proxL > 0.02 && proxB > 0.02) {
-        // Phone Bottom-Left Corner -> Desktop Bottom-Right Corner!
-        phoneCorner = "bottom-left";
-        desktopCorner = "bottom-right";
-        phoneEdge = "left";
-        desktopEdge = "right";
-        normCoord = 1.0;
-        proximity = Math.min(1.0, Math.sqrt(proxL * proxL + proxB * proxB));
-      } else if (proxR > 0.02 && proxT > 0.02) {
-        // Phone Top-Right Corner -> Desktop Top-Left Corner!
-        phoneCorner = "top-right";
-        desktopCorner = "top-left";
-        phoneEdge = "right";
-        desktopEdge = "left";
-        normCoord = 0.0;
-        proximity = Math.min(1.0, Math.sqrt(proxR * proxR + proxT * proxT));
-      } else if (proxR > 0.02 && proxB > 0.02) {
-        // Phone Bottom-Right Corner -> Desktop Bottom-Left Corner!
-        phoneCorner = "bottom-right";
-        desktopCorner = "bottom-left";
-        phoneEdge = "right";
-        desktopEdge = "left";
-        normCoord = 1.0;
-        proximity = Math.min(1.0, Math.sqrt(proxR * proxR + proxB * proxB));
-      } else {
-        // Straight Edges
-        const maxProx = Math.max(proxL, proxR, proxT, proxB);
-        if (maxProx > 0.0) {
-          if (maxProx === proxL) {
-            phoneEdge = "left";
-            desktopEdge = "right";
-            normCoord = normY;
-            proximity = proxL;
-          } else if (maxProx === proxR) {
-            phoneEdge = "right";
-            desktopEdge = "left";
-            normCoord = normY;
-            proximity = proxR;
-          } else if (maxProx === proxT) {
-            // Dragging UP emerges from UP itself!
-            phoneEdge = "top";
-            desktopEdge = "top";
-            normCoord = normX;
-            proximity = proxT;
-          } else if (maxProx === proxB) {
-            // Dragging DOWN emerges from DOWN itself!
-            phoneEdge = "bottom";
-            desktopEdge = "bottom";
-            normCoord = normX;
-            proximity = proxB;
-          }
-        } else {
-          proximity = 0.0;
-        }
-      }
-
-      if (targetEdgePref && targetEdgePref !== "auto" && !desktopCorner) {
-        desktopEdge = targetEdgePref;
-      }
-    } else {
-      // Default: Strictly Left Side Drag Only (Phone Left -> Desktop Right)
-      // All other edges and corners produce 0.0 proximity!
-      phoneEdge = "left";
-      desktopEdge = "right";
-      normCoord = normY;
-      if (distLeft < reachH) {
-        proximity = Math.pow((reachH - distLeft) / reachH, 1.15);
-      } else {
-        proximity = 0.0;
-      }
-    }
-    const pressure = 0.5 + (proximity * 0.5);
-
-    // Haptic detent feedback every 80px of travel
-    const travelCoord = (phoneEdge === "top" || phoneEdge === "bottom") ? clientX : clientY;
-    const sector = Math.floor(travelCoord / 80);
-    if (lastHapticSector !== null && sector !== lastHapticSector && proximity > 0.05) {
-      haptic(10);
-    }
-    lastHapticSector = sector;
-
-    if (activeDrag) {
-      activeDrag.normalizedX = normX;
-      activeDrag.normalizedY = normY;
-      activeDrag.normCoord = normCoord;
-      activeDrag.phoneEdge = phoneEdge;
-      activeDrag.desktopEdge = desktopEdge;
-      activeDrag.phoneCorner = phoneCorner;
-      activeDrag.desktopCorner = desktopCorner;
-    }
-
-    // Phone Edge & Corner Bulbs
-    const bulb = document.getElementById("phoneEdgeBulb");
-    const cornerBulb = document.getElementById("phoneCornerBulb");
-
-    if (proximity > 0.04) {
-      if (phoneCorner && cornerBulb) {
-        if (bulb) {
-          bulb.style.opacity = "0";
-          bulb.style.display = "none";
-        }
-        cornerBulb.className = `phone-corner-bulb corner-${phoneCorner}`;
-        cornerBulb.style.display = "block";
-        cornerBulb.style.opacity = Math.min(1.0, proximity * 1.6);
-        const scale = 0.85 + proximity * 0.45;
-        cornerBulb.style.transform = `scale(${scale})`;
-      } else if (bulb) {
-        if (cornerBulb) {
-          cornerBulb.style.opacity = "0";
-          cornerBulb.style.display = "none";
-        }
-        bulb.style.display = "block";
-        bulb.style.opacity = Math.min(1.0, proximity * 1.8);
-        const push = (1.0 - proximity) * -65;
-        const scale = 0.85 + proximity * 0.55;
-
-        if (phoneEdge === "left") {
-          bulb.style.left = "0";
-          bulb.style.right = "auto";
-          bulb.style.top = `${clientY}px`;
-          bulb.style.bottom = "auto";
-          bulb.style.transform = `translateY(-50%) translateX(${push}%) scale(${scale})`;
-        } else if (phoneEdge === "right") {
-          bulb.style.left = "auto";
-          bulb.style.right = "0";
-          bulb.style.top = `${clientY}px`;
-          bulb.style.bottom = "auto";
-          bulb.style.transform = `translateY(-50%) translateX(${-push}%) rotate(180deg) scale(${scale})`;
-        } else if (phoneEdge === "top") {
-          bulb.style.left = `${clientX}px`;
-          bulb.style.right = "auto";
-          bulb.style.top = "0";
-          bulb.style.bottom = "auto";
-          bulb.style.transform = `translateX(-50%) translateY(${push}%) rotate(90deg) scale(${scale})`;
-        } else if (phoneEdge === "bottom") {
-          bulb.style.left = `${clientX}px`;
-          bulb.style.right = "auto";
-          bulb.style.top = "auto";
-          bulb.style.bottom = "0";
-          bulb.style.transform = `translateX(-50%) translateY(${-push}%) rotate(-90deg) scale(${scale})`;
-        }
-      }
-    } else {
-      if (bulb) {
-        bulb.style.opacity = "0";
-        bulb.style.display = "none";
-      }
-      if (cornerBulb) {
-        cornerBulb.style.opacity = "0";
-        cornerBulb.style.display = "none";
-      }
-    }
-
-    if (dragGhost) {
-      const velTilt = Math.max(-14, Math.min(14, smoothVelocityY * 18));
-      const normTilt = (normY - 0.5) * -10;
-      const totalTilt = velTilt + normTilt;
-      const squeezeX = proximity > 0.4 ? (1.0 - (proximity - 0.4) * 0.28) : 1.0;
-      const squeezeY = proximity > 0.4 ? (1.0 + (proximity - 0.4) * 0.20) : 1.0;
-      dragGhost.style.transform = `translate(-50%, -50%) rotate(${totalTilt.toFixed(1)}deg) scaleX(${(1.06 * squeezeX).toFixed(3)}) scaleY(${(1.06 * squeezeY).toFixed(3)})`;
-    }
-
-    if (dragAura) {
-      const auraScale = 0.82 + proximity * 0.28;
-      const auraOpacity = Math.min(1.0, 0.72 + proximity * 0.28);
-      dragAura.style.left = `${clientX}px`;
-      dragAura.style.top = `${clientY}px`;
-      dragAura.style.transform = `translate3d(-50%, -50%, 0) scale(${auraScale.toFixed(2)})`;
-      dragAura.style.opacity = auraOpacity.toFixed(2);
-    }
-
-    // Send spatial coordinate packet to desktop synced to hardware refresh
-    queueSpatialPacket({
-      type: "drag_move",
-      edge: desktopEdge,
-      corner: desktopCorner,
-      phone_edge: phoneEdge,
-      phone_corner: phoneCorner,
-      coord: normCoord,
-      x: normX,
-      y: normY,
-      vy: smoothVelocityY,
-      proximity: proximity,
-      pressure: pressure,
-      title: activeDrag ? activeDrag.title : "",
-      size: activeDrag ? activeDrag.size : "",
-      item_type: activeDrag ? activeDrag.itemType : "photo",
-      theme: activeTheme
-    });
+  function triggerPickupRipple(px, py) {
+    const ripple = document.createElement("div");
+    ripple.className = "pickup-ripple";
+    ripple.style.left = `${px}px`;
+    ripple.style.top = `${py}px`;
+    document.body.appendChild(ripple);
+    setTimeout(() => {
+      if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+    }, 680);
   }
 
   function triggerMobileWaterWave(x, y) {
@@ -836,27 +1091,330 @@
     wave.style.top = `${y}px`;
     container.appendChild(wave);
     setTimeout(() => {
-      if (wave && wave.parentNode) wave.parentNode.removeChild(wave);
-    }, 450);
+      if (wave.parentNode) wave.parentNode.removeChild(wave);
+    }, 500);
   }
 
-  async function finishDrag(clientX, clientY) {
+  // Speculative Pre-Upload Controller (0ms Perceived Drop Latency)
+  async function launchSpeculativePreUpload(drag) {
+    if (!drag || drag.itemType === "video") return;
+    const stageId = `stg_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const abortCtrl = new AbortController();
+    drag.stageId = stageId;
+    drag.stageAbort = abortCtrl;
+    drag.isStaged = false;
+
+    if (stagingStatusBadge) {
+      stagingStatusBadge.textContent = `Staging ${drag.title}...`;
+    }
+
+    drag.stagePromise = (async () => {
+      try {
+        let payload = drag.payload;
+        if (typeof payload === "string") {
+          const r = await fetch(payload, { signal: abortCtrl.signal });
+          payload = await r.blob();
+        }
+        if (abortCtrl.signal.aborted || !payload) return;
+
+        const formData = new FormData();
+        formData.append("file", payload, drag.title);
+        formData.append("stage_id", stageId);
+        if (currentPortalToken) formData.append("portal", currentPortalToken);
+
+        const res = await fetch("/api/stage_upload", {
+          method: "POST",
+          headers: currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {},
+          body: formData,
+          signal: abortCtrl.signal
+        });
+        if (res.ok) {
+          drag.isStaged = true;
+        }
+      } catch {}
+    })();
+  }
+
+  function getHandsetBounds() {
+    if (appShell && window.innerWidth >= 1024) {
+      return appShell.getBoundingClientRect();
+    }
+    return {
+      left: 0,
+      top: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
+  }
+
+  function computeSpatialMetrics(clientX, clientY) {
+    const bounds = getHandsetBounds();
+    const relX = clientX - bounds.left;
+    const relY = clientY - bounds.top;
+    const w = Math.max(1, bounds.width);
+    const h = Math.max(1, bounds.height);
+
+    const normX = Math.max(0.02, Math.min(0.98, relX / w));
+    const normY = Math.max(0.02, Math.min(0.98, relY / h));
+
+    const reachH = Math.min(135, Math.max(85, w * 0.32));
+    const reachV = Math.min(125, Math.max(80, h * 0.22));
+
+    const distLeft = Math.max(0, relX);
+    const distRight = Math.max(0, w - relX);
+    const distTop = Math.max(0, relY);
+    const distBottom = Math.max(0, h - relY);
+
+    let phoneEdge = "left";
+    let desktopEdge = "right";
+    let phoneCorner = "";
+    let desktopCorner = "";
+    let normCoord = normY;
+    let proximity = 0.0;
+
+    if (isMultiSideSend) {
+      const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.12) : 0.0;
+      const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.12) : 0.0;
+      const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.12) : 0.0;
+      const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.12) : 0.0;
+
+      if (proxL > 0.05 && proxT > 0.05) {
+        phoneCorner = "top-left";
+        desktopCorner = "top-right";
+        phoneEdge = "left";
+        desktopEdge = "right";
+        normCoord = 0.0;
+        proximity = Math.min(1.0, Math.hypot(proxL, proxT));
+      } else if (proxL > 0.05 && proxB > 0.05) {
+        phoneCorner = "bottom-left";
+        desktopCorner = "bottom-right";
+        phoneEdge = "left";
+        desktopEdge = "right";
+        normCoord = 1.0;
+        proximity = Math.min(1.0, Math.hypot(proxL, proxB));
+      } else if (proxR > 0.05 && proxT > 0.05) {
+        phoneCorner = "top-right";
+        desktopCorner = "top-left";
+        phoneEdge = "right";
+        desktopEdge = "left";
+        normCoord = 0.0;
+        proximity = Math.min(1.0, Math.hypot(proxR, proxT));
+      } else if (proxR > 0.05 && proxB > 0.05) {
+        phoneCorner = "bottom-right";
+        desktopCorner = "bottom-left";
+        phoneEdge = "right";
+        desktopEdge = "left";
+        normCoord = 1.0;
+        proximity = Math.min(1.0, Math.hypot(proxR, proxB));
+      } else {
+        const maxProx = Math.max(proxL, proxR, proxT, proxB);
+        if (maxProx > 0) {
+          if (maxProx === proxR) {
+            phoneEdge = "right";
+            desktopEdge = "left";
+            normCoord = normY;
+            proximity = proxR;
+          } else if (maxProx === proxL) {
+            phoneEdge = "left";
+            desktopEdge = "right";
+            normCoord = normY;
+            proximity = proxL;
+          } else if (maxProx === proxT) {
+            phoneEdge = "top";
+            desktopEdge = "top";
+            normCoord = normX;
+            proximity = proxT;
+          } else {
+            phoneEdge = "bottom";
+            desktopEdge = "bottom";
+            normCoord = normX;
+            proximity = proxB;
+          }
+        }
+      }
+
+      if (targetEdgePref && targetEdgePref !== "auto" && !desktopCorner) {
+        desktopEdge = targetEdgePref;
+      }
+    } else {
+      phoneEdge = "left";
+      desktopEdge = targetEdgePref !== "auto" ? targetEdgePref : "right";
+      normCoord = normY;
+      proximity = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.12) : 0.0;
+    }
+
+    return {
+      bounds,
+      relX,
+      relY,
+      normX,
+      normY,
+      normCoord,
+      phoneEdge,
+      desktopEdge,
+      phoneCorner,
+      desktopCorner,
+      proximity
+    };
+  }
+
+  function onDragStreaming(clientX, clientY) {
+    const now = performance.now();
+    if (lastClientY !== null && lastMoveTime !== null) {
+      const dt = Math.max(1, now - lastMoveTime);
+      const dy = clientY - lastClientY;
+      const dx = clientX - (lastClientX !== null ? lastClientX : clientX);
+      smoothVelocityY = smoothVelocityY * 0.68 + (dy / dt) * 0.32;
+      smoothVelocityX = smoothVelocityX * 0.68 + (dx / dt) * 0.32;
+    }
+    lastClientX = clientX;
+    lastClientY = clientY;
+    lastMoveTime = now;
+
+    const m = computeSpatialMetrics(clientX, clientY);
+    const proximity = m.proximity;
+    const pressure = 0.5 + proximity * 0.5;
+
+    // Tactile haptic detent every 75px along bezel
+    const travelCoord =
+      m.phoneEdge === "top" || m.phoneEdge === "bottom" ? clientX : clientY;
+    const sector = Math.floor(travelCoord / 75);
+    if (lastHapticSector !== null && sector !== lastHapticSector && proximity > 0.08) {
+      haptic(8);
+    }
+    lastHapticSector = sector;
+
+    if (activeDrag) {
+      activeDrag.normalizedX = m.normX;
+      activeDrag.normalizedY = m.normY;
+      activeDrag.normCoord = m.normCoord;
+      activeDrag.phoneEdge = m.phoneEdge;
+      activeDrag.desktopEdge = m.desktopEdge;
+      activeDrag.phoneCorner = m.phoneCorner;
+      activeDrag.desktopCorner = m.desktopCorner;
+      activeDrag.lastProximity = proximity;
+    }
+
+    // Update Handset Chassis Inner Bezel Glow
+    if (handsetBezelGlow) {
+      if (proximity > 0.03) {
+        handsetBezelGlow.style.opacity = Math.min(1, proximity * 1.35).toFixed(2);
+        const glowOriginX = (m.normX * 100).toFixed(1);
+        const glowOriginY = (m.normY * 100).toFixed(1);
+        handsetBezelGlow.style.background = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.45) 0%, rgba(56,189,248,0.28) 32%, rgba(192,132,252,0.12) 58%, transparent 78%)`;
+      } else {
+        handsetBezelGlow.style.opacity = "0";
+      }
+    }
+
+    // Update Full-Viewport Edge & Corner Bulbs (for standalone mobile view)
+    const bulb = document.getElementById("phoneEdgeBulb");
+    const cornerBulb = document.getElementById("phoneCornerBulb");
+    if (window.innerWidth < 1024 && proximity > 0.04) {
+      if (m.phoneCorner && cornerBulb) {
+        if (bulb) bulb.style.display = "none";
+        cornerBulb.className = `phone-corner-bulb corner-${m.phoneCorner}`;
+        cornerBulb.style.display = "block";
+        cornerBulb.style.opacity = Math.min(1.0, proximity * 1.6).toFixed(2);
+        cornerBulb.style.transform = `scale(${(0.85 + proximity * 0.45).toFixed(2)})`;
+      } else if (bulb) {
+        if (cornerBulb) cornerBulb.style.display = "none";
+        bulb.style.display = "block";
+        bulb.style.opacity = Math.min(1.0, proximity * 1.8).toFixed(2);
+        const push = (1.0 - proximity) * -65;
+        const scale = 0.85 + proximity * 0.55;
+        if (m.phoneEdge === "left") {
+          bulb.style.left = "0";
+          bulb.style.right = "auto";
+          bulb.style.top = `${clientY}px`;
+          bulb.style.bottom = "auto";
+          bulb.style.transform = `translate3d(${push}%, -50%, 0) scale(${scale})`;
+        } else if (m.phoneEdge === "right") {
+          bulb.style.left = "auto";
+          bulb.style.right = "0";
+          bulb.style.top = `${clientY}px`;
+          bulb.style.bottom = "auto";
+          bulb.style.transform = `translate3d(${-push}%, -50%, 0) rotate(180deg) scale(${scale})`;
+        } else if (m.phoneEdge === "top") {
+          bulb.style.left = `${clientX}px`;
+          bulb.style.right = "auto";
+          bulb.style.top = "0";
+          bulb.style.bottom = "auto";
+          bulb.style.transform = `translate3d(-50%, ${push}%, 0) rotate(90deg) scale(${scale})`;
+        } else {
+          bulb.style.left = `${clientX}px`;
+          bulb.style.right = "auto";
+          bulb.style.top = "auto";
+          bulb.style.bottom = "0";
+          bulb.style.transform = `translate3d(-50%, ${-push}%, 0) rotate(-90deg) scale(${scale})`;
+        }
+      }
+    } else {
+      if (bulb) bulb.style.display = "none";
+      if (cornerBulb) cornerBulb.style.display = "none";
+    }
+
+    // Update Floating Drag Ghost Position + Anisotropic Surface-Tension Squeeze
+    if (dragGhost) {
+      dragGhost.style.left = `${clientX}px`;
+      dragGhost.style.top = `${clientY}px`;
+      const velTilt = Math.max(-14, Math.min(14, smoothVelocityX * 10 + smoothVelocityY * 12));
+      const squeezeX = proximity > 0.35 ? 1.0 - (proximity - 0.35) * 0.25 : 1.0;
+      const squeezeY = proximity > 0.35 ? 1.0 + (proximity - 0.35) * 0.18 : 1.0;
+      dragGhost.style.transform = `translate3d(-50%, -50%, 0) rotate(${velTilt.toFixed(1)}deg) scaleX(${(1.05 * squeezeX).toFixed(3)}) scaleY(${(1.05 * squeezeY).toFixed(3)})`;
+      if (ghostSub) {
+        ghostSub.textContent =
+          proximity > 0.55
+            ? `Release to beam via ${m.desktopCorner || m.desktopEdge} portal`
+            : "Drag toward any bezel to beam";
+      }
+    }
+
+    if (dragAura) {
+      const auraScale = 0.8 + proximity * 0.34;
+      const auraOpacity = Math.min(1.0, 0.72 + proximity * 0.28);
+      dragAura.style.left = `${clientX}px`;
+      dragAura.style.top = `${clientY}px`;
+      dragAura.style.transform = `translate3d(-50%, -50%, 0) scale(${auraScale.toFixed(2)})`;
+      dragAura.style.opacity = auraOpacity.toFixed(2);
+    }
+
+    queueSpatialPacket({
+      type: "drag_move",
+      edge: m.desktopEdge,
+      corner: m.desktopCorner,
+      phone_edge: m.phoneEdge,
+      phone_corner: m.phoneCorner,
+      coord: m.normCoord,
+      x: m.normX,
+      y: m.normY,
+      vy: smoothVelocityY,
+      proximity,
+      pressure,
+      title: activeDrag ? activeDrag.title : "",
+      size: activeDrag ? activeDrag.size : "",
+      item_type: activeDrag ? activeDrag.itemType : "photo",
+      theme: activeTheme
+    });
+  }
+
+  function finishDrag(clientX, clientY, cancelled = false) {
     if (rafSpatialId) {
       cancelAnimationFrame(rafSpatialId);
       rafSpatialId = null;
       pendingSpatialPacket = null;
     }
+    stopHoldHeartbeat();
     document.body.classList.remove("is-dragging-active");
+
+    if (handsetBezelGlow) handsetBezelGlow.style.opacity = "0";
     const bulb = document.getElementById("phoneEdgeBulb");
     const cornerBulb = document.getElementById("phoneCornerBulb");
-    if (bulb) {
-      bulb.style.opacity = "0";
-      bulb.style.display = "none";
-    }
-    if (cornerBulb) {
-      cornerBulb.style.opacity = "0";
-      cornerBulb.style.display = "none";
-    }
+    if (bulb) bulb.style.display = "none";
+    if (cornerBulb) cornerBulb.style.display = "none";
+
     if (dragGhost) {
       dragGhost.style.display = "none";
       dragGhost.classList.remove("is-photo-ghost");
@@ -867,160 +1425,122 @@
         if (!activeDrag && dragAura) dragAura.style.display = "none";
       }, 150);
     }
-    lastClientX = null;
-    lastClientY = null;
-    lastTouchTime = null;
-    smoothVelocityX = 0;
-    smoothVelocityY = 0;
-    lastHapticSector = null;
-
-    if (!activeDrag) {
-      sendWS({ type: "drag_edge_leave" });
-      return;
-    }
 
     const drag = activeDrag;
     activeDrag = null;
 
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight;
-    const edgeThreshold = Math.min(68, Math.max(54, screenW * 0.18)); // Generous, reliable drop threshold
-    const edgeThresholdV = Math.min(68, Math.max(54, screenH * 0.12));
-    let crossedThreshold = false;
-    let dropPhoneEdge = drag.phoneEdge || "left";
-    let dropDesktopEdge = drag.desktopEdge || "right";
-    let dropCorner = drag.desktopCorner || "";
-    let dropCoord = drag.normCoord || 0.5;
-    let waveX = 0;
-    let waveY = clientY;
+    const vx = smoothVelocityX;
+    const vy = smoothVelocityY;
+    const speed = Math.hypot(vx, vy);
 
-    if (isMultiSideSend) {
-      const crossedLeft = clientX <= edgeThreshold;
-      const crossedRight = clientX >= screenW - edgeThreshold;
-      const crossedTop = clientY <= edgeThresholdV;
-      const crossedBottom = clientY >= screenH - edgeThresholdV;
+    lastClientX = null;
+    lastClientY = null;
+    lastMoveTime = null;
+    smoothVelocityX = 0;
+    smoothVelocityY = 0;
+    lastHapticSector = null;
 
-      // 1. Sensed Corner Junction Drops (file flicked towards 2 meeting sides)
-      if (crossedLeft && crossedTop) {
-        crossedThreshold = true;
-        dropCorner = "top-right";
-        dropPhoneEdge = "top-left";
-        dropDesktopEdge = "corner-top-right";
-        waveX = 0;
-        waveY = 0;
-      } else if (crossedLeft && crossedBottom) {
-        crossedThreshold = true;
-        dropCorner = "bottom-right";
-        dropPhoneEdge = "bottom-left";
-        dropDesktopEdge = "corner-bottom-right";
-        waveX = 0;
-        waveY = screenH;
-      } else if (crossedRight && crossedTop) {
-        crossedThreshold = true;
-        dropCorner = "top-left";
-        dropPhoneEdge = "top-right";
-        dropDesktopEdge = "corner-top-left";
-        waveX = screenW;
-        waveY = 0;
-      } else if (crossedRight && crossedBottom) {
-        crossedThreshold = true;
-        dropCorner = "bottom-left";
-        dropPhoneEdge = "bottom-right";
-        dropDesktopEdge = "corner-bottom-left";
-        waveX = screenW;
-        waveY = screenH;
-      } else if (crossedLeft) {
-        // Straight Left Bezel
-        crossedThreshold = true;
-        dropPhoneEdge = "left";
-        dropDesktopEdge = "right";
-        dropCoord = clientY / screenH;
-        waveX = 0;
-        waveY = clientY;
-      } else if (crossedRight) {
-        // Straight Right Bezel
-        crossedThreshold = true;
-        dropPhoneEdge = "right";
-        dropDesktopEdge = "left";
-        dropCoord = clientY / screenH;
-        waveX = screenW;
-        waveY = clientY;
-      } else if (crossedTop) {
-        // Straight Top Bezel (Dragging UP emerges from UP itself)
-        crossedThreshold = true;
-        dropPhoneEdge = "top";
-        dropDesktopEdge = "top";
-        dropCoord = clientX / screenW;
-        waveX = clientX;
-        waveY = 0;
-      } else if (crossedBottom) {
-        // Straight Bottom Bezel (Dragging DOWN emerges from DOWN itself)
-        crossedThreshold = true;
-        dropPhoneEdge = "bottom";
-        dropDesktopEdge = "bottom";
-        dropCoord = clientX / screenW;
-        waveX = clientX;
-        waveY = screenH;
+    if (!drag || cancelled) {
+      sendWS({ type: "drag_edge_leave" });
+      return;
+    }
+
+    const m = computeSpatialMetrics(clientX, clientY);
+    const bounds = m.bounds;
+    const edgeThresholdH = Math.min(76, Math.max(54, bounds.width * 0.2));
+    const edgeThresholdV = Math.min(76, Math.max(54, bounds.height * 0.15));
+
+    // Also allow dropping directly onto the Desktop Monitor Stage on desktop screens!
+    const monitorFrame = document.getElementById("waylandMonitorFrame");
+    let droppedDirectlyOnMonitor = false;
+    if (monitorFrame && window.innerWidth >= 1024) {
+      const mRect = monitorFrame.getBoundingClientRect();
+      if (
+        clientX >= mRect.left - 30 &&
+        clientX <= mRect.right + 30 &&
+        clientY >= mRect.top - 30 &&
+        clientY <= mRect.bottom + 30
+      ) {
+        droppedDirectlyOnMonitor = true;
       }
-    } else {
-      // Default: Strictly Left Side Drag Only
-      crossedThreshold = clientX <= edgeThreshold;
-      dropPhoneEdge = "left";
-      dropDesktopEdge = "right";
-      dropCoord = clientY / screenH;
-      waveX = 0;
-      waveY = clientY;
     }
 
-    if (targetEdgePref && targetEdgePref !== "auto" && !dropCorner) {
-      dropDesktopEdge = targetEdgePref;
-    }
+    const crossedLeft = m.relX <= edgeThresholdH;
+    const crossedRight = m.relX >= bounds.width - edgeThresholdH;
+    const crossedTop = m.relY <= edgeThresholdV;
+    const crossedBottom = m.relY >= bounds.height - edgeThresholdV;
+    const fastFlickCross = (drag.lastProximity || 0) > 0.42 && speed > 0.65;
+
+    const crossedThreshold =
+      droppedDirectlyOnMonitor ||
+      fastFlickCross ||
+      (isMultiSideSend
+        ? crossedLeft || crossedRight || crossedTop || crossedBottom
+        : crossedLeft);
 
     if (crossedThreshold) {
-      triggerMobileWaterWave(waveX, waveY);
-      haptic([30, 40, 80]);
+      const dropDesktopEdge = m.desktopCorner
+        ? `corner-${m.desktopCorner}`
+        : m.desktopEdge || "right";
+      const dropCorner = m.desktopCorner || "";
+      const dropCoord = m.normCoord ?? 0.5;
+
+      triggerMobileWaterWave(clientX, clientY);
+      haptic([25, 35, 65]);
 
       if (drag.itemType === "video") {
-        const video = drag.cardElem ? drag.cardElem.querySelector("video") : null;
-        const curTime = video ? video.currentTime : 0.0;
-        if (video) video.pause();
+        const curTime = continuityVideoState.currentTime;
+        continuityVideoState.playing = false;
+        updateVideoPlayButtonUI();
 
         sendWS({
           type: "video_resume",
-          url: drag.payload || "/media/continue.mp4",
+          url: drag.payload || "/media/sample_photo1.jpg",
+          title: drag.title,
           time: curTime,
           edge: dropDesktopEdge,
           corner: dropCorner,
           coord: dropCoord,
-          x: drag.normalizedX || 0.5,
-          y: drag.normalizedY || 0.5
+          x: m.normX,
+          y: m.normY
         });
-        showToast(`Video Resumed on Desktop (${curTime.toFixed(1)}s)`);
+
+        fetch("/api/video_resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: drag.payload,
+            title: drag.title,
+            time: curTime,
+            edge: dropDesktopEdge,
+            coord: dropCoord
+          })
+        }).catch(() => {});
+
+        showToast(`Continuity Video Resumed on Desktop (${curTime.toFixed(1)}s)`);
       } else {
-        // 2. OPTIMISTIC INSTANT CONFIRMATION:
-        // Zero-latency handoff! Trigger desktop confirmation card & liquid wave IMMEDIATELY via WebSocket!
+        // Optimistic 0ms desktop confirmation
         sendWS({
           type: "drag_drop",
           filename: drag.title,
-          size: drag.sizeBytes || 0,
+          size: drag.sizeBytes || drag.size || "280 KB",
           edge: dropDesktopEdge,
           corner: dropCorner,
           coord: dropCoord,
-          x: drag.normalizedX || 0.5,
-          y: drag.normalizedY || 0.5,
+          x: m.normX,
+          y: m.normY,
           item_type: drag.itemType
         });
-        showToast(`Transferred ${drag.title} to Desktop`);
+        showToast(`Beamed ${drag.title} to Desktop`);
 
-        // 3. Commit Staged Pre-Upload (or fallback to multipart upload)
+        // Commit staged upload or fallback to multipart upload
         (async () => {
           try {
             if (drag.stagePromise) {
               await drag.stagePromise;
             }
             if (drag.isStaged) {
-              const commitEndpoint = (targetHost === window.location.host) ? "/api/commit_upload" : `http://${targetHost}/api/commit_upload`;
-              await fetch(commitEndpoint, {
+              const res = await fetch("/api/commit_upload", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -1036,46 +1556,51 @@
                   portal: currentPortalToken
                 })
               });
-              return;
+              if (res.ok) {
+                if (stagingStatusBadge) {
+                  stagingStatusBadge.textContent = `Committed: ${drag.title}`;
+                }
+                fetchReceivedFiles();
+                return;
+              }
             }
 
-            // Fallback if pre-staging was bypassed
+            // Fallback multipart upload
             const formData = new FormData();
             formData.append("edge", dropDesktopEdge);
             if (dropCorner) formData.append("corner", dropCorner);
-            formData.append("coord", dropCoord.toString());
-            formData.append("x", (drag.normalizedX || 0.5).toString());
-            formData.append("y", (drag.normalizedY || 0.5).toString());
+            formData.append("coord", String(dropCoord));
+            formData.append("x", String(m.normX));
+            formData.append("y", String(m.normY));
             formData.append("item_type", drag.itemType);
             if (currentPortalToken) formData.append("portal", currentPortalToken);
 
             if (drag.payload instanceof File || drag.payload instanceof Blob) {
               formData.append("file", drag.payload, drag.title);
-            } else {
-              const res = await fetch(drag.payload);
-              const blob = await res.blob();
+            } else if (typeof drag.payload === "string" && drag.payload) {
+              const r = await fetch(drag.payload);
+              const blob = await r.blob();
               formData.append("file", blob, drag.title);
             }
 
-            const uploadEndpoint = (targetHost === window.location.host) ? "/api/upload" : `http://${targetHost}/api/upload`;
-            await fetch(uploadEndpoint, {
+            await fetch("/api/upload", {
               method: "POST",
               headers: currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {},
               body: formData
             });
-          } catch (e) {
-            console.error("Upload error:", e);
-          }
+            fetchReceivedFiles();
+          } catch {}
         })();
       }
     } else {
-      // User cancelled drag or released back into library: notify overlay to fade out
       sendWS({ type: "drag_edge_leave" });
-      if (drag && drag.stageAbort) {
+      if (stagingStatusBadge) {
+        stagingStatusBadge.textContent = "Speculative Staging Ready";
+      }
+      if (drag.stageAbort) {
         drag.stageAbort.abort();
         if (drag.stageId) {
-          const cancelEndpoint = (targetHost === window.location.host) ? "/api/cancel_upload" : `http://${targetHost}/api/cancel_upload`;
-          fetch(cancelEndpoint, {
+          fetch("/api/cancel_upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ stage_id: drag.stageId })
@@ -1085,7 +1610,372 @@
     }
   }
 
-  // 5. IndexedDB Persistent Local Media Vault & File Pickers
+  function initCardGestures(card) {
+    let startX = 0;
+    let startY = 0;
+    let pointerDownTime = 0;
+    let isPointerActive = false;
+    let isScrolling = false;
+    let activePointerId = null;
+
+    function startActiveDrag(x, y) {
+      const itemType = card.getAttribute("data-item-type") || "photo";
+      const title = card.getAttribute("data-title") || "File";
+      const size = card.getAttribute("data-size") || "";
+      const fileUrl = card.getAttribute("data-file") || "";
+
+      isHoldLifted = true;
+      card.classList.add("is-lifted", "is-dragging");
+      document.body.classList.add("is-dragging-active");
+      haptic(22);
+      triggerPickupRipple(x, y);
+
+      const img = card.querySelector("img");
+      const thumbUrl = img ? img.src : "";
+
+      activeDrag = {
+        cardElem: card,
+        itemType,
+        title,
+        size,
+        sizeBytes: card._sizeBytes || 0,
+        payload: card._customFile || fileUrl,
+        thumbUrl,
+        normalizedY: 0.5,
+        lastProximity: 0
+      };
+
+      launchSpeculativePreUpload(activeDrag);
+
+      if (dragGhost) {
+        dragGhost.style.display = "flex";
+        if (itemType === "photo" && thumbUrl) {
+          dragGhost.classList.add("is-photo-ghost");
+          ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
+          ghostThumb.style.display = "block";
+        } else {
+          dragGhost.classList.remove("is-photo-ghost");
+          if (ghostTitle) ghostTitle.textContent = title;
+          if (ghostSub) ghostSub.textContent = "Drag toward any bezel to beam";
+          if (thumbUrl) {
+            ghostThumb.style.backgroundImage = `url('${thumbUrl}')`;
+            ghostThumb.style.display = "block";
+          } else {
+            ghostThumb.style.backgroundImage = "none";
+            ghostThumb.style.display = "none";
+          }
+        }
+        dragGhost.style.left = `${x}px`;
+        dragGhost.style.top = `${y}px`;
+      }
+
+      if (dragAura) {
+        dragAura.style.display = "block";
+        dragAura.style.left = `${x}px`;
+        dragAura.style.top = `${y}px`;
+        dragAura.style.opacity = "0.85";
+        dragAura.style.transform = "translate3d(-50%, -50%, 0) scale(0.76)";
+      }
+
+      lastClientX = x;
+      lastClientY = y;
+      onDragStreaming(x, y);
+      startHoldHeartbeat();
+    }
+
+    card.addEventListener("pointerdown", (e) => {
+      // Ignore clicks on explicit action buttons inside the card
+      if (e.target.closest("button")) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+
+      isPointerActive = true;
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      lastClientX = e.clientX;
+      lastClientY = e.clientY;
+      pointerDownTime = performance.now();
+      isScrolling = false;
+      isHoldLifted = false;
+
+      if (currentMode === "browse") {
+        clearTimeout(holdTimer);
+        holdTimer = setTimeout(() => {
+          if (isPointerActive && !isScrolling && !activeDrag) {
+            try {
+              card.setPointerCapture(activePointerId);
+            } catch {}
+            startActiveDrag(startX, startY);
+          }
+        }, 180);
+      }
+    });
+
+    card.addEventListener("pointermove", (e) => {
+      if (!isPointerActive || e.pointerId !== activePointerId) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (!isHoldLifted && !activeDrag) {
+        if (currentMode === "transfer") {
+          if (Math.hypot(dx, dy) > 10) {
+            try {
+              card.setPointerCapture(activePointerId);
+            } catch {}
+            startActiveDrag(e.clientX, e.clientY);
+          }
+          return;
+        }
+
+        // Browse mode: vertical scroll vs horizontal flick
+        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.4) {
+          isScrolling = true;
+          clearTimeout(holdTimer);
+          return;
+        }
+        if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+          clearTimeout(holdTimer);
+          try {
+            card.setPointerCapture(activePointerId);
+          } catch {}
+          startActiveDrag(e.clientX, e.clientY);
+          return;
+        }
+        return;
+      }
+
+      if (activeDrag) {
+        if (e.cancelable) e.preventDefault();
+        onDragStreaming(e.clientX, e.clientY);
+      }
+    });
+
+    function handlePointerUpOrCancel(e, isCancel) {
+      if (!isPointerActive) return;
+      isPointerActive = false;
+      clearTimeout(holdTimer);
+      stopHoldHeartbeat();
+
+      try {
+        if (activePointerId !== null && card.hasPointerCapture(activePointerId)) {
+          card.releasePointerCapture(activePointerId);
+        }
+      } catch {}
+
+      if (activeDrag) {
+        finishDrag(e.clientX, e.clientY, isCancel);
+      } else if (!isCancel && !isScrolling) {
+        const elapsed = performance.now() - pointerDownTime;
+        const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+        if (elapsed < 260 && dist < 12) {
+          const itemType = card.getAttribute("data-item-type") || "photo";
+          const fileUrl = card.getAttribute("data-file") || "";
+          const title = card.getAttribute("data-title") || "Photo";
+          if (itemType === "photo" && fileUrl) {
+            openLightbox(fileUrl, title);
+          }
+        }
+      }
+
+      card.classList.remove("is-lifted", "is-dragging");
+      isHoldLifted = false;
+      activePointerId = null;
+    }
+
+    card.addEventListener("pointerup", (e) => handlePointerUpOrCancel(e, false));
+    card.addEventListener("pointercancel", (e) => handlePointerUpOrCancel(e, true));
+  }
+
+  // =========================================================================
+  // 6. PROCEDURAL 60FPS VIDEO CONTINUITY STREAM (Handset <-> Desktop MPV)
+  // =========================================================================
+  const handVideoCanvas = document.getElementById("continuityVideoCanvas");
+  const handVideoCtx = handVideoCanvas ? handVideoCanvas.getContext("2d") : null;
+  const desktopMpvCanvas = document.getElementById("desktopMpvCanvas");
+  const desktopMpvCtx = desktopMpvCanvas ? desktopMpvCanvas.getContext("2d") : null;
+
+  const videoPlayToggleBtn = document.getElementById("videoPlayToggleBtn");
+  const playIconSvg = document.getElementById("playIconSvg");
+  const pauseIconSvg = document.getElementById("pauseIconSvg");
+  const videoTimecodeOverlay = document.getElementById("videoTimecodeOverlay");
+  const btnInstantVideoBeam = document.getElementById("btnInstantVideoBeam");
+  const continuityTimestampLabel = document.getElementById("continuityTimestampLabel");
+  const mpvOsdStatus = document.getElementById("mpvOsdStatus");
+  const mpvOsdTime = document.getElementById("mpvOsdTime");
+
+  const continuityVideoState = {
+    playing: true,
+    currentTime: 14.2,
+    duration: 165.0,
+    desktopPlaying: false,
+    desktopTime: 14.2,
+    lastFrameTs: performance.now()
+  };
+
+  function formatTimecode(sec) {
+    const m = Math.floor(sec / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = Math.floor(sec % 60)
+      .toString()
+      .padStart(2, "0");
+    const tenths = Math.floor((sec % 1) * 10);
+    return `${m}:${s}.${tenths}`;
+  }
+
+  function updateVideoPlayButtonUI() {
+    if (!playIconSvg || !pauseIconSvg) return;
+    if (continuityVideoState.playing) {
+      playIconSvg.style.display = "none";
+      pauseIconSvg.style.display = "block";
+    } else {
+      playIconSvg.style.display = "block";
+      pauseIconSvg.style.display = "none";
+    }
+  }
+
+  function renderFluidShaderFrame(ctx, w, h, t, isActiveStream) {
+    const bg = ctx.createLinearGradient(0, 0, w, h);
+    bg.addColorStop(0, "#050814");
+    bg.addColorStop(0.5, "#0c192e");
+    bg.addColorStop(1, "#07101f");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // Procedural Caustic Ribbon Waves
+    const ribbons = 4;
+    for (let r = 0; r < ribbons; r++) {
+      ctx.beginPath();
+      const baseY = h * (0.28 + r * 0.16);
+      for (let x = 0; x <= w; x += 12) {
+        const nx = x / w;
+        const y =
+          baseY +
+          Math.sin(nx * 5.5 + t * (1.4 + r * 0.25) + r) * 18 +
+          Math.cos(nx * 9.0 - t * 1.1) * 8;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, baseY - 25, w, h);
+      if (r % 2 === 0) {
+        grad.addColorStop(0, `rgba(56, 189, 248, ${isActiveStream ? 0.26 : 0.12})`);
+        grad.addColorStop(1, "rgba(14, 165, 233, 0.02)");
+      } else {
+        grad.addColorStop(0, `rgba(192, 132, 252, ${isActiveStream ? 0.22 : 0.1})`);
+        grad.addColorStop(1, "rgba(56, 189, 248, 0.02)");
+      }
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Specular Orb
+    const orbX = w * (0.5 + 0.28 * Math.sin(t * 0.85));
+    const orbY = h * (0.48 + 0.18 * Math.cos(t * 1.15));
+    const orbGrad = ctx.createRadialGradient(orbX, orbY, 2, orbX, orbY, 64);
+    orbGrad.addColorStop(0, `rgba(255, 255, 255, ${isActiveStream ? 0.88 : 0.45})`);
+    orbGrad.addColorStop(0.35, `rgba(56, 189, 248, ${isActiveStream ? 0.42 : 0.2})`);
+    orbGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = orbGrad;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function resumeDesktopMpvPlayer(timestamp, title) {
+    continuityVideoState.desktopPlaying = true;
+    continuityVideoState.desktopTime = timestamp;
+    if (continuityTimestampLabel) {
+      continuityTimestampLabel.textContent = `LIVE @ ${formatTimecode(timestamp)}`;
+    }
+    if (mpvOsdStatus) {
+      mpvOsdStatus.textContent = `Playing: ${title || "Optical Fluid Caustics — 4K60 HDR"}`;
+    }
+  }
+
+  function tickContinuityVideos(now) {
+    const dt = Math.min(0.1, Math.max(0.001, (now - continuityVideoState.lastFrameTs) / 1000));
+    continuityVideoState.lastFrameTs = now;
+
+    if (continuityVideoState.playing) {
+      continuityVideoState.currentTime =
+        (continuityVideoState.currentTime + dt) % continuityVideoState.duration;
+      if (videoTimecodeOverlay) {
+        videoTimecodeOverlay.textContent = `${formatTimecode(continuityVideoState.currentTime)} / 02:45.0`;
+      }
+    }
+
+    if (handVideoCtx && handVideoCanvas) {
+      renderFluidShaderFrame(
+        handVideoCtx,
+        handVideoCanvas.width,
+        handVideoCanvas.height,
+        continuityVideoState.currentTime,
+        continuityVideoState.playing
+      );
+    }
+
+    if (continuityVideoState.desktopPlaying) {
+      continuityVideoState.desktopTime =
+        (continuityVideoState.desktopTime + dt) % continuityVideoState.duration;
+      if (mpvOsdTime) {
+        mpvOsdTime.textContent = formatTimecode(continuityVideoState.desktopTime);
+      }
+    }
+
+    if (desktopMpvCtx && desktopMpvCanvas) {
+      renderFluidShaderFrame(
+        desktopMpvCtx,
+        desktopMpvCanvas.width,
+        desktopMpvCanvas.height,
+        continuityVideoState.desktopTime,
+        continuityVideoState.desktopPlaying
+      );
+    }
+
+    requestAnimationFrame(tickContinuityVideos);
+  }
+
+  requestAnimationFrame(tickContinuityVideos);
+
+  if (videoPlayToggleBtn) {
+    videoPlayToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      continuityVideoState.playing = !continuityVideoState.playing;
+      updateVideoPlayButtonUI();
+    });
+  }
+
+  if (btnInstantVideoBeam) {
+    btnInstantVideoBeam.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const curTime = continuityVideoState.currentTime;
+      continuityVideoState.playing = false;
+      updateVideoPlayButtonUI();
+
+      sendWS({
+        type: "video_resume",
+        url: "/media/sample_photo1.jpg",
+        title: "Optical Fluid Caustics — 4K60 HDR",
+        time: curTime,
+        edge: "right",
+        coord: 0.58
+      });
+
+      showToast(`Beamed Video Stream to Desktop (${curTime.toFixed(1)}s)`);
+    });
+  }
+
+  const videoCardElem = document.getElementById("videoHandoffCard");
+  if (videoCardElem) {
+    initCardGestures(videoCardElem);
+  }
+
+  // =========================================================================
+  // 7. INDEXEDDB PERSISTENT VAULT & SEEDED MEDIA LIBRARY
+  // =========================================================================
   const DB_NAME = "drap_local_vault";
   const STORE_NAME = "media_items";
 
@@ -1108,20 +1998,21 @@
       const db = await openMediaDB();
       const tx = db.transaction(STORE_NAME, "readwrite");
       tx.objectStore(STORE_NAME).put(item);
-      return new Promise((res) => { tx.oncomplete = res; });
-    } catch (e) {
-      console.warn("IndexedDB save failed:", e);
-    }
+      return new Promise((res) => {
+        tx.oncomplete = res;
+      });
+    } catch {}
   }
 
   async function getAllMediaFromDB() {
     try {
       const db = await openMediaDB();
       const tx = db.transaction(STORE_NAME, "readonly");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.getAll();
-      return new Promise((res) => { req.onsuccess = () => res(req.result || []); });
-    } catch (e) {
+      const req = tx.objectStore(STORE_NAME).getAll();
+      return new Promise((res) => {
+        req.onsuccess = () => res(req.result || []);
+      });
+    } catch {
       return [];
     }
   }
@@ -1131,123 +2022,155 @@
       const db = await openMediaDB();
       const tx = db.transaction(STORE_NAME, "readwrite");
       tx.objectStore(STORE_NAME).clear();
-      return new Promise((res) => { tx.oncomplete = res; });
-    } catch (e) {}
+      return new Promise((res) => {
+        tx.oncomplete = res;
+      });
+    } catch {}
   }
 
   function formatFileSize(bytes) {
     if (!bytes || bytes === 0) return "0 KB";
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${Math.round(bytes / 1024)} KB`;
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   }
 
-  function renderCardFromRecord(record, prepend = false) {
-    if (!mediaGrid) return;
-    const isImg = record.type && record.type.startsWith("image/");
-    const isVid = record.type && record.type.startsWith("video/");
-    const cat = isImg ? "photo" : (isVid ? "video" : "document");
-    const sizeStr = formatFileSize(record.size);
+  function createMediaCardElement(item) {
+    const isImg =
+      item.category === "photo" ||
+      (item.mime_type && item.mime_type.startsWith("image/")) ||
+      (item.type && item.type.startsWith("image/"));
+    const isVid =
+      item.category === "video" ||
+      (item.mime_type && item.mime_type.startsWith("video/")) ||
+      (item.type && item.type.startsWith("video/"));
+    const cat = isImg ? "photo" : isVid ? "video" : "document";
+    const sizeStr = formatFileSize(item.size);
+    const subtitle = item.subtitle || `${sizeStr} · ${isImg ? "Photo" : isVid ? "Video" : "Document"}`;
 
     const card = document.createElement("div");
     card.className = "card-item";
     card.setAttribute("data-cat", cat);
     card.setAttribute("data-item-type", cat);
-    card.setAttribute("data-title", record.name);
+    card.setAttribute("data-title", item.name);
     card.setAttribute("data-size", sizeStr);
-    card.setAttribute("data-theme", "blue");
-    card._customFile = record.blob;
+    card._sizeBytes = item.size || 0;
+    card._customFile = item.blob || null;
 
-    let blobUrl = "";
-    if (record.blob) {
+    let fileUrl = item.url || "";
+    if (item.blob && !fileUrl) {
       try {
-        blobUrl = URL.createObjectURL(record.blob);
-      } catch (e) {}
-    } else if (record.url) {
-      blobUrl = record.url;
+        fileUrl = URL.createObjectURL(item.blob);
+      } catch {}
     }
+    card.setAttribute("data-file", fileUrl);
 
-    if (isImg && blobUrl) {
-      card.setAttribute("data-file", blobUrl);
+    if (isImg && fileUrl) {
       card.innerHTML = `
-        <div class="card-thumb"><img src="${blobUrl}" alt="${record.name}" loading="lazy"></div>
-        <div class="card-meta">
-          <span class="title">${record.name}</span>
-          <span class="sub">${sizeStr} • Photo</span>
+        <div class="card-thumb">
+          <img src="${fileUrl}" alt="${item.name}" loading="lazy" referrerPolicy="no-referrer">
         </div>
-        <div class="card-lift-indicator"></div>
+        <div class="card-meta">
+          <span class="title">${item.name}</span>
+          <span class="sub">${sizeStr} · ${item.subtitle || "Photo"}</span>
+        </div>
       `;
-    } else if (isVid && blobUrl) {
-      card.setAttribute("data-file", blobUrl);
+    } else if (isVid && fileUrl) {
       card.innerHTML = `
-        <div class="card-thumb" style="background: #000; display: flex; align-items: center; justify-content: center; position: relative;">
-          <video src="${blobUrl}" style="width: 100%; height: 100%; object-fit: cover;" preload="metadata" muted></video>
-          <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.35);">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
+        <div class="card-thumb" style="background: #09090b; display: flex; align-items: center; justify-content: center;">
+          <video src="${fileUrl}" style="width: 100%; height: 100%; object-fit: cover;" preload="metadata" muted></video>
         </div>
         <div class="card-meta">
-          <span class="title">${record.name}</span>
-          <span class="sub">${sizeStr} • Video</span>
+          <span class="title">${item.name}</span>
+          <span class="sub">${subtitle}</span>
         </div>
-        <div class="card-lift-indicator"></div>
       `;
     } else {
-      const ext = record.name.split('.').pop().toUpperCase() || "DOC";
+      const ext = item.ext || (item.name.split(".").pop() || "DOC").toUpperCase();
+      const docTone = item.isShared ? "doc-violet" : "doc-blue";
       card.innerHTML = `
-        <div class="card-thumb doc-thumb doc-blue">
+        <div class="card-thumb doc-thumb ${docTone}">
           <div class="doc-icon-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
           <div class="doc-key-tag">${ext}</div>
         </div>
         <div class="card-meta">
-          <span class="title">${record.name}</span>
-          <span class="sub">${sizeStr} • File</span>
+          <span class="title">${item.name}</span>
+          <span class="sub">${subtitle}</span>
         </div>
-        <div class="card-lift-indicator"></div>
       `;
     }
 
-    if (prepend && mediaGrid.firstChild) {
-      mediaGrid.insertBefore(card, mediaGrid.firstChild);
-    } else {
-      mediaGrid.appendChild(card);
-    }
     initCardGestures(card);
+    return card;
   }
 
-  function renderEmptyLibraryState() {
+  function prependSharedFileCard(sf) {
     if (!mediaGrid) return;
-    mediaGrid.innerHTML = `
-      <div class="empty-library-state">
-        <div class="empty-library-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        </div>
-        <h3>No Media Added Yet</h3>
-        <p>Select photos, videos, or full folders on your device to flick and drop across devices.</p>
-        <div class="empty-actions-row">
-          <label for="pickerPhotos" class="btn-picker-pill">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span>Open Photos</span>
-          </label>
-          <label for="pickerFiles" class="btn-picker-pill">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span>Open Files</span>
-          </label>
-        </div>
-      </div>
-    `;
-    if (fileCountBadge) fileCountBadge.textContent = "0 items";
+    const card = createMediaCardElement({
+      name: sf.filename,
+      url: sf.url,
+      size: sf.size,
+      category: sf.is_image ? "photo" : sf.is_video ? "video" : "document",
+      subtitle: "Desktop Share",
+      isShared: true,
+      ext: "SHARE"
+    });
+    mediaGrid.insertBefore(card, mediaGrid.firstChild);
+    filterGrid();
+  }
+
+  async function loadLibrary() {
+    if (!mediaGrid) return;
+    mediaGrid.innerHTML = "";
+
+    // 1. Load custom user-added files from IndexedDB
+    const saved = await getAllMediaFromDB();
+    saved.forEach((item) => {
+      const card = createMediaCardElement(item);
+      mediaGrid.appendChild(card);
+    });
+
+    // 2. Load files shared from Desktop
+    try {
+      const sharedRes = await fetch("/api/shared_files");
+      if (sharedRes.ok) {
+        const sharedFiles = await sharedRes.json();
+        sharedFiles.forEach((sf) => {
+          const card = createMediaCardElement({
+            name: sf.filename,
+            url: sf.url,
+            size: sf.size,
+            category: sf.is_image ? "photo" : sf.is_video ? "video" : "document",
+            subtitle: "Desktop Share",
+            isShared: true,
+            ext: "SHARE"
+          });
+          mediaGrid.appendChild(card);
+        });
+      }
+    } catch {}
+
+    // 3. Load pre-seeded curated sample library from gateway
+    try {
+      const sampleRes = await fetch("/api/sample_library");
+      if (sampleRes.ok) {
+        const samples = await sampleRes.json();
+        samples.forEach((s) => {
+          const card = createMediaCardElement(s);
+          mediaGrid.appendChild(card);
+        });
+      }
+    } catch {}
+
+    filterGrid();
   }
 
   async function handleFilesSelected(files) {
-    if (!files || !files.length) return;
-    const emptyState = document.querySelector(".empty-library-state");
-    if (emptyState) emptyState.remove();
-
+    if (!files || !files.length || !mediaGrid) return;
     for (const file of files) {
       const record = {
-        id: "file_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6),
+        id: `file_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         name: file.name,
         size: file.size,
         type: file.type || "application/octet-stream",
@@ -1255,171 +2178,439 @@
         mtime: file.lastModified || Date.now()
       };
       await saveMediaToDB(record);
-      renderCardFromRecord(record, true);
+      const card = createMediaCardElement(record);
+      mediaGrid.insertBefore(card, mediaGrid.firstChild);
     }
-    showToast(`Added ${files.length} item${files.length > 1 ? 's' : ''} to library`);
+    showToast(`Added ${files.length} file${files.length > 1 ? "s" : ""} to Handset Library`);
     filterGrid();
   }
 
-  // Hook up file pickers
   ["pickerPhotos", "pickerFiles", "pickerFolder"].forEach((id) => {
     const input = document.getElementById(id);
     if (input) {
       input.addEventListener("change", (e) => {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files || []);
         handleFilesSelected(files);
         input.value = "";
       });
     }
   });
 
+  // Inline Non-Blocking Clear Confirmation (Zero window.confirm)
   const btnClearLibrary = document.getElementById("btnClearLibrary");
-  if (btnClearLibrary) {
-    btnClearLibrary.addEventListener("click", async () => {
-      if (confirm("Clear all added local media from this device?")) {
-        await clearMediaDB();
-        renderEmptyLibraryState();
-        showToast("Local Library Cleared");
+  const clearConfirmBar = document.getElementById("clearConfirmBar");
+  const confirmClearYes = document.getElementById("confirmClearYes");
+  const confirmClearNo = document.getElementById("confirmClearNo");
+
+  if (btnClearLibrary && clearConfirmBar) {
+    btnClearLibrary.addEventListener("click", () => {
+      clearConfirmBar.style.display =
+        clearConfirmBar.style.display === "none" ? "flex" : "none";
+    });
+  }
+  if (confirmClearNo && clearConfirmBar) {
+    confirmClearNo.addEventListener("click", () => {
+      clearConfirmBar.style.display = "none";
+    });
+  }
+  if (confirmClearYes && clearConfirmBar) {
+    confirmClearYes.addEventListener("click", async () => {
+      clearConfirmBar.style.display = "none";
+      await clearMediaDB();
+      await loadLibrary();
+      showToast("Custom media cleared · Default library restored");
+    });
+  }
+
+  // =========================================================================
+  // 8. DESKTOP STAGE CONTROLS, RECEIVE TRAY, CLIPBOARD & SECURITY
+  // =========================================================================
+  const desktopReceivedList = document.getElementById("desktopReceivedList");
+  const clipboardHistoryList = document.getElementById("clipboardHistoryList");
+  const authorizedDevicesList = document.getElementById("authorizedDevicesList");
+  const livePortalUrlText = document.getElementById("livePortalUrlText");
+  const modalPortalUrl = document.getElementById("modalPortalUrl");
+  const stageLiquidToggle = document.getElementById("stageLiquidToggle");
+
+  if (stageLiquidToggle) {
+    stageLiquidToggle.addEventListener("change", (e) => {
+      liquidGlassEnabled = e.target.checked;
+      fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ liquid_glass: liquidGlassEnabled })
+      }).catch(() => {});
+      showToast(
+        liquidGlassEnabled
+          ? "Liquid Glass Optical Caustics Enabled"
+          : "Liquid Glass Caustics Disabled"
+      );
+    });
+  }
+
+  // Simulate Bezel Handoff Buttons on Desktop Stage
+  document.querySelectorAll(".btn-bezel-sim").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const simEdge = btn.getAttribute("data-sim-edge") || "right";
+      const isCorner = simEdge.startsWith("corner-");
+      triggerDesktopDropConfirmation({
+        edge: simEdge,
+        corner: isCorner ? simEdge.replace("corner-", "") : "",
+        coord: 0.5,
+        filename: "Optical_Portal_Test.raw",
+        size: "4.2 MB",
+        latency_ms: "0.3"
+      });
+    });
+  });
+
+  function renderReceivedFiles(transfers) {
+    if (!desktopReceivedList) return;
+    if (!transfers || transfers.length === 0) {
+      desktopReceivedList.innerHTML = `<div class="received-file-row"><span class="received-file-meta">Flick any card from Handset to beam to ~/Downloads</span></div>`;
+      return;
+    }
+    desktopReceivedList.innerHTML = "";
+    transfers.slice(0, 6).forEach((tr) => {
+      const row = document.createElement("div");
+      row.className = "received-file-row";
+      const sizeStr = formatFileSize(tr.size);
+      const dirBadge = tr.direction === "desktop-to-phone" ? "→ Phone" : `← ${tr.edge || "right"}`;
+      row.innerHTML = `
+        <div class="received-file-info">
+          <span class="received-file-name">${tr.filename}</span>
+          <span class="received-file-meta mono-meta">${sizeStr} · ${dirBadge} · ${tr.latency_ms || 0.4}ms · #${tr.sha256_short || "a4f1"}</span>
+        </div>
+        <a href="${tr.url}" download="${tr.filename}" class="received-file-download">Save</a>
+      `;
+      desktopReceivedList.appendChild(row);
+    });
+  }
+
+  async function fetchReceivedFiles() {
+    try {
+      const res = await fetch("/api/received_files");
+      if (res.ok) {
+        const data = await res.json();
+        renderReceivedFiles(data);
+      }
+    } catch {}
+  }
+
+  // Desktop-to-Phone File Push Dropzone
+  const desktopPushDropzone = document.getElementById("desktopPushDropzone");
+  const desktopPushFileInput = document.getElementById("desktopPushFileInput");
+
+  async function pushFilesFromDesktopToPhone(files) {
+    if (!files || !files.length) return;
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      formData.append("edge", "left");
+      try {
+        const res = await fetch("/api/share_to_phone", {
+          method: "POST",
+          body: formData
+        });
+        if (res.ok) {
+          showToast(`Pushed ${file.name} to Handset Library`);
+        }
+      } catch {}
+    }
+  }
+
+  if (desktopPushFileInput) {
+    desktopPushFileInput.addEventListener("change", (e) => {
+      const files = Array.from(e.target.files || []);
+      pushFilesFromDesktopToPhone(files);
+      desktopPushFileInput.value = "";
+    });
+  }
+
+  if (desktopPushDropzone) {
+    desktopPushDropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      desktopPushDropzone.classList.add("drag-over");
+    });
+    desktopPushDropzone.addEventListener("dragleave", () => {
+      desktopPushDropzone.classList.remove("drag-over");
+    });
+    desktopPushDropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      desktopPushDropzone.classList.remove("drag-over");
+      if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+        pushFilesFromDesktopToPhone(Array.from(e.dataTransfer.files));
       }
     });
   }
 
-  // Handle Incoming Native System Share Target (Android / Mobile System Share Sheet)
-  async function checkSystemShareTarget() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("shared") === "true") {
-      try {
-        const shareCache = await caches.open("drap-share-cache");
-        const metaRes = await shareCache.match("/shared-meta");
-        if (metaRes) {
-          const meta = await metaRes.json();
-          const importedFiles = [];
-          for (let i = 0; i < (meta.fileCount || 0); i++) {
-            const fileRes = await shareCache.match(`/shared-file-${i}`);
-            if (fileRes) {
-              const blob = await fileRes.blob();
-              const fMeta = (meta.filesMeta && meta.filesMeta[i]) || {};
-              const file = new File([blob], fMeta.name || `Shared_Item_${i+1}`, { type: fMeta.type || blob.type });
-              importedFiles.push(file);
-              await shareCache.delete(`/shared-file-${i}`);
-            }
-          }
-          await shareCache.delete("/shared-meta");
-
-          if (importedFiles.length > 0) {
-            await handleFilesSelected(importedFiles);
-            showToast(`Received ${importedFiles.length} file${importedFiles.length > 1 ? 's' : ''} from phone share! Flick to drop.`);
-          } else if (meta.text || meta.url) {
-            const shareText = (meta.text || "") + (meta.url ? " " + meta.url : "");
-            const textInput = document.getElementById("quickTextInput");
-            if (textInput) textInput.value = shareText.trim();
-            showToast("Shared text loaded into clipboard bar");
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving shared target:", e);
+  // Clipboard Sync & History
+  function renderClipboardHistory(items) {
+    if (!clipboardHistoryList) return;
+    clipboardHistoryList.innerHTML = "";
+    (items || []).slice(0, 6).forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "clip-history-row";
+      row.innerHTML = `
+        <span class="clip-history-text">${item.text.replace(/</g, "&lt;")}</span>
+        <button type="button" class="btn-copy-clip">Copy</button>
+      `;
+      const copyBtn = row.querySelector(".btn-copy-clip");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard?.writeText(item.text).catch(() => {});
+          showToast("Copied to clipboard");
+        });
       }
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+      clipboardHistoryList.appendChild(row);
+    });
   }
 
-  // Load Saved Library from IndexedDB & Laptop Shares
-  async function loadLibrary() {
-    await checkSystemShareTarget();
-    const saved = await getAllMediaFromDB();
-    if (saved && saved.length > 0) {
-      mediaGrid.innerHTML = "";
-      saved.forEach((item) => renderCardFromRecord(item, false));
-    } else {
-      renderEmptyLibraryState();
-    }
-
-    // Also fetch files shared from laptop
+  async function fetchClipboardHistory() {
     try {
-      const res = await fetch(`http://${targetHost}/api/shared_files`);
+      const res = await fetch("/api/clipboard_history");
       if (res.ok) {
-        const sharedFiles = await res.json();
-        if (sharedFiles && sharedFiles.length > 0) {
-          const emptyState = document.querySelector(".empty-library-state");
-          if (emptyState) emptyState.remove();
-          sharedFiles.forEach((sf) => {
-            const card = document.createElement("div");
-            const cat = sf.is_image ? "photo" : (sf.is_video ? "video" : "document");
-            card.className = "card-item";
-            card.setAttribute("data-cat", cat);
-            card.setAttribute("data-item-type", cat);
-            card.setAttribute("data-title", sf.filename);
-            card.setAttribute("data-size", formatFileSize(sf.size));
-            card.setAttribute("data-file", sf.url);
-
-            if (sf.is_image) {
-              card.innerHTML = `
-                <div class="card-thumb"><img src="${sf.url}" alt="${sf.filename}" loading="lazy"></div>
-                <div class="card-meta">
-                  <span class="title">${sf.filename}</span>
-                  <span class="sub">${formatFileSize(sf.size)} • Laptop Share</span>
-                </div>
-                <div class="card-lift-indicator"></div>
-              `;
-            } else {
-              card.innerHTML = `
-                <div class="card-thumb doc-thumb doc-violet">
-                  <div class="doc-icon-badge">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  </div>
-                  <div class="doc-key-tag">SHARE</div>
-                </div>
-                <div class="card-meta">
-                  <span class="title">${sf.filename}</span>
-                  <span class="sub">${formatFileSize(sf.size)} • Laptop Share</span>
-                </div>
-                <div class="card-lift-indicator"></div>
-              `;
-            }
-            mediaGrid.insertBefore(card, mediaGrid.firstChild);
-            initCardGestures(card);
-          });
-        }
+        const items = await res.json();
+        renderClipboardHistory(items);
       }
-    } catch (e) {}
-
-    filterGrid();
+    } catch {}
   }
 
-  loadLibrary();
+  const quickSendBtn = document.getElementById("quickSendBtn");
+  const quickTextInput = document.getElementById("quickTextInput");
 
-  // 6. Target Device Controller in Settings
-  const targetDeviceName = document.getElementById("targetDeviceName");
-  const targetDeviceIp = document.getElementById("targetDeviceIp");
-  const peersList = document.getElementById("peersList");
-  const inputCustomTarget = document.getElementById("inputCustomTarget");
-  const btnApplyTarget = document.getElementById("btnApplyTarget");
+  async function sendHandsetClipboard() {
+    if (!quickTextInput) return;
+    const text = quickTextInput.value.trim();
+    if (!text) return;
+    try {
+      const formData = new FormData();
+      formData.append("text", text);
+      formData.append("sender", "phone");
+      await fetch("/api/clipboard", { method: "POST", body: formData });
+      quickTextInput.value = "";
+      fetchClipboardHistory();
+      showToast("Sent to Desktop Wayland Clipboard (wl-copy)");
+    } catch {}
+  }
+
+  if (quickSendBtn) quickSendBtn.addEventListener("click", sendHandsetClipboard);
+  if (quickTextInput) {
+    quickTextInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendHandsetClipboard();
+    });
+  }
+
+  const desktopClipInput = document.getElementById("desktopClipInput");
+  const desktopClipSendBtn = document.getElementById("desktopClipSendBtn");
+
+  async function sendDesktopClipboard() {
+    if (!desktopClipInput) return;
+    const text = desktopClipInput.value.trim();
+    if (!text) return;
+    try {
+      await fetch("/api/send_text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, sender: "desktop" })
+      });
+      desktopClipInput.value = "";
+      fetchClipboardHistory();
+    } catch {}
+  }
+
+  if (desktopClipSendBtn) desktopClipSendBtn.addEventListener("click", sendDesktopClipboard);
+  if (desktopClipInput) {
+    desktopClipInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendDesktopClipboard();
+    });
+  }
+
+  // Security Policy & Devices Management
+  function renderSecurityDevices(mode, devices) {
+    document.querySelectorAll(".sec-mode-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-sec-mode") === mode);
+    });
+    if (!authorizedDevicesList) return;
+    authorizedDevicesList.innerHTML = "";
+    (devices || []).slice(0, 4).forEach((d) => {
+      const row = document.createElement("div");
+      row.className = "device-access-row";
+      const isAllowed = d.status === "allowed" || d.always_allowed;
+      row.innerHTML = `
+        <div class="device-access-meta">
+          <span class="device-access-name">${d.name || "Handset"}</span>
+          <span class="meta-separator">·</span>
+          <span class="device-access-ip">${d.ip}</span>
+        </div>
+        <div class="device-access-actions">
+          <button type="button" class="btn-secondary-sm" data-action="${isAllowed ? "block" : "allow"}" data-ip="${d.ip}">
+            ${isAllowed ? "Allowed" : "Blocked"}
+          </button>
+        </div>
+      `;
+      const actionBtn = row.querySelector("button");
+      if (actionBtn) {
+        actionBtn.addEventListener("click", async () => {
+          const endpoint = isAllowed ? "/api/devices/block" : "/api/devices/allow";
+          await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ip: d.ip, always: true })
+          });
+          fetchDevicesList();
+          showToast(`Updated access for ${d.ip}`);
+        });
+      }
+      authorizedDevicesList.appendChild(row);
+    });
+  }
+
+  async function fetchDevicesList() {
+    try {
+      const res = await fetch("/api/devices");
+      if (res.ok) {
+        const data = await res.json();
+        renderSecurityDevices(data.mode, data.devices);
+      }
+    } catch {}
+  }
+
+  document.querySelectorAll(".sec-mode-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const mode = btn.getAttribute("data-sec-mode");
+      if (!mode) return;
+      await fetch("/api/devices/mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode })
+      });
+      fetchDevicesList();
+      showToast(`Security policy set to ${mode.toUpperCase()}`);
+    });
+  });
+
+  function refreshQrImages() {
+    const cacheBuster = `?t=${Date.now()}`;
+    const liveQrImg = document.getElementById("liveQrImg");
+    const modalQrImg = document.getElementById("modalQrImg");
+    if (liveQrImg) liveQrImg.src = `/api/qr.svg${cacheBuster}`;
+    if (modalQrImg) modalQrImg.src = `/api/qr.svg${cacheBuster}`;
+  }
+
+  const btnRotatePortal = document.getElementById("btnRotatePortal");
+  if (btnRotatePortal) {
+    btnRotatePortal.addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/portal/rotate", { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          if (livePortalUrlText) livePortalUrlText.textContent = data.portal_url;
+          if (modalPortalUrl) modalPortalUrl.textContent = data.portal_url;
+          refreshQrImages();
+          showToast("Rotated Ephemeral Portal QR Token");
+        }
+      } catch {}
+    });
+  }
+
+  const btnCopyPortalUrl = document.getElementById("btnCopyPortalUrl");
+  if (btnCopyPortalUrl) {
+    btnCopyPortalUrl.addEventListener("click", () => {
+      const url = livePortalUrlText ? livePortalUrlText.textContent : window.location.href;
+      navigator.clipboard?.writeText(url || window.location.href).catch(() => {});
+      showToast("Gateway URL copied to clipboard");
+    });
+  }
+
+  const btnCopyHyprConfig = document.getElementById("btnCopyHyprConfig");
+  if (btnCopyHyprConfig) {
+    btnCopyHyprConfig.addEventListener("click", () => {
+      const code = document.getElementById("hyprConfigCode")?.textContent || "";
+      navigator.clipboard?.writeText(code).catch(() => {});
+      showToast("Hyprland layerrule copied to clipboard");
+    });
+  }
+
+  // =========================================================================
+  // 9. SETTINGS SHEET, LIGHTBOX, QR MODAL & PORTAL GATEKEEPER
+  // =========================================================================
+  if (openSettingsBtn && settingsModal) {
+    openSettingsBtn.addEventListener("click", () => {
+      settingsModal.classList.add("open");
+      haptic(12);
+    });
+  }
+  if (closeSettingsBtn && settingsModal) {
+    closeSettingsBtn.addEventListener("click", () => settingsModal.classList.remove("open"));
+    settingsModal.addEventListener("click", (e) => {
+      if (e.target === settingsModal) settingsModal.classList.remove("open");
+    });
+  }
+
+  function openQrModal() {
+    if (qrModal) {
+      refreshQrImages();
+      qrModal.classList.add("open");
+      haptic(12);
+    }
+  }
+  if (openQrModalBtn) openQrModalBtn.addEventListener("click", openQrModal);
+  if (qrPreviewBox) qrPreviewBox.addEventListener("click", openQrModal);
+  if (closeQrModalBtn && qrModal) {
+    closeQrModalBtn.addEventListener("click", () => qrModal.classList.remove("open"));
+    qrModal.addEventListener("click", (e) => {
+      if (e.target === qrModal) qrModal.classList.remove("open");
+    });
+  }
+
+  // Top Bar Navigation Active Link Highlighting
+  document.querySelectorAll(".nav-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      document.querySelectorAll(".nav-link").forEach((l) => l.classList.remove("active"));
+      link.classList.add("active");
+    });
+  });
+
+  if (pwaInstallBtn) {
+    pwaInstallBtn.addEventListener("click", async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice.outcome === "accepted") {
+          showToast("drap installed to Home Screen");
+        }
+        deferredInstallPrompt = null;
+      } else {
+        showToast("Use browser menu ⋮ → Add to Home Screen for full-screen PWA");
+      }
+    });
+  }
+
   const selectTargetEdge = document.getElementById("selectTargetEdge");
   const toggleMultiSide = document.getElementById("toggleMultiSide");
   const multiSideSubtitle = document.getElementById("multiSideSubtitle");
 
   function updateMultiSideUI() {
-    if (toggleMultiSide) {
-      toggleMultiSide.checked = isMultiSideSend;
-    }
+    if (toggleMultiSide) toggleMultiSide.checked = isMultiSideSend;
     if (multiSideSubtitle) {
-      if (isMultiSideSend) {
-        multiSideSubtitle.textContent = "Flick towards any bezel (Left, Right, Up, Down)";
-      } else {
-        const primary = targetEdgePref === 'auto' ? 'Left' : (targetEdgePref === 'left' ? 'Right' : (targetEdgePref === 'bottom' ? 'Top' : (targetEdgePref === 'top' ? 'Bottom' : 'Left')));
-        multiSideSubtitle.textContent = `Single Edge Only: Flick towards ${primary} bezel`;
-      }
+      multiSideSubtitle.textContent = isMultiSideSend
+        ? "Flick toward Left, Right, Top, Bottom, or any Corner"
+        : `Single Edge Mode: Flick toward ${targetEdgePref.toUpperCase()} bezel`;
     }
   }
-
   updateMultiSideUI();
 
   if (toggleMultiSide) {
     toggleMultiSide.addEventListener("change", (e) => {
       isMultiSideSend = e.target.checked;
-      localStorage.setItem("drap_multi_side_send", isMultiSideSend);
+      localStorage.setItem("drap_multi_side_send", String(isMultiSideSend));
       updateMultiSideUI();
-      showToast(isMultiSideSend ? "Multi-Side Send: Enabled (All Edges)" : "Multi-Side Send: Disabled (Single Edge)");
+      showToast(
+        isMultiSideSend
+          ? "Omnidirectional 4-Edge & Corner Portals Enabled"
+          : "Single-Edge Portal Mode Enabled"
+      );
     });
   }
 
@@ -1429,11 +2620,24 @@
       targetEdgePref = e.target.value;
       localStorage.setItem("drap_target_edge", targetEdgePref);
       updateMultiSideUI();
-      showToast(`Desktop alignment: ${targetEdgePref.toUpperCase()}`);
+      showToast(`Bezel routing: ${targetEdgePref.toUpperCase()}`);
     });
   }
 
-  // 7. Ephemeral Portal Gatekeeper & Random QR Settings
+  const inputCustomTarget = document.getElementById("inputCustomTarget");
+  const btnApplyTarget = document.getElementById("btnApplyTarget");
+  if (inputCustomTarget) inputCustomTarget.value = targetHost;
+  if (btnApplyTarget && inputCustomTarget) {
+    btnApplyTarget.addEventListener("click", () => {
+      const val = inputCustomTarget.value.trim();
+      if (!val) return;
+      targetHost = val;
+      localStorage.setItem("drap_target_host", targetHost);
+      showToast(`Gateway target set to ${targetHost}`);
+      connectWS();
+    });
+  }
+
   const togglePortalMode = document.getElementById("togglePortalMode");
   const portalModeSubtitle = document.getElementById("portalModeSubtitle");
   const portalLockOverlay = document.getElementById("portalLockOverlay");
@@ -1441,124 +2645,67 @@
 
   async function checkPortalAuthorization() {
     try {
-      const q = currentPortalToken ? `?portal=${encodeURIComponent(currentPortalToken)}` : "";
-      const res = await fetch(`http://${targetHost}/api/portal/status${q}`);
+      const q = currentPortalToken
+        ? `?portal=${encodeURIComponent(currentPortalToken)}`
+        : "";
+      const res = await fetch(`/api/portal/status${q}`);
       if (res.ok) {
         const data = await res.json();
         if (togglePortalMode) togglePortalMode.checked = Boolean(data.random_portal_mode);
+        if (livePortalUrlText) livePortalUrlText.textContent = data.portal_url;
+        if (modalPortalUrl) modalPortalUrl.textContent = data.portal_url;
         if (portalModeSubtitle) {
           portalModeSubtitle.textContent = data.random_portal_mode
-            ? "Dynamic QR active (Fresh camera scan required)"
+            ? "Dynamic QR active (Session token required)"
             : "Fixed Portal (Open on LAN / Bookmarked)";
         }
-        if (data.random_portal_mode && !data.is_authorized) {
-          if (portalLockOverlay) portalLockOverlay.style.display = "flex";
-        } else {
-          if (portalLockOverlay) portalLockOverlay.style.display = "none";
+        if (portalLockOverlay) {
+          portalLockOverlay.style.display =
+            data.random_portal_mode && !data.is_authorized ? "flex" : "none";
         }
       }
-    } catch (e) {}
+    } catch {}
   }
-
-  checkPortalAuthorization();
 
   if (togglePortalMode) {
     togglePortalMode.addEventListener("change", async (e) => {
       const enabled = e.target.checked;
       try {
-        const res = await fetch(`http://${targetHost}/api/portal/toggle`, {
+        await fetch("/api/portal/toggle", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(currentPortalToken ? { "X-Drap-Portal": currentPortalToken } : {})
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ enabled, portal: currentPortalToken })
         });
-        const data = await res.json();
-        showToast(enabled ? "Dynamic QR Mode: Enabled (Scan Required)" : "Fixed Portal: Open on LAN");
         checkPortalAuthorization();
-      } catch (err) {
-        console.error("Portal toggle error:", err);
-      }
+        refreshQrImages();
+        showToast(enabled ? "Ephemeral QR Mode Enabled" : "Fixed LAN Portal Enabled");
+      } catch {}
     });
   }
 
   if (btnRetryPortal) {
     btnRetryPortal.addEventListener("click", () => {
       checkPortalAuthorization();
-      showToast("Checking portal authorization...");
-    });
-  }
-
-  if (inputCustomTarget) {
-    inputCustomTarget.value = targetHost;
-  }
-
-  if (btnApplyTarget && inputCustomTarget) {
-    btnApplyTarget.addEventListener("click", () => {
-      const val = inputCustomTarget.value.trim();
-      if (!val) return;
-      targetHost = val;
-      localStorage.setItem("drap_target_host", targetHost);
-      showToast(`Target set to ${targetHost}`);
-      connectWS();
-      fetchDeviceInfo();
+      showToast("Verifying portal authorization...");
     });
   }
 
   async function fetchDeviceInfo() {
     try {
-      const res = await fetch(`http://${targetHost}/api/device_info`);
+      const res = await fetch("/api/device_info");
       if (res.ok) {
         const info = await res.json();
-        if (targetDeviceName) targetDeviceName.textContent = info.alias || "Desktop (Hyprland)";
-        if (targetDeviceIp) targetDeviceIp.textContent = `${info.ip || targetHost}:${info.port || 8080} • Connected 🟢`;
-      }
-    } catch (e) {
-      if (targetDeviceIp) targetDeviceIp.textContent = `${targetHost} (Direct)`;
-    }
-    fetchPeers();
-  }
-
-  async function fetchPeers() {
-    if (!peersList) return;
-    try {
-      const res = await fetch(`http://${targetHost}/api/localsend/peers`);
-      if (res.ok) {
-        const peers = await res.json();
-        peersList.innerHTML = `
-          <div class="peer-item active">
-            <span>🖥️ ${targetDeviceName ? targetDeviceName.textContent : 'Target Desktop'}</span>
-            <span class="peer-tag">Active</span>
-          </div>
-        `;
-        if (peers && peers.length > 0) {
-          peers.forEach((p) => {
-            const peerHost = `${p.ip}:${p.port || 53317}`;
-            if (peerHost !== targetHost) {
-              const item = document.createElement("div");
-              item.className = "peer-item";
-              item.innerHTML = `
-                <span>📱 ${p.alias || p.device_model || p.ip}</span>
-                <span class="peer-tag" style="background: rgba(255,255,255,0.1); color: #fff;">Connect</span>
-              `;
-              item.addEventListener("click", () => {
-                targetHost = `${p.ip}:8080`;
-                localStorage.setItem("drap_target_host", targetHost);
-                if (inputCustomTarget) inputCustomTarget.value = targetHost;
-                showToast(`Switched target to ${p.alias || p.ip}`);
-                connectWS();
-                fetchDeviceInfo();
-              });
-              peersList.appendChild(item);
-            }
-          });
+        const targetDeviceName = document.getElementById("targetDeviceName");
+        const targetDeviceIp = document.getElementById("targetDeviceIp");
+        if (targetDeviceName) targetDeviceName.textContent = info.alias || "Hyprland Workstation";
+        if (targetDeviceIp) {
+          targetDeviceIp.textContent = `${info.host || targetHost} · Connected`;
         }
       }
-    } catch (e) {}
+    } catch {}
   }
 
-  // 7. Lightbox Preview
+  // Lightbox
   const lightbox = document.getElementById("lightbox");
   const lightboxImg = document.getElementById("lightboxImg");
   const lightboxTitle = document.getElementById("lightboxTitle");
@@ -1566,72 +2713,28 @@
   const lightboxClose = document.getElementById("lightboxClose");
 
   function openLightbox(src, title) {
-    if (!lightbox) return;
+    if (!lightbox || !lightboxImg) return;
     lightboxImg.src = src;
-    lightboxTitle.textContent = title;
-    lightboxDownload.href = src;
-    lightboxDownload.download = title;
+    if (lightboxTitle) lightboxTitle.textContent = title;
+    if (lightboxDownload) {
+      lightboxDownload.href = src;
+      lightboxDownload.download = title;
+    }
     lightbox.classList.add("open");
   }
 
-  if (lightboxClose) {
+  if (lightboxClose && lightbox) {
     lightboxClose.addEventListener("click", () => lightbox.classList.remove("open"));
-  }
-  if (lightbox) {
     lightbox.addEventListener("click", (e) => {
       if (e.target === lightbox) lightbox.classList.remove("open");
     });
   }
 
-  // 7. Clipboard Quick Send
-  const quickSendBtn = document.getElementById("quickSendBtn");
-  const quickTextInput = document.getElementById("quickTextInput");
-
-  if (quickSendBtn && quickTextInput) {
-    quickSendBtn.addEventListener("click", async () => {
-      const text = quickTextInput.value.trim();
-      if (!text) return;
-      try {
-        const formData = new FormData();
-        formData.append("text", text);
-        await fetch("/api/clipboard", { method: "POST", body: formData });
-        showToast("Text Sent to Desktop Clipboard");
-        quickTextInput.value = "";
-      } catch (e) {
-        showToast("Error sending clipboard");
-      }
-    });
-  }
-
-  // 8. Video Player Indicator
-  const videoCard = document.getElementById("videoHandoffCard");
-  const videoElem = document.getElementById("continuityVideo");
-  const videoPlayIndicator = document.getElementById("videoPlayIndicator");
-  const videoTime = document.getElementById("videoTime");
-
-  if (videoElem && videoPlayIndicator) {
-    videoCard.addEventListener("click", (e) => {
-      if (currentMode === 'browse' && !isHoldLifted && !activeDrag) {
-        if (videoElem.paused) {
-          videoElem.play();
-          videoPlayIndicator.style.display = "none";
-        } else {
-          videoElem.pause();
-          videoPlayIndicator.style.display = "flex";
-        }
-      }
-    });
-
-    videoElem.addEventListener("timeupdate", () => {
-      if (videoTime && videoElem.duration) {
-        const curM = Math.floor(videoElem.currentTime / 60);
-        const curS = Math.floor(videoElem.currentTime % 60).toString().padStart(2, '0');
-        const durM = Math.floor(videoElem.duration / 60);
-        const durS = Math.floor(videoElem.duration % 60).toString().padStart(2, '0');
-        videoTime.textContent = `${curM}:${curS} / ${durM}:${durS} • Drag to Desktop`;
-      }
-    });
-  }
-
-  filterGrid();
+  // Initialize Everything
+  loadLibrary();
+  fetchReceivedFiles();
+  fetchClipboardHistory();
+  fetchDevicesList();
+  checkPortalAuthorization();
+  connectWS();
 })();

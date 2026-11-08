@@ -8,9 +8,10 @@
     "drooop": "./bin/drooop.js"
   },
   "scripts": {
-    "start": "./run.sh",
-    "gui": "python3 hub.py",
-    "test": "python3 test_spatial_transfer.py"
+    "dev": "tsx server.ts",
+    "start": "tsx server.ts",
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "keywords": [
     "drap",
@@ -23,5 +24,18 @@
     "gtk4-layer-shell"
   ],
   "author": "Antigravity",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.18.2",
+    "express": "^5.3.0",
+    "multer": "^2.5.0",
+    "qrcode": "^1.5.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "ws": "^8.22.1"
+  }
 }
