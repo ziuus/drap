@@ -1,0 +1,11 @@
+<resources>
+    <color name="black_background">#09090b</color>
+    <color name="card_background">#18181b</color>
+    <color name="card_border">#27272a</color>
+    <color name="white_text">#f4f4f5</color>
+    <color name="muted_text">#a1a1aa</color>
+    <color name="accent_white">#ffffff</color>
+    <color name="accent_glow">#e4e4e7</color>
+    <color name="status_green">#10b981</color>
+    <color name="status_red">#ef4444</color>
+</resources>

@@ -2120,6 +2120,20 @@
     filterGrid();
   }
 
+  function updateGalleryBanner(count) {
+    const banner = document.getElementById("gallerySyncBanner");
+    if (!banner) return;
+    const copyStrong = banner.querySelector(".gallery-sync-copy strong");
+    const copySpan = banner.querySelector(".gallery-sync-copy span");
+    if (count > 0) {
+      if (copyStrong) copyStrong.textContent = `Phone Gallery (${count} photo${count > 1 ? "s" : ""} selected)`;
+      if (copySpan) copySpan.textContent = "Tap to pick more photos or videos from camera roll";
+    } else {
+      if (copyStrong) copyStrong.textContent = "Select Photos from Phone Gallery";
+      if (copySpan) copySpan.textContent = "Tap to pick multiple photos from your camera roll";
+    }
+  }
+
   async function loadLibrary() {
     if (!mediaGrid) return;
     mediaGrid.innerHTML = "";
@@ -2130,6 +2144,7 @@
       const card = createMediaCardElement(item);
       mediaGrid.appendChild(card);
     });
+    updateGalleryBanner(saved.length);
 
     // 2. Load files shared from Desktop
     try {
@@ -2183,6 +2198,10 @@
     }
     showToast(`Added ${files.length} file${files.length > 1 ? "s" : ""} to Handset Library`);
     filterGrid();
+    try {
+      const all = await getAllMediaFromDB();
+      updateGalleryBanner(all.length);
+    } catch {}
   }
 
   ["pickerPhotos", "pickerFiles", "pickerFolder"].forEach((id) => {

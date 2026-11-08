@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Drap</string>
+    <string name="action_beam">Beam to Desktop</string>
+    <string name="status_searching">Connecting to Drap…</string>
+    <string name="status_connected">Connected to Desktop</string>
+    <string name="status_disconnected">Desktop Offline</string>
+    <string name="permission_rationale">Drap requires photo access to show your phone gallery and transfer photos to your computer.</string>
+</resources>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black_background"
+    android:padding="16dp">
+
+    <!-- Top Header -->
+    <TextView
+        android:id="@+id/tvLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="drap"
+        android:textColor="@color/white_text"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:letterSpacing="-0.03"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Connection Status Pill -->
+    <LinearLayout
+        android:id="@+id/statusPill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_status_pill"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="5dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tvLogo"
+        app:layout_constraintBottom_toBottomOf="@id/tvLogo">
+
+        <View
+            android:id="@+id/statusDot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/bg_dot_green"
+            android:layout_marginEnd="6dp" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/status_connected"
+            android:textColor="@color/white_text"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Subtitle / Gallery Status -->
+    <TextView
+        android:id="@+id/tvGallerySubtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Full Phone Camera Roll (Auto-Detected)"
+        android:textColor="@color/muted_text"
+        android:textSize="13sp"
+        android:layout_marginTop="6dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvLogo" />
+
+    <!-- Gallery Photos Grid -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvGallery"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toBottomOf="@id/tvGallerySubtitle"
+        app:layout_constraintBottom_toTopOf="@id/btnBeam"
+        tools:listitem="@layout/item_gallery_photo" />
+
+    <!-- Empty State -->
+    <TextView
+        android:id="@+id/tvEmpty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No photos found or permission pending"
+        android:textColor="@color/muted_text"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/rvGallery"
+        app:layout_constraintBottom_toBottomOf="@id/rvGallery" />
+
+    <!-- Bottom Beam Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnBeam"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="@string/action_beam"
+        android:textColor="@color/black_background"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:cornerRadius="16dp"
+        app:backgroundTint="@color/accent_white"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

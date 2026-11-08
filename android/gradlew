@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+
+# Minimal portable gradlew bootstrap for POSIX systems
+DIR="$(cd "$(dirname "$0")" && pwd)"
+WRAPPER_JAR="$DIR/gradle/wrapper/gradle-wrapper.jar"
+
+if [ ! -f "$WRAPPER_JAR" ]; then
+    mkdir -p "$DIR/gradle/wrapper"
+    # Download wrapper jar if not present
+    curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar -o "$WRAPPER_JAR" 2>/dev/null || true
+fi
+
+if [ -f "$WRAPPER_JAR" ]; then
+    exec java -jar "$WRAPPER_JAR" "$@"
+else
+    echo "gradle-wrapper.jar not found, attempting system gradle..."
+    exec gradle "$@"
+fi
