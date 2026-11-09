@@ -14,6 +14,10 @@
 
 </div>
 
+> Building this in the open — if it saves you time, a star helps others find it.
+> Found a bug, or have an idea? [Open an issue](https://github.com/ziuus/drap/issues).
+> Bug reports with your compositor and device setup help most.
+
 ---
 
 ## 📸 Overview
