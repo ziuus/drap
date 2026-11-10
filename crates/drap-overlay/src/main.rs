@@ -334,26 +334,13 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let pulse_alpha = 1.0 + 0.060 * (elapsed * 3.2).sin();
 
     // Two-stage spatial dynamics:
-    // Stage 1 (intensity <= 0.25): subtle, focused, elegant connection bead indicating click-and-hold / pickup.
-    // Stage 2 (intensity > 0.25): exponential swell into the massive, hyper-luminous Drooop aura with additive Screen bloom!
+    // Stage 1: Subtle, focused connection bead (ONLY shown initially during touch hold / pickup!)
+    // Stage 2: As user drags toward the bezel, the initial bead fades completely and gives way to the
+    //          grand, sweeping Drooop Main Ambience: deep atmospheric wash, 750px corona rays, fluid meniscus.
     let swell = if intensity <= 0.25 {
         0.0
     } else {
-        ((intensity - 0.25) / 0.75).powf(1.22)
-    };
-
-    let (radius, radius_y) = if edge.starts_with("corner-") {
-        let r = ((160.0 + intensity.min(0.25) * 120.0) + swell * 640.0) * pressure_scale * breathe;
-        (r, r)
-    } else if edge == "top" || edge == "bottom" {
-        let rx = ((150.0 + intensity.min(0.25) * 120.0) + swell * 600.0) * pressure_scale * breathe;
-        let ry = ((240.0 + intensity.min(0.25) * 160.0) + swell * 700.0) * breathe_y;
-        (rx, ry)
-    } else {
-        // Left / Right edge: 160px initial hold bead, dynamically swelling up to ~880px reach into desktop
-        let rx = ((160.0 + intensity.min(0.25) * 120.0) + swell * 700.0) * pressure_scale * breathe;
-        let ry = ((250.0 + intensity.min(0.25) * 160.0) + swell * 800.0) * breathe_y;
-        (rx, ry)
+        ((intensity - 0.25) / 0.75).powf(1.18)
     };
 
     cr.save().expect("Cairo save");
@@ -367,58 +354,76 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
         cr.transform(skew_mat);
     }
 
-    // 1. Tier 1: Precomputed Bilinear Chromatic Dispersion Atmospheric Wash
-    cr.save().expect("Cairo save");
-    cr.scale(radius / lut_w, radius_y / (lut_h / 2.0));
-    cr.translate(-lut_w, -lut_h / 2.0);
-    let pat = SurfacePattern::create(surf);
-    pat.set_filter(Filter::Fast);
-    let _ = cr.set_source(&pat);
-    let glow_alpha = (intensity.sqrt() * 1.05 * pulse_alpha).min(1.0);
-    let _ = cr.paint_with_alpha(glow_alpha);
-    let _ = cr.restore();
-
-    // 1b. Tier 1b: Hyper-Luminous Additive Screen Bloom (The High-Energy Drooop Incandescent Glow)
-    if swell > 0.02 {
+    // 1. Initial Touch / Pickup Bead (ONLY shown initially during hold/pickup, fades out during drag!)
+    let bead_alpha = (1.0 - swell * 1.6).max(0.0) * (intensity / 0.25).min(1.0);
+    if bead_alpha > 0.01 {
+        let bead_rx = (130.0 + intensity.min(0.25) * 60.0) * pressure_scale * breathe;
+        let bead_ry = (220.0 + intensity.min(0.25) * 80.0) * breathe_y;
         cr.save().expect("Cairo save");
-        cr.set_operator(cairo::Operator::Screen);
-        let bloom_rx = radius * 0.88;
-        let bloom_ry = radius_y * 0.88;
-        let bloom_pat = cairo::RadialGradient::new(0.0, 0.0, 0.0, 0.0, 0.0, bloom_rx);
+        cr.scale(bead_rx / lut_w, bead_ry / (lut_h / 2.0));
+        cr.translate(-lut_w, -lut_h / 2.0);
+        let pat = SurfacePattern::create(surf);
+        pat.set_filter(Filter::Fast);
+        let _ = cr.set_source(&pat);
+        let _ = cr.paint_with_alpha(bead_alpha * 0.92 * pulse_alpha);
+        let _ = cr.restore();
+    }
+
+    // 2. Main Ambience: Grand Volumetric Atmospheric Sink (Sinking across 55%+ of the display!)
+    if swell > 0.02 {
+        let sink_reach = (380.0 + swell * 540.0) * pressure_scale * breathe;
+        let sink_pat = cairo::RadialGradient::new(0.0, 0.0, 10.0, 0.0, 0.0, sink_reach);
         match state.theme.as_str() {
             "plasma" => {
-                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * swell);
-                bloom_pat.add_color_stop_rgba(0.12, 0.40, 0.90, 1.00, 0.88 * swell);
-                bloom_pat.add_color_stop_rgba(0.35, 0.85, 0.18, 0.95, 0.70 * swell);
-                bloom_pat.add_color_stop_rgba(0.65, 0.20, 0.10, 0.85, 0.35 * swell);
-                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                sink_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.88 * swell);
+                sink_pat.add_color_stop_rgba(0.12, 0.35, 0.95, 1.00, 0.68 * swell);
+                sink_pat.add_color_stop_rgba(0.35, 0.85, 0.20, 0.95, 0.42 * swell);
+                sink_pat.add_color_stop_rgba(0.65, 0.35, 0.10, 0.80, 0.18 * swell);
+                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             "solar" => {
-                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * swell);
-                bloom_pat.add_color_stop_rgba(0.12, 1.00, 0.90, 0.30, 0.90 * swell);
-                bloom_pat.add_color_stop_rgba(0.35, 1.00, 0.45, 0.08, 0.70 * swell);
-                bloom_pat.add_color_stop_rgba(0.65, 0.85, 0.10, 0.05, 0.35 * swell);
-                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                sink_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.90 * swell);
+                sink_pat.add_color_stop_rgba(0.12, 1.00, 0.85, 0.25, 0.70 * swell);
+                sink_pat.add_color_stop_rgba(0.35, 0.98, 0.45, 0.08, 0.42 * swell);
+                sink_pat.add_color_stop_rgba(0.65, 0.70, 0.15, 0.05, 0.16 * swell);
+                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             "liquid" => {
-                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * swell);
-                bloom_pat.add_color_stop_rgba(0.12, 0.20, 0.95, 0.95, 0.88 * swell);
-                bloom_pat.add_color_stop_rgba(0.35, 0.05, 0.65, 0.98, 0.70 * swell);
-                bloom_pat.add_color_stop_rgba(0.65, 0.10, 0.25, 0.85, 0.35 * swell);
-                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                sink_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.88 * swell);
+                sink_pat.add_color_stop_rgba(0.12, 0.20, 0.95, 0.92, 0.68 * swell);
+                sink_pat.add_color_stop_rgba(0.35, 0.08, 0.65, 0.95, 0.42 * swell);
+                sink_pat.add_color_stop_rgba(0.65, 0.05, 0.30, 0.75, 0.18 * swell);
+                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             _ => {
-                // Cosmic Aurora / Heavenly: incandescent gold core -> hot rose -> electric violet -> laser cyan
-                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * swell);
-                bloom_pat.add_color_stop_rgba(0.10, 1.00, 0.92, 0.65, 0.92 * swell);
-                bloom_pat.add_color_stop_rgba(0.28, 1.00, 0.32, 0.75, 0.80 * swell);
-                bloom_pat.add_color_stop_rgba(0.50, 0.55, 0.18, 0.98, 0.58 * swell);
-                bloom_pat.add_color_stop_rgba(0.72, 0.08, 0.82, 0.98, 0.30 * swell);
-                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                // Authentic Drooop Cosmic Aurora:
+                // Incandescent white core -> glowing gold-amber -> soft coral-magenta -> violet -> sky cyan mist
+                sink_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.92 * swell);
+                sink_pat.add_color_stop_rgba(0.10, 1.00, 0.90, 0.60, 0.76 * swell);
+                sink_pat.add_color_stop_rgba(0.28, 0.98, 0.35, 0.70, 0.52 * swell);
+                sink_pat.add_color_stop_rgba(0.55, 0.50, 0.25, 0.95, 0.30 * swell);
+                sink_pat.add_color_stop_rgba(0.78, 0.10, 0.75, 0.95, 0.12 * swell);
+                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
         }
-        cr.scale(1.0, bloom_ry / bloom_rx);
-        cr.arc(0.0, 0.0, bloom_rx, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+        cr.save().expect("Cairo save");
+        cr.scale(1.0, 2.2); // Elongate along entire monitor bezel (natural atmospheric veil)
+        cr.arc(0.0, 0.0, sink_reach, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+        let _ = cr.set_source(&sink_pat);
+        let _ = cr.fill();
+        let _ = cr.restore();
+
+        // Incandescent additive core bloom right at the bezel contact
+        cr.save().expect("Cairo save");
+        cr.set_operator(cairo::Operator::Screen);
+        let core_bloom_r = (180.0 + swell * 280.0) * pressure_scale;
+        let bloom_pat = cairo::RadialGradient::new(0.0, 0.0, 0.0, 0.0, 0.0, core_bloom_r);
+        bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * swell);
+        bloom_pat.add_color_stop_rgba(0.25, 1.00, 0.92, 0.70, 0.85 * swell);
+        bloom_pat.add_color_stop_rgba(0.60, 0.95, 0.40, 0.80, 0.45 * swell);
+        bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+        cr.scale(1.0, 1.6);
+        cr.arc(0.0, 0.0, core_bloom_r, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
         let _ = cr.set_source(&bloom_pat);
         let _ = cr.fill();
         let _ = cr.restore();

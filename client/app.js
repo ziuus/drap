@@ -423,52 +423,72 @@
       ctx.transform(1, skewY, 0, 1, 0, 0);
     }
 
-    // 1. Bilinear LUT Volumetric Atmospheric Wash
-    ctx.save();
-    ctx.scale(radiusX / LUT_W, radiusY / (LUT_H / 2));
-    ctx.translate(-LUT_W, -LUT_H / 2);
-    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.05 * pulseAlpha);
-    ctx.drawImage(lut, 0, 0);
-    ctx.restore();
-
-    // 1b. Hyper-Luminous Additive Screen Bloom (The High-Energy Drooop Incandescent Glow)
-    if (swell > 0.02) {
+    // 1. Initial Touch / Pickup Bead (ONLY shown initially during hold/pickup, fades out during drag!)
+    const beadAlpha = Math.max(0.0, 1.0 - swell * 1.6) * Math.min(1.0, intensity / 0.25);
+    if (beadAlpha > 0.01) {
+      const beadRx = (130 + Math.min(0.25, intensity) * 60) * pressureScale * breathe;
+      const beadRy = (220 + Math.min(0.25, intensity) * 80) * breatheY;
       ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      const bloomRx = radiusX * 0.88;
-      const bloomRy = radiusY * 0.88;
-      const bloomGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRx);
+      ctx.scale(beadRx / LUT_W, beadRy / (LUT_H / 2));
+      ctx.translate(-LUT_W, -LUT_H / 2);
+      ctx.globalAlpha = beadAlpha * 0.92 * pulseAlpha;
+      ctx.drawImage(lut, 0, 0);
+      ctx.restore();
+    }
+
+    // 2. Main Ambience: Grand Volumetric Atmospheric Sink (Sinking across 55%+ of the display!)
+    if (swell > 0.02) {
+      const sinkReach = (380 + swell * 540) * pressureScale * breathe;
+      const sinkGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, sinkReach);
       if (activeTheme === "plasma") {
-        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.12, `rgba(102, 230, 255, ${(0.88 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.35, `rgba(217, 38, 242, ${(0.70 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.65, `rgba(51, 25, 217, ${(0.35 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.88 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.12, `rgba(102, 230, 255, ${(0.68 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.35, `rgba(217, 38, 242, ${(0.42 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.65, `rgba(51, 25, 217, ${(0.18 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "solar") {
-        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.12, `rgba(255, 230, 76, ${(0.90 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.35, `rgba(255, 115, 20, ${(0.70 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.65, `rgba(217, 25, 13, ${(0.35 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.90 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.12, `rgba(255, 230, 76, ${(0.70 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.35, `rgba(255, 115, 20, ${(0.42 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.65, `rgba(217, 25, 13, ${(0.16 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "liquid") {
-        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.12, `rgba(51, 242, 255, ${(0.88 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.35, `rgba(13, 165, 250, ${(0.70 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.65, `rgba(25, 64, 217, ${(0.35 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.88 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.12, `rgba(51, 242, 255, ${(0.68 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.35, `rgba(13, 165, 250, ${(0.42 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.65, `rgba(25, 64, 217, ${(0.18 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else {
-        // Cosmic Aurora / Heavenly: celestial incandescent gold-white -> hot rose -> electric violet -> laser cyan
-        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.10, `rgba(255, 235, 165, ${(0.92 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.28, `rgba(255, 76, 178, ${(0.80 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.50, `rgba(140, 46, 250, ${(0.58 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(0.72, `rgba(20, 209, 250, ${(0.30 * swell).toFixed(2)})`);
-        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        // Authentic Drooop Cosmic Aurora:
+        // Incandescent white core -> glowing gold-amber -> soft coral-magenta -> violet -> sky cyan mist
+        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.10, `rgba(255, 230, 153, ${(0.76 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.28, `rgba(255, 89, 178, ${(0.52 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.55, `rgba(128, 64, 242, ${(0.30 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.78, `rgba(25, 191, 242, ${(0.12 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       }
       ctx.save();
-      ctx.scale(1, bloomRy / bloomRx);
+      ctx.scale(1.0, 2.2); // Elongate along entire monitor bezel (natural atmospheric veil)
       ctx.beginPath();
-      ctx.arc(0, 0, bloomRx, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.arc(0, 0, sinkReach, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.fillStyle = sinkGrad;
+      ctx.fill();
+      ctx.restore();
+
+      // Incandescent additive core bloom right at the bezel contact
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const coreBloomR = (180 + swell * 280) * pressureScale;
+      const bloomGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreBloomR);
+      bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
+      bloomGrad.addColorStop(0.25, `rgba(255, 235, 178, ${(0.85 * swell).toFixed(2)})`);
+      bloomGrad.addColorStop(0.60, `rgba(242, 102, 204, ${(0.45 * swell).toFixed(2)})`);
+      bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.save();
+      ctx.scale(1.0, 1.6);
+      ctx.beginPath();
+      ctx.arc(0, 0, coreBloomR, Math.PI / 2, (3 * Math.PI) / 2);
       ctx.fillStyle = bloomGrad;
       ctx.fill();
       ctx.restore();
