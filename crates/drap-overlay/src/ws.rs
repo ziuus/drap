@@ -50,8 +50,14 @@ impl WsMessage {
     pub fn from_json(v: &serde_json::Value) -> Option<Self> {
         let msg_type = v.get("type")?.as_str()?.to_string();
 
-        let edge = v.get("edge").and_then(|e| e.as_str()).map(|s| s.to_string());
-        let corner = v.get("corner").and_then(|c| c.as_str()).map(|s| s.to_string());
+        let edge = v.get("edge")
+            .and_then(|e| e.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let corner = v.get("corner")
+            .and_then(|c| c.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
 
         let coord = parse_f64(v.get("coord")).or_else(|| parse_f64(v.get("y")));
         let x = parse_f64(v.get("x"));

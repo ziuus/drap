@@ -457,13 +457,16 @@ exec-once = drap on   # Launches FastAPI/Node Gateway + GTK4 Layer-Shell Overlay
 
       <!-- Target Bezel Edge Override -->
       <div class="settings-section">
-        <label class="settings-label" for="selectTargetEdge">Desktop Monitor Bezel Alignment</label>
+        <label class="settings-label" for="selectTargetEdge">Spatial Continuity &amp; Bezel Alignment</label>
         <select id="selectTargetEdge" class="settings-select">
-          <option value="auto" selected>Omnidirectional 4-Edge &amp; Corner Auto-Routing</option>
-          <option value="right">Right Bezel (Phone on right side of monitor)</option>
-          <option value="left">Left Bezel (Phone on left side of monitor)</option>
-          <option value="bottom">Bottom Bezel (Phone in front of monitor)</option>
-          <option value="top">Top Bezel (Phone above monitor)</option>
+          <option value="direct" selected>Direct 1:1 Omnidirectional (Phone Edge → Matching Monitor Bezel)</option>
+          <option value="phone-left">Phone Left of Monitor (Flick Right → Monitor Left Bezel)</option>
+          <option value="phone-right">Phone Right of Monitor (Flick Left → Monitor Right Bezel)</option>
+          <option value="phone-bottom">Phone in Front of Monitor (Flick Up → Monitor Bottom Bezel)</option>
+          <option value="fixed-right">Lock to Right Bezel</option>
+          <option value="fixed-left">Lock to Left Bezel</option>
+          <option value="fixed-bottom">Lock to Bottom Bezel</option>
+          <option value="fixed-top">Lock to Top Bezel</option>
         </select>
       </div>
 

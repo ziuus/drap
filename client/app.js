@@ -9,7 +9,8 @@
   let currentMode = localStorage.getItem("drap_gesture_mode") || "transfer"; // 'transfer' | 'browse'
   let activeTheme = localStorage.getItem("drap_effect_theme") || "heavenly";
   let targetHost = window.location.host;
-  let targetEdgePref = localStorage.getItem("drap_target_edge") || "auto";
+  let targetEdgePref = localStorage.getItem("drap_target_edge") || "direct";
+  if (targetEdgePref === "auto") targetEdgePref = "direct";
   let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false";
   let liquidGlassEnabled = true;
   let activeCategory = "all";
@@ -370,10 +371,10 @@
   function getEdgeOrigin(edge, coord, w, h) {
     if (edge.startsWith("corner-")) {
       const c = edge.replace("corner-", "");
-      if (c === "top-right") return { x: w, y: 0, angle: (3 * Math.PI) / 4 };
-      if (c === "bottom-right") return { x: w, y: h, angle: (-3 * Math.PI) / 4 };
-      if (c === "top-left") return { x: 0, y: 0, angle: Math.PI / 4 };
-      return { x: 0, y: h, angle: -Math.PI / 4 };
+      if (c === "top-right") return { x: w, y: 0, angle: -Math.PI / 4 };
+      if (c === "bottom-right") return { x: w, y: h, angle: Math.PI / 4 };
+      if (c === "top-left") return { x: 0, y: 0, angle: (-3 * Math.PI) / 4 };
+      return { x: 0, y: h, angle: (3 * Math.PI) / 4 };
     }
     if (edge === "left") return { x: 0, y: coord * h, angle: Math.PI };
     if (edge === "top") return { x: coord * w, y: 0, angle: -Math.PI / 2 };
@@ -388,23 +389,23 @@
     const lut = themeLuts[activeTheme] || themeLuts.heavenly;
     const edge = overlayState.activeEdge || "right";
     const coord = overlayState.currentCoord;
-    const pressureScale = 0.92 + overlayState.currentPressure * 0.38;
+    const pressureScale = 0.90 + overlayState.currentPressure * 0.45;
 
-    const breathe = 1.0 + 0.05 * Math.sin(tSec * 2.6) + 0.022 * Math.sin(tSec * 5.2);
-    const breatheY = 1.0 + 0.032 * Math.cos(tSec * 2.2);
-    const pulseAlpha = 1.0 + 0.05 * Math.sin(tSec * 3.2);
+    const breathe = 1.0 + 0.055 * Math.sin(tSec * 2.6) + 0.025 * Math.sin(tSec * 5.2);
+    const breatheY = 1.0 + 0.035 * Math.cos(tSec * 2.2);
+    const pulseAlpha = 1.0 + 0.060 * Math.sin(tSec * 3.2);
 
     const origin = getEdgeOrigin(edge, coord, w, h);
 
-    let radiusX = (420 + intensity * 480) * pressureScale * breathe;
-    let radiusY = Math.max(520, h * (0.95 + intensity * 0.4)) * breatheY;
+    let radiusX = (500 + intensity * 620) * pressureScale * breathe;
+    let radiusY = Math.max(620, h * (0.95 + intensity * 0.4)) * breatheY;
 
     if (edge.startsWith("corner-")) {
-      radiusX = (540 + intensity * 520) * pressureScale * breathe;
+      radiusX = (620 + intensity * 650) * pressureScale * breathe;
       radiusY = radiusX;
     } else if (edge === "top" || edge === "bottom") {
-      radiusX = (380 + intensity * 420) * pressureScale * breathe;
-      radiusY = Math.max(580, w * (0.8 + intensity * 0.4)) * breatheY;
+      radiusX = (450 + intensity * 540) * pressureScale * breathe;
+      radiusY = Math.max(680, w * (0.85 + intensity * 0.4)) * breatheY;
     }
 
     ctx.save();
@@ -412,59 +413,123 @@
     ctx.rotate(origin.angle);
 
     if (edge === "left" || edge === "right") {
-      const skewY = Math.max(-0.2, Math.min(0.2, -overlayState.currentVy * 0.14));
+      const skewY = Math.max(-0.2, Math.min(0.2, -overlayState.currentVy * 0.16));
       ctx.transform(1, skewY, 0, 1, 0, 0);
     }
 
-    // 1. Bilinear LUT Volumetric Blit
+    // 1. Bilinear LUT Volumetric Atmospheric Wash
     ctx.save();
     ctx.scale(radiusX / LUT_W, radiusY / (LUT_H / 2));
     ctx.translate(-LUT_W, -LUT_H / 2);
-    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.05 * pulseAlpha);
+    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.10 * pulseAlpha);
     ctx.drawImage(lut, 0, 0);
     ctx.restore();
 
-    // 2. Theme-Specific Physical Optical Accents (Liquid Meniscus / Plasma Arcs / Solar Embers)
-    if (activeTheme === "liquid" || liquidGlassEnabled) {
-      ctx.save();
-      const baseR = (95 + intensity * 210) * pressureScale;
-      ctx.beginPath();
-      const steps = 48;
-      for (let i = 0; i <= steps; i++) {
-        const theta = Math.PI / 2 + (Math.PI * i) / steps;
-        const w1 = 0.065 * Math.sin(theta * 2.5 + tSec * 3.6);
-        const w2 = 0.035 * Math.sin(theta * 4.5 - tSec * 2.3);
-        const wobble = (w1 + w2) * (0.35 + 0.65 * intensity);
-        const r = baseR * (1 + wobble);
-        const px = r * Math.cos(theta);
-        const py = r * Math.sin(theta) * 1.38;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.42 * intensity})`;
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
-      ctx.restore();
+    // 2. Harmonic Fluid Meniscus Wobble & Specular Droplet
+    ctx.save();
+    const baseR = (110 + intensity * 260) * pressureScale;
+    ctx.beginPath();
+    const steps = 48;
+    for (let i = 0; i <= steps; i++) {
+      const theta = Math.PI / 2 + (Math.PI * i) / steps;
+      const w1 = 0.075 * Math.sin(theta * 2.5 + tSec * 3.4);
+      const w2 = 0.040 * Math.sin(theta * 4.5 - tSec * 2.1);
+      const w3 = 0.025 * Math.cos(theta * 1.5 + tSec * 1.2);
+      const wobble = (w1 + w2 + w3) * (0.35 + 0.65 * intensity);
+      const r = baseR * (1 + wobble);
+      const px = r * Math.cos(theta);
+      const py = r * Math.sin(theta) * (1.42 + 0.10 * Math.sin(tSec * 2.4));
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     }
+    ctx.closePath();
 
-    if (activeTheme === "plasma" && intensity > 0.15) {
+    const fluidGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, baseR * 1.15);
+    if (activeTheme === "plasma") {
+      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.25, `rgba(168, 85, 247, ${(0.60 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.60, `rgba(59, 130, 246, ${(0.25 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    } else if (activeTheme === "solar") {
+      fluidGrad.addColorStop(0, `rgba(255, 255, 240, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.25, `rgba(245, 158, 11, ${(0.60 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.60, `rgba(239, 68, 68, ${(0.25 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    } else if (activeTheme === "liquid") {
+      fluidGrad.addColorStop(0, `rgba(240, 253, 250, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.25, `rgba(20, 184, 166, ${(0.60 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.60, `rgba(14, 116, 144, ${(0.25 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    } else {
+      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.22, `rgba(240, 249, 255, ${(0.65 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.55, `rgba(186, 230, 253, ${(0.28 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    }
+    ctx.fillStyle = fluidGrad;
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255, 255, 255, ${(0.38 * intensity).toFixed(2)})`;
+    ctx.lineWidth = 1.6 * pressureScale;
+    ctx.stroke();
+
+    // Specular Core Droplet
+    const coreR = baseR * 0.44;
+    const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 3, 0, 0, coreR);
+    coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * intensity).toFixed(2)})`);
+    coreGrad.addColorStop(0.35, `rgba(255, 255, 255, ${(0.68 * intensity).toFixed(2)})`);
+    coreGrad.addColorStop(0.70, `rgba(200, 235, 255, ${(0.25 * intensity).toFixed(2)})`);
+    coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.save();
+    ctx.scale(1, 1.35);
+    ctx.beginPath();
+    ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = coreGrad;
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+
+    // 3. Dynamic Bezel Rim Light
+    const rimH = Math.min(h * 0.85, 280 * pressureScale);
+    const rimW = 4.5 * pressureScale;
+    const rimGrad = ctx.createLinearGradient(-rimW, 0, 0, 0);
+    rimGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
+    rimGrad.addColorStop(0.65, `rgba(255, 255, 255, ${(0.65 * intensity).toFixed(2)})`);
+    rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+    ctx.fillStyle = rimGrad;
+    ctx.fillRect(-rimW, -rimH / 2, rimW, rimH);
+
+    // 4. Theme Optical Tendrils / Embers
+    if (activeTheme === "plasma" && intensity > 0.12) {
       ctx.save();
-      ctx.strokeStyle = `rgba(165, 243, 252, ${0.78 * intensity})`;
+      ctx.strokeStyle = `rgba(165, 243, 252, ${(0.82 * intensity).toFixed(2)})`;
       ctx.lineCap = "round";
       for (let b = 0; b < 4; b++) {
         ctx.beginPath();
         ctx.moveTo(0, 0);
         let cx = 0;
         let cy = 0;
-        const len = (80 + intensity * 160) * (0.7 + 0.3 * Math.sin(tSec * 10 + b * 1.7));
+        const len = (90 + intensity * 190) * (0.7 + 0.3 * Math.sin(tSec * 11 + b * 1.6));
         for (let s = 1; s <= 8; s++) {
           cx -= len / 8;
-          cy += Math.sin(tSec * 22 + s * 3.7 + b * 2.9) * 14 * intensity;
+          cy += Math.sin(tSec * 24 + s * 3.8 + b * 2.8) * 15 * intensity;
           ctx.lineTo(cx, cy);
         }
-        ctx.lineWidth = b === 0 ? 2.2 : 1.3;
+        ctx.lineWidth = b === 0 ? 2.4 : 1.4;
         ctx.stroke();
+      }
+      ctx.restore();
+    } else if (activeTheme === "solar" && intensity > 0.12) {
+      ctx.save();
+      for (let idx = 0; idx < 6; idx++) {
+        const phase = idx * 1.1;
+        const ey = ((tSec * 55 + phase * 32) % 160) - 80;
+        const ex = -(16 + idx * 16 + Math.sin(tSec * 3 + phase) * 14) * intensity * pressureScale;
+        const er = (2 + (idx % 3)) * intensity * pressureScale;
+        ctx.beginPath();
+        ctx.arc(ex, ey, er, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(251, 191, 36, ${(0.90 * intensity).toFixed(2)})`;
+        ctx.fill();
       }
       ctx.restore();
     }
@@ -1167,82 +1232,122 @@
     const distTop = Math.max(0, relY);
     const distBottom = Math.max(0, h - relY);
 
-    let phoneEdge = "left";
+    let phoneEdge = "right";
     let desktopEdge = "right";
     let phoneCorner = "";
     let desktopCorner = "";
     let normCoord = normY;
     let proximity = 0.0;
 
-    if (isMultiSideSend) {
-      const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.12) : 0.0;
-      const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.12) : 0.0;
-      const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.12) : 0.0;
-      const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.12) : 0.0;
+    const proxL = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.12) : 0.0;
+    const proxR = distRight < reachH ? Math.pow((reachH - distRight) / reachH, 1.12) : 0.0;
+    const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.12) : 0.0;
+    const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.12) : 0.0;
 
-      if (proxL > 0.05 && proxT > 0.05) {
-        phoneCorner = "top-left";
-        desktopCorner = "top-right";
-        phoneEdge = "left";
-        desktopEdge = "right";
-        normCoord = 0.0;
-        proximity = Math.min(1.0, Math.hypot(proxL, proxT));
-      } else if (proxL > 0.05 && proxB > 0.05) {
-        phoneCorner = "bottom-left";
-        desktopCorner = "bottom-right";
-        phoneEdge = "left";
-        desktopEdge = "right";
-        normCoord = 1.0;
-        proximity = Math.min(1.0, Math.hypot(proxL, proxB));
-      } else if (proxR > 0.05 && proxT > 0.05) {
+    if (isMultiSideSend) {
+      if (proxR > 0.05 && proxT > 0.05) {
         phoneCorner = "top-right";
-        desktopCorner = "top-left";
         phoneEdge = "right";
-        desktopEdge = "left";
         normCoord = 0.0;
         proximity = Math.min(1.0, Math.hypot(proxR, proxT));
       } else if (proxR > 0.05 && proxB > 0.05) {
         phoneCorner = "bottom-right";
-        desktopCorner = "bottom-left";
         phoneEdge = "right";
-        desktopEdge = "left";
         normCoord = 1.0;
         proximity = Math.min(1.0, Math.hypot(proxR, proxB));
+      } else if (proxL > 0.05 && proxT > 0.05) {
+        phoneCorner = "top-left";
+        phoneEdge = "left";
+        normCoord = 0.0;
+        proximity = Math.min(1.0, Math.hypot(proxL, proxT));
+      } else if (proxL > 0.05 && proxB > 0.05) {
+        phoneCorner = "bottom-left";
+        phoneEdge = "left";
+        normCoord = 1.0;
+        proximity = Math.min(1.0, Math.hypot(proxL, proxB));
       } else {
         const maxProx = Math.max(proxL, proxR, proxT, proxB);
         if (maxProx > 0) {
           if (maxProx === proxR) {
             phoneEdge = "right";
-            desktopEdge = "left";
             normCoord = normY;
             proximity = proxR;
           } else if (maxProx === proxL) {
             phoneEdge = "left";
-            desktopEdge = "right";
             normCoord = normY;
             proximity = proxL;
           } else if (maxProx === proxT) {
             phoneEdge = "top";
-            desktopEdge = "top";
             normCoord = normX;
             proximity = proxT;
           } else {
             phoneEdge = "bottom";
-            desktopEdge = "bottom";
             normCoord = normX;
             proximity = proxB;
           }
         }
       }
-
-      if (targetEdgePref && targetEdgePref !== "auto" && !desktopCorner) {
-        desktopEdge = targetEdgePref;
-      }
     } else {
-      phoneEdge = "left";
-      desktopEdge = targetEdgePref !== "auto" ? targetEdgePref : "right";
-      normCoord = normY;
-      proximity = distLeft < reachH ? Math.pow((reachH - distLeft) / reachH, 1.12) : 0.0;
+      phoneEdge = targetEdgePref.startsWith("fixed-")
+        ? targetEdgePref.replace("fixed-", "")
+        : (targetEdgePref !== "auto" && targetEdgePref !== "direct" ? targetEdgePref : "right");
+      if (phoneEdge === "left") {
+        normCoord = normY;
+        proximity = proxL;
+      } else if (phoneEdge === "top") {
+        normCoord = normX;
+        proximity = proxT;
+      } else if (phoneEdge === "bottom") {
+        normCoord = normX;
+        proximity = proxB;
+      } else {
+        phoneEdge = "right";
+        normCoord = normY;
+        proximity = proxR;
+      }
+    }
+
+    // Spatial Mapping Routing
+    const mode = targetEdgePref || "direct";
+    if (mode === "phone-left") {
+      // Handset is physically left of monitor: flicking right aims at desktop's left bezel
+      if (phoneCorner === "top-right") desktopCorner = "top-left";
+      else if (phoneCorner === "bottom-right") desktopCorner = "bottom-left";
+      else if (phoneCorner === "top-left") desktopCorner = "top-right";
+      else if (phoneCorner === "bottom-left") desktopCorner = "bottom-right";
+
+      if (phoneEdge === "right") desktopEdge = "left";
+      else if (phoneEdge === "left") desktopEdge = "right";
+      else if (phoneEdge === "top") desktopEdge = "top";
+      else if (phoneEdge === "bottom") desktopEdge = "bottom";
+    } else if (mode === "phone-right") {
+      // Handset is physically right of monitor: flicking left aims at desktop's right bezel
+      if (phoneCorner === "top-left") desktopCorner = "top-right";
+      else if (phoneCorner === "bottom-left") desktopCorner = "bottom-right";
+      else if (phoneCorner === "top-right") desktopCorner = "top-left";
+      else if (phoneCorner === "bottom-right") desktopCorner = "bottom-left";
+
+      if (phoneEdge === "left") desktopEdge = "right";
+      else if (phoneEdge === "right") desktopEdge = "left";
+      else if (phoneEdge === "top") desktopEdge = "top";
+      else if (phoneEdge === "bottom") desktopEdge = "bottom";
+    } else if (mode === "phone-bottom") {
+      // Handset in front of monitor: flicking top aims at desktop's bottom bezel
+      if (phoneEdge === "top") desktopEdge = "bottom";
+      else if (phoneEdge === "bottom") desktopEdge = "top";
+      else if (phoneEdge === "left") desktopEdge = "left";
+      else if (phoneEdge === "right") desktopEdge = "right";
+      desktopCorner = phoneCorner;
+    } else if (mode.startsWith("fixed-")) {
+      desktopEdge = mode.replace("fixed-", "");
+      desktopCorner = "";
+    } else if (mode === "left" || mode === "right" || mode === "top" || mode === "bottom") {
+      desktopEdge = mode;
+      desktopCorner = "";
+    } else {
+      // "direct" or "auto" (DEFAULT): 1:1 Direct Omnidirectional Mapping
+      desktopEdge = phoneEdge;
+      desktopCorner = phoneCorner;
     }
 
     return {
@@ -1476,13 +1581,13 @@
       fastFlickCross ||
       (isMultiSideSend
         ? crossedLeft || crossedRight || crossedTop || crossedBottom
-        : crossedLeft);
+        : (m.phoneEdge === "left" ? crossedLeft : m.phoneEdge === "top" ? crossedTop : m.phoneEdge === "bottom" ? crossedBottom : crossedRight));
 
     if (crossedThreshold) {
-      const dropDesktopEdge = m.desktopCorner
-        ? `corner-${m.desktopCorner}`
-        : m.desktopEdge || "right";
-      const dropCorner = m.desktopCorner || "";
+      const dropDesktopEdge = droppedDirectlyOnMonitor
+        ? "left"
+        : (m.desktopCorner ? `corner-${m.desktopCorner}` : m.desktopEdge || "right");
+      const dropCorner = droppedDirectlyOnMonitor ? "" : (m.desktopCorner || "");
       const dropCoord = m.normCoord ?? 0.5;
 
       triggerMobileWaterWave(clientX, clientY);
@@ -2634,12 +2739,16 @@
   }
 
   if (selectTargetEdge) {
+    if (!["direct", "phone-left", "phone-right", "phone-bottom", "fixed-right", "fixed-left", "fixed-bottom", "fixed-top"].includes(targetEdgePref)) {
+      targetEdgePref = "direct";
+    }
     selectTargetEdge.value = targetEdgePref;
     selectTargetEdge.addEventListener("change", (e) => {
       targetEdgePref = e.target.value;
       localStorage.setItem("drap_target_edge", targetEdgePref);
       updateMultiSideUI();
-      showToast(`Bezel routing: ${targetEdgePref.toUpperCase()}`);
+      const label = selectTargetEdge.options[selectTargetEdge.selectedIndex]?.text || targetEdgePref;
+      showToast(`Spatial Alignment: ${label}`);
     });
   }
 

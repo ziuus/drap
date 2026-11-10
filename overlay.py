@@ -791,16 +791,16 @@ class DrapOverlay:
             cr.save()
             if corner == "top-right":
                 cr.translate(width, 0)
-                cr.rotate(3 * math.pi / 4)
+                cr.rotate(-math.pi / 4)
             elif corner == "bottom-right":
                 cr.translate(width, height)
-                cr.rotate(-3 * math.pi / 4)
+                cr.rotate(math.pi / 4)
             elif corner == "top-left":
                 cr.translate(0, 0)
-                cr.rotate(math.pi / 4)
+                cr.rotate(-3 * math.pi / 4)
             elif corner == "bottom-left":
                 cr.translate(0, height)
-                cr.rotate(-math.pi / 4)
+                cr.rotate(3 * math.pi / 4)
 
             # Primary Chromatic Prismatic Corner Flare
             cr.scale(radius / lut_w, radius / (lut_h / 2))
@@ -1065,16 +1065,16 @@ class DrapOverlay:
             corner = edge.replace("corner-", "")
             if corner == "top-right":
                 cr.translate(width, 0)
-                cr.rotate(3 * math.pi / 4)
+                cr.rotate(-math.pi / 4)
             elif corner == "bottom-right":
                 cr.translate(width, height)
-                cr.rotate(-3 * math.pi / 4)
+                cr.rotate(math.pi / 4)
             elif corner == "top-left":
                 cr.translate(0, 0)
-                cr.rotate(math.pi / 4)
+                cr.rotate(-3 * math.pi / 4)
             elif corner == "bottom-left":
                 cr.translate(0, height)
-                cr.rotate(-math.pi / 4)
+                cr.rotate(3 * math.pi / 4)
         elif edge == "left":
             cr.translate(0, coord * height)
             cr.rotate(math.pi)
