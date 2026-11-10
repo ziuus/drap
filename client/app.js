@@ -9,8 +9,12 @@
   let currentMode = localStorage.getItem("drap_gesture_mode") || "transfer"; // 'transfer' | 'browse'
   let activeTheme = localStorage.getItem("drap_effect_theme") || "heavenly";
   let targetHost = window.location.host;
-  let targetEdgePref = localStorage.getItem("drap_target_edge") || "direct";
-  if (targetEdgePref === "auto") targetEdgePref = "direct";
+  let storedTargetEdge = localStorage.getItem("drap_target_edge");
+  if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "phone-left" || storedTargetEdge === "direct") {
+    storedTargetEdge = "right";
+    localStorage.setItem("drap_target_edge", "right");
+  }
+  let targetEdgePref = storedTargetEdge;
   let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false";
   let liquidGlassEnabled = true;
   let activeCategory = "all";
@@ -939,7 +943,7 @@
       fetchReceivedFiles();
     } else if (type === "file_from_laptop") {
       triggerDesktopDropConfirmation({
-        edge: "left",
+        edge: "right",
         coord: 0.5,
         filename: msg.filename,
         size: msg.size,
@@ -1247,22 +1251,30 @@
     if (isMultiSideSend) {
       if (proxR > 0.05 && proxT > 0.05) {
         phoneCorner = "top-right";
+        desktopCorner = "top-right";
         phoneEdge = "right";
+        desktopEdge = "right";
         normCoord = 0.0;
         proximity = Math.min(1.0, Math.hypot(proxR, proxT));
       } else if (proxR > 0.05 && proxB > 0.05) {
         phoneCorner = "bottom-right";
+        desktopCorner = "bottom-right";
         phoneEdge = "right";
+        desktopEdge = "right";
         normCoord = 1.0;
         proximity = Math.min(1.0, Math.hypot(proxR, proxB));
       } else if (proxL > 0.05 && proxT > 0.05) {
         phoneCorner = "top-left";
+        desktopCorner = "top-left";
         phoneEdge = "left";
+        desktopEdge = "left";
         normCoord = 0.0;
         proximity = Math.min(1.0, Math.hypot(proxL, proxT));
       } else if (proxL > 0.05 && proxB > 0.05) {
         phoneCorner = "bottom-left";
+        desktopCorner = "bottom-left";
         phoneEdge = "left";
+        desktopEdge = "left";
         normCoord = 1.0;
         proximity = Math.min(1.0, Math.hypot(proxL, proxB));
       } else {
@@ -1270,84 +1282,59 @@
         if (maxProx > 0) {
           if (maxProx === proxR) {
             phoneEdge = "right";
+            desktopEdge = "right";
             normCoord = normY;
             proximity = proxR;
           } else if (maxProx === proxL) {
             phoneEdge = "left";
+            desktopEdge = "left";
             normCoord = normY;
             proximity = proxL;
           } else if (maxProx === proxT) {
             phoneEdge = "top";
+            desktopEdge = "top";
             normCoord = normX;
             proximity = proxT;
           } else {
             phoneEdge = "bottom";
+            desktopEdge = "bottom";
             normCoord = normX;
             proximity = proxB;
           }
+        } else {
+          // Centered / no edge proximity yet -> ALWAYS default to right bezel
+          phoneEdge = "right";
+          desktopEdge = "right";
+          normCoord = normY;
+          proximity = 0.0;
         }
       }
     } else {
-      phoneEdge = targetEdgePref.startsWith("fixed-")
-        ? targetEdgePref.replace("fixed-", "")
-        : (targetEdgePref !== "auto" && targetEdgePref !== "direct" ? targetEdgePref : "right");
-      if (phoneEdge === "left") {
-        normCoord = normY;
-        proximity = proxL;
-      } else if (phoneEdge === "top") {
-        normCoord = normX;
-        proximity = proxT;
-      } else if (phoneEdge === "bottom") {
-        normCoord = normX;
-        proximity = proxB;
-      } else {
-        phoneEdge = "right";
-        normCoord = normY;
-        proximity = proxR;
-      }
+      // Single-edge mode: default to right bezel
+      phoneEdge = (targetEdgePref && targetEdgePref !== "auto" && targetEdgePref !== "direct") ? targetEdgePref : "right";
+      desktopEdge = phoneEdge;
+      normCoord = (phoneEdge === "top" || phoneEdge === "bottom") ? normX : normY;
+      if (phoneEdge === "left") proximity = proxL;
+      else if (phoneEdge === "top") proximity = proxT;
+      else if (phoneEdge === "bottom") proximity = proxB;
+      else proximity = proxR;
     }
 
-    // Spatial Mapping Routing
-    const mode = targetEdgePref || "direct";
-    if (mode === "phone-left") {
-      // Handset is physically left of monitor: flicking right aims at desktop's left bezel
-      if (phoneCorner === "top-right") desktopCorner = "top-left";
-      else if (phoneCorner === "bottom-right") desktopCorner = "bottom-left";
-      else if (phoneCorner === "top-left") desktopCorner = "top-right";
-      else if (phoneCorner === "bottom-left") desktopCorner = "bottom-right";
-
-      if (phoneEdge === "right") desktopEdge = "left";
-      else if (phoneEdge === "left") desktopEdge = "right";
-      else if (phoneEdge === "top") desktopEdge = "top";
-      else if (phoneEdge === "bottom") desktopEdge = "bottom";
-    } else if (mode === "phone-right") {
-      // Handset is physically right of monitor: flicking left aims at desktop's right bezel
-      if (phoneCorner === "top-left") desktopCorner = "top-right";
-      else if (phoneCorner === "bottom-left") desktopCorner = "bottom-right";
-      else if (phoneCorner === "top-right") desktopCorner = "top-left";
-      else if (phoneCorner === "bottom-right") desktopCorner = "bottom-left";
-
-      if (phoneEdge === "left") desktopEdge = "right";
-      else if (phoneEdge === "right") desktopEdge = "left";
-      else if (phoneEdge === "top") desktopEdge = "top";
-      else if (phoneEdge === "bottom") desktopEdge = "bottom";
-    } else if (mode === "phone-bottom") {
-      // Handset in front of monitor: flicking top aims at desktop's bottom bezel
-      if (phoneEdge === "top") desktopEdge = "bottom";
-      else if (phoneEdge === "bottom") desktopEdge = "top";
-      else if (phoneEdge === "left") desktopEdge = "left";
-      else if (phoneEdge === "right") desktopEdge = "right";
-      desktopCorner = phoneCorner;
-    } else if (mode.startsWith("fixed-")) {
-      desktopEdge = mode.replace("fixed-", "");
+    // Explicit edge lock if user picked one in settings
+    if (targetEdgePref === "left") {
+      desktopEdge = "left";
       desktopCorner = "";
-    } else if (mode === "left" || mode === "right" || mode === "top" || mode === "bottom") {
-      desktopEdge = mode;
+    } else if (targetEdgePref === "top") {
+      desktopEdge = "top";
       desktopCorner = "";
-    } else {
-      // "direct" or "auto" (DEFAULT): 1:1 Direct Omnidirectional Mapping
-      desktopEdge = phoneEdge;
-      desktopCorner = phoneCorner;
+    } else if (targetEdgePref === "bottom") {
+      desktopEdge = "bottom";
+      desktopCorner = "";
+    } else if (targetEdgePref === "right") {
+      if (!isMultiSideSend || proximity < 0.05) {
+        desktopEdge = "right";
+        desktopCorner = "";
+      }
     }
 
     return {
@@ -1585,7 +1572,7 @@
 
     if (crossedThreshold) {
       const dropDesktopEdge = droppedDirectlyOnMonitor
-        ? "left"
+        ? "right"
         : (m.desktopCorner ? `corner-${m.desktopCorner}` : m.desktopEdge || "right");
       const dropCorner = droppedDirectlyOnMonitor ? "" : (m.desktopCorner || "");
       const dropCoord = m.normCoord ?? 0.5;
@@ -2430,7 +2417,7 @@
     for (const file of files) {
       const formData = new FormData();
       formData.append("file", file, file.name);
-      formData.append("edge", "left");
+      formData.append("edge", "right");
       try {
         const res = await fetch("/api/share_to_phone", {
           method: "POST",
@@ -2739,8 +2726,9 @@
   }
 
   if (selectTargetEdge) {
-    if (!["direct", "phone-left", "phone-right", "phone-bottom", "fixed-right", "fixed-left", "fixed-bottom", "fixed-top"].includes(targetEdgePref)) {
-      targetEdgePref = "direct";
+    if (!["right", "direct", "left", "bottom", "top"].includes(targetEdgePref)) {
+      targetEdgePref = "right";
+      localStorage.setItem("drap_target_edge", "right");
     }
     selectTargetEdge.value = targetEdgePref;
     selectTargetEdge.addEventListener("change", (e) => {
@@ -2748,7 +2736,7 @@
       localStorage.setItem("drap_target_edge", targetEdgePref);
       updateMultiSideUI();
       const label = selectTargetEdge.options[selectTargetEdge.selectedIndex]?.text || targetEdgePref;
-      showToast(`Spatial Alignment: ${label}`);
+      showToast(`Target Bezel: ${label}`);
     });
   }
 

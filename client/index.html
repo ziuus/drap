@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=2.2.0">
 </head>
 <body data-theme="heavenly">
   <!-- Full-Viewport Handset Optical Layers (Active during touch/pointer drag) -->
@@ -459,14 +459,11 @@ exec-once = drap on   # Launches FastAPI/Node Gateway + GTK4 Layer-Shell Overlay
       <div class="settings-section">
         <label class="settings-label" for="selectTargetEdge">Spatial Continuity &amp; Bezel Alignment</label>
         <select id="selectTargetEdge" class="settings-select">
-          <option value="direct" selected>Direct 1:1 Omnidirectional (Phone Edge → Matching Monitor Bezel)</option>
-          <option value="phone-left">Phone Left of Monitor (Flick Right → Monitor Left Bezel)</option>
-          <option value="phone-right">Phone Right of Monitor (Flick Left → Monitor Right Bezel)</option>
-          <option value="phone-bottom">Phone in Front of Monitor (Flick Up → Monitor Bottom Bezel)</option>
-          <option value="fixed-right">Lock to Right Bezel</option>
-          <option value="fixed-left">Lock to Left Bezel</option>
-          <option value="fixed-bottom">Lock to Bottom Bezel</option>
-          <option value="fixed-top">Lock to Top Bezel</option>
+          <option value="right" selected>Right Bezel (Default · Standard Desktop Arrival)</option>
+          <option value="direct">Direct 1:1 Omnidirectional (Phone Edge → Matching Monitor Bezel)</option>
+          <option value="left">Left Bezel</option>
+          <option value="bottom">Bottom Bezel</option>
+          <option value="top">Top Bezel</option>
         </select>
       </div>
 
@@ -600,6 +597,6 @@ exec-once = drap on   # Launches FastAPI/Node Gateway + GTK4 Layer-Shell Overlay
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2.2.0"></script>
 </body>
 </html>
