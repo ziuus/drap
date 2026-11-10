@@ -29,47 +29,49 @@ impl Luts {
 
             match theme {
                 "aurora" => {
-                    // Hyper-luminous Drooop Cosmic Aurora:
-                    // Hot diamond-gold focus -> vivid fluorescent rose -> electric magenta -> deep ultraviolet -> laser cyan -> sapphire
-                    pat.add_color_stop_rgba(0.00, 1.00, 0.96, 0.75, 0.88);
-                    pat.add_color_stop_rgba(0.08, 1.00, 0.48, 0.78, 0.78);
-                    pat.add_color_stop_rgba(0.22, 0.92, 0.20, 0.95, 0.62);
-                    pat.add_color_stop_rgba(0.42, 0.42, 0.22, 0.98, 0.45);
-                    pat.add_color_stop_rgba(0.65, 0.08, 0.88, 0.98, 0.28);
-                    pat.add_color_stop_rgba(0.85, 0.12, 0.40, 0.95, 0.10);
+                    // Exact Drooop Chromatic Dispersion matching Tornike Demo Photo:
+                    // Massive incandescent white core -> warm golden peach -> coral rose -> lilac violet -> luminous sky cyan mist
+                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00);
+                    pat.add_color_stop_rgba(0.50, 1.00, 1.00, 1.00, 0.98);
+                    pat.add_color_stop_rgba(0.62, 1.00, 0.94, 0.72, 0.92);
+                    pat.add_color_stop_rgba(0.72, 1.00, 0.65, 0.75, 0.82);
+                    pat.add_color_stop_rgba(0.82, 0.82, 0.62, 0.98, 0.58);
+                    pat.add_color_stop_rgba(0.90, 0.38, 0.82, 1.00, 0.30);
+                    pat.add_color_stop_rgba(0.96, 0.15, 0.60, 0.90, 0.10);
+                    pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                }
+                "heavenly" => {
+                    // Drooop Heavenly Pure Incandescent White Bloom & Pearlescent Celestial Aura
+                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00);
+                    pat.add_color_stop_rgba(0.35, 1.00, 1.00, 1.00, 0.99);
+                    pat.add_color_stop_rgba(0.55, 0.98, 0.99, 1.00, 0.88);
+                    pat.add_color_stop_rgba(0.72, 0.94, 0.97, 1.00, 0.60);
+                    pat.add_color_stop_rgba(0.88, 0.82, 0.90, 1.00, 0.25);
                     pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
                 }
                 "plasma" => {
-                    pat.add_color_stop_rgba(0.00, 0.98, 1.00, 1.00, 0.88);
-                    pat.add_color_stop_rgba(0.10, 0.95, 0.25, 0.95, 0.75);
-                    pat.add_color_stop_rgba(0.26, 0.75, 0.12, 0.98, 0.58);
-                    pat.add_color_stop_rgba(0.50, 0.30, 0.18, 0.95, 0.38);
-                    pat.add_color_stop_rgba(0.75, 0.08, 0.85, 0.98, 0.18);
+                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98);
+                    pat.add_color_stop_rgba(0.20, 0.95, 0.40, 1.00, 0.85);
+                    pat.add_color_stop_rgba(0.45, 0.75, 0.25, 0.98, 0.62);
+                    pat.add_color_stop_rgba(0.70, 0.45, 0.15, 0.88, 0.35);
+                    pat.add_color_stop_rgba(0.88, 0.22, 0.08, 0.60, 0.14);
                     pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
                 }
                 "solar" => {
-                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 0.88, 0.90);
-                    pat.add_color_stop_rgba(0.10, 1.00, 0.82, 0.25, 0.78);
-                    pat.add_color_stop_rgba(0.26, 0.98, 0.42, 0.10, 0.60);
-                    pat.add_color_stop_rgba(0.50, 0.92, 0.15, 0.12, 0.38);
-                    pat.add_color_stop_rgba(0.75, 0.70, 0.06, 0.20, 0.18);
-                    pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
-                }
-                "liquid" => {
-                    pat.add_color_stop_rgba(0.00, 0.92, 1.00, 1.00, 0.88);
-                    pat.add_color_stop_rgba(0.10, 0.20, 0.95, 0.88, 0.75);
-                    pat.add_color_stop_rgba(0.28, 0.10, 0.75, 0.98, 0.58);
-                    pat.add_color_stop_rgba(0.52, 0.10, 0.48, 0.95, 0.38);
-                    pat.add_color_stop_rgba(0.75, 0.06, 0.25, 0.85, 0.18);
+                    pat.add_color_stop_rgba(0.00, 1.00, 0.99, 0.94, 0.98);
+                    pat.add_color_stop_rgba(0.22, 1.00, 0.82, 0.35, 0.85);
+                    pat.add_color_stop_rgba(0.48, 0.98, 0.55, 0.20, 0.60);
+                    pat.add_color_stop_rgba(0.72, 0.90, 0.35, 0.15, 0.32);
+                    pat.add_color_stop_rgba(0.88, 0.75, 0.18, 0.08, 0.12);
                     pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
                 }
                 _ => {
-                    // "heavenly" — Prismatic Iridescent Opal
-                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.88);
-                    pat.add_color_stop_rgba(0.10, 1.00, 0.95, 0.80, 0.75);
-                    pat.add_color_stop_rgba(0.25, 0.96, 0.70, 0.95, 0.58);
-                    pat.add_color_stop_rgba(0.50, 0.60, 0.65, 0.98, 0.38);
-                    pat.add_color_stop_rgba(0.75, 0.30, 0.90, 0.98, 0.18);
+                    // "liquid"
+                    pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 1.00);
+                    pat.add_color_stop_rgba(0.25, 0.96, 1.00, 1.00, 0.95);
+                    pat.add_color_stop_rgba(0.50, 0.35, 0.95, 0.98, 0.75);
+                    pat.add_color_stop_rgba(0.72, 0.15, 0.80, 0.92, 0.45);
+                    pat.add_color_stop_rgba(0.88, 0.08, 0.55, 0.78, 0.18);
                     pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
                 }
             }

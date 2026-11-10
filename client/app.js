@@ -14,11 +14,11 @@
   }
   let targetHost = window.location.host;
   let storedTargetEdge = localStorage.getItem("drap_target_edge");
-  if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "direct" || storedTargetEdge === "phone-left") {
+  if (storedTargetEdge !== "right") {
     storedTargetEdge = "right";
     localStorage.setItem("drap_target_edge", "right");
   }
-  let targetEdgePref = storedTargetEdge;
+  let targetEdgePref = "right";
   let isMultiSideSend = localStorage.getItem("drap_multi_side_send") === "true";
   let liquidGlassEnabled = true;
   let activeCategory = "all";
@@ -447,118 +447,110 @@
       ctx.restore();
     }
 
-    // 2. Main Ambience: Authentic Drooop Visual Architecture (Active during dragging)
+    // 2. Main Full-Screen Drooop Ambience (Completely covers the display from right bezel!)
     if (swell > 0.02) {
-      // A. Massive Volumetric Ambient Sink (Sinking across 600px - 950px+ of the display!)
-      const sinkReach = (400 + swell * 550) * pressureScale * breathe;
+      const vStretch = (1.0 + Math.min(0.35, Math.abs(overlayState.currentVy || 0) * 0.25)) * breatheY;
+      const radiusX = (w * 0.75 + swell * w * 0.60) * pressureScale * breathe;
+      const radiusY = Math.max(1000.0, h * 1.05 + swell * h * 0.50) * vStretch;
+
+      // Tier 1: Living Deep Atmospheric Ambient Wash (Sinks across 100% of the display wallpaper)
       ctx.save();
-      ctx.scale(1.0, 1.85); // Natural vertical atmospheric wash along monitor bezel
-      const sinkGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, sinkReach);
+      const washRx = radiusX * 1.35;
+      const washRy = radiusY * 1.20;
+      ctx.scale(washRx, washRy);
+      const volGrad = ctx.createRadialGradient(0, 0, 0.02, 0, 0, 1.0);
       if (activeTheme === "plasma") {
-        sinkGrad.addColorStop(0, `rgba(242, 89, 242, ${(0.60 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.30, `rgba(166, 64, 230, ${(0.42 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.65, `rgba(51, 51, 191, ${(0.20 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        volGrad.addColorStop(0, `rgba(242, 89, 242, ${(0.48 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.30, `rgba(166, 64, 230, ${(0.28 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.65, `rgba(64, 89, 166, ${(0.12 * swell).toFixed(2)})`);
+        volGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "solar") {
-        sinkGrad.addColorStop(0, `rgba(255, 217, 76, ${(0.60 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.30, `rgba(250, 122, 31, ${(0.44 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.65, `rgba(191, 46, 13, ${(0.20 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        volGrad.addColorStop(0, `rgba(255, 217, 76, ${(0.48 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.30, `rgba(250, 122, 31, ${(0.28 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.65, `rgba(178, 46, 13, ${(0.12 * swell).toFixed(2)})`);
+        volGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "liquid") {
-        sinkGrad.addColorStop(0, `rgba(38, 245, 230, ${(0.58 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.25, `rgba(20, 199, 224, ${(0.42 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.55, `rgba(10, 128, 191, ${(0.24 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.85, `rgba(5, 64, 115, ${(0.09 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        volGrad.addColorStop(0, `rgba(38, 245, 230, ${(0.50 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.28, `rgba(20, 199, 224, ${(0.30 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.65, `rgba(10, 128, 191, ${(0.14 * swell).toFixed(2)})`);
+        volGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else {
-        // Authentic Drooop Cosmic Aurora:
-        // Soft incandescent luminous center -> vivid auroral violet-magenta -> electric indigo -> ethereal cyan mist
-        sinkGrad.addColorStop(0, `rgba(76, 230, 255, ${(0.60 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.28, `rgba(217, 102, 235, ${(0.42 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.60, `rgba(64, 166, 217, ${(0.22 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        // aurora / heavenly
+        volGrad.addColorStop(0, `rgba(76, 235, 255, ${(0.52 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.28, `rgba(166, 97, 235, ${(0.32 * swell).toFixed(2)})`);
+        volGrad.addColorStop(0.60, `rgba(20, 140, 204, ${(0.14 * swell).toFixed(2)})`);
+        volGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       }
       ctx.beginPath();
-      ctx.arc(0, 0, sinkReach, Math.PI / 2, (3 * Math.PI) / 2);
-      ctx.fillStyle = sinkGrad;
+      ctx.arc(0, 0, 1.0, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.fillStyle = volGrad;
       ctx.fill();
       ctx.restore();
 
-      // B. Living Organic Fluid Meniscus Wave (Authentic 64-step harmonic wobble, base radius up to 600px!)
-      const baseR = (150 + swell * 440) * pressureScale;
+      // Tier 2: Magnificent Incandescent Chromatic Dispersion Veil
       ctx.save();
-      ctx.beginPath();
-      const steps = 64;
-      for (let i = 0; i <= steps; i++) {
-        const theta = Math.PI / 2 + (Math.PI * i) / steps;
-        const w1 = 0.075 * Math.sin(theta * 2.5 + tSec * 3.4);
-        const w2 = 0.040 * Math.sin(theta * 4.5 - tSec * 2.1);
-        const w3 = 0.025 * Math.cos(theta * 1.5 + tSec * 1.2);
-        const wobble = (w1 + w2 + w3) * (0.35 + 0.65 * swell);
-        const r = baseR * (1 + wobble);
-        const px = r * Math.cos(theta);
-        const py = r * Math.sin(theta) * (1.45 + 0.12 * Math.sin(tSec * 2.4));
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.lineTo(0, baseR * 1.55);
-      ctx.closePath();
-
-      const fluidGrad = ctx.createRadialGradient(0, 0, 8, 0, 0, baseR * 1.15);
+      ctx.scale(radiusX, radiusY);
+      const lutGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 1.0);
       if (activeTheme === "plasma") {
-        fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.20, `rgba(184, 89, 250, ${(0.85 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.52, `rgba(250, 71, 153, ${(0.60 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.80, `rgba(25, 13, 51, ${(0.18 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        lutGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.20, `rgba(242, 102, 255, ${(0.85 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.45, `rgba(191, 64, 250, ${(0.62 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.70, `rgba(115, 38, 224, ${(0.35 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.88, `rgba(56, 20, 153, ${(0.14 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(1.00, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "solar") {
-        fluidGrad.addColorStop(0, `rgba(255, 255, 242, ${(0.95 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.18, `rgba(255, 217, 64, ${(0.88 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.48, `rgba(250, 107, 25, ${(0.62 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.78, `rgba(204, 31, 20, ${(0.25 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        lutGrad.addColorStop(0.00, `rgba(255, 252, 240, ${(0.98 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.22, `rgba(255, 209, 89, ${(0.85 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.48, `rgba(250, 140, 51, ${(0.60 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.72, `rgba(230, 89, 38, ${(0.32 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.88, `rgba(191, 46, 20, ${(0.12 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(1.00, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "liquid") {
-        fluidGrad.addColorStop(0, `rgba(250, 255, 255, ${(0.85 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.20, `rgba(64, 242, 224, ${(0.72 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.48, `rgba(20, 191, 235, ${(0.52 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.78, `rgba(8, 115, 191, ${(0.25 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        lutGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(1.00 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.25, `rgba(245, 255, 255, ${(0.95 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.50, `rgba(89, 242, 250, ${(0.75 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.72, `rgba(38, 204, 235, ${(0.45 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.88, `rgba(20, 140, 199, ${(0.18 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(1.00, "rgba(0, 0, 0, 0)");
       } else {
-        // aurora
-        fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.12, `rgba(255, 217, 89, ${(0.82 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.32, `rgba(242, 89, 191, ${(0.68 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.58, `rgba(140, 115, 250, ${(0.45 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(0.82, `rgba(20, 204, 242, ${(0.22 * swell).toFixed(2)})`);
-        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        // aurora: Exact Drooop Chromatic Dispersion
+        lutGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(1.00 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.50, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.62, `rgba(255, 240, 184, ${(0.92 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.72, `rgba(255, 166, 191, ${(0.82 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.82, `rgba(209, 158, 250, ${(0.58 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.90, `rgba(97, 209, 255, ${(0.30 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(0.96, `rgba(38, 153, 230, ${(0.10 * swell).toFixed(2)})`);
+        lutGrad.addColorStop(1.00, "rgba(0, 0, 0, 0)");
       }
-      ctx.fillStyle = fluidGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 1.0, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.fillStyle = lutGrad;
       ctx.fill();
+      ctx.restore();
 
-      // C. Specular 3D Core Droplet Highlight (Additive Screen blend, offset inward for real 3D depth)
-      const coreR = baseR * 0.52;
+      // Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 5, 0, 0, coreR);
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
-      coreGrad.addColorStop(0.22, `rgba(204, 242, 255, ${(0.80 * swell).toFixed(2)})`);
-      coreGrad.addColorStop(0.58, `rgba(115, 76, 242, ${(0.40 * swell).toFixed(2)})`);
-      coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.scale(1.0, 1.35);
+      const coreR = (240 + swell * 360) * pressureScale * (1.0 + 0.08 * Math.sin(tSec * 4.2));
+      ctx.scale(coreR * 0.75, coreR * 1.55);
+      const specGrad = ctx.createRadialGradient(0, 0, 0.02, 0, 0, 1.0);
+      specGrad.addColorStop(0.00, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
+      specGrad.addColorStop(0.25, `rgba(255, 255, 255, ${(0.80 * swell).toFixed(2)})`);
+      specGrad.addColorStop(0.60, `rgba(242, 217, 255, ${(0.40 * swell).toFixed(2)})`);
+      specGrad.addColorStop(1.00, "rgba(0, 0, 0, 0)");
       ctx.beginPath();
-      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
-      ctx.fillStyle = coreGrad;
+      ctx.arc(0, 0, 1.0, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.fillStyle = specGrad;
       ctx.fill();
       ctx.restore();
 
-      ctx.restore(); // restore fluid meniscus matrix
-
-      // D. Bezel Rim Meniscus along the physical glass
+      // Tier 4: Molten Bezel Rim Light (Luminous glass edge line)
       ctx.save();
-      const rimH = 240 * pressureScale;
+      const rimH = Math.min(h, h * 0.40 + swell * h * 0.50);
       const rimGrad = ctx.createLinearGradient(-4, 0, 0, 0);
       rimGrad.addColorStop(0, "rgba(51, 204, 255, 0)");
-      rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.90 * swell).toFixed(2)})`);
+      rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
       ctx.fillStyle = rimGrad;
       ctx.fillRect(-4, -rimH / 2, 4, rimH);
       ctx.restore();

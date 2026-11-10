@@ -309,7 +309,7 @@ fn apply_edge_transform(cr: &Context, width: f64, height: f64, edge: &str, coord
     }
 }
 
-fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, _luts: &Luts) {
+fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, luts: &Luts) {
     if state.current_intensity <= 0.005 || state.active_edge.is_empty() {
         return;
     }
@@ -317,15 +317,16 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, _l
     let edge = &state.active_edge;
     let coord = state.current_coord;
     let intensity = state.current_intensity;
-    let pressure_scale = 0.90 + state.current_pressure * 0.45;
+    let pressure_scale = 0.92 + state.current_pressure * 0.45;
 
     let elapsed = state.start_time.elapsed().as_secs_f64();
     let breathe = 1.0 + 0.055 * (elapsed * 2.6).sin() + 0.025 * (elapsed * 5.2).sin();
     let breathe_y = 1.0 + 0.035 * (elapsed * 2.2).cos();
+    let pulse_alpha = 1.0 + 0.060 * (elapsed * 3.2).sin();
 
     // Two-stage spatial dynamics:
-    // Stage 1 (intensity <= 0.18): Sleek, elegant connection bead indicating initial touch / hold.
-    // Stage 2 (intensity > 0.18): Massive Drooop organic liquid meniscus + deep volumetric sink!
+    // Stage 1 (intensity <= 0.18): Sleek, elegant contact bead indicating initial touch / hold.
+    // Stage 2 (intensity > 0.18): Massive Full-Screen Drooop Ambience covering the entire monitor!
     let swell = if intensity <= 0.18 {
         0.0
     } else {
@@ -371,7 +372,7 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, _l
                 bead_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             _ => {
-                // aurora
+                // aurora / heavenly
                 bead_pat.add_color_stop_rgba(0.00, 1.00, 0.98, 0.90, 0.92 * bead_alpha);
                 bead_pat.add_color_stop_rgba(0.22, 1.00, 0.55, 0.75, 0.72 * bead_alpha);
                 bead_pat.add_color_stop_rgba(0.55, 0.65, 0.30, 0.95, 0.38 * bead_alpha);
@@ -384,134 +385,89 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, _l
         let _ = cr.restore();
     }
 
-    // 2. Main Ambience: Authentic Drooop Visual Architecture (Active during dragging)
+    // 2. Main Full-Screen Drooop Ambience (Completely covers the display from right bezel!)
     if swell > 0.02 {
-        // A. Massive Volumetric Ambient Sink (Sinking across 600px - 950px+ of the display!)
-        let sink_reach = (400.0 + swell * 550.0) * pressure_scale * breathe;
+        let v_stretch = (1.0 + (-state.current_vy).abs().min(0.35) * 0.25) * breathe_y;
+        // Total screen span: radius_x reaches 1800px-2600px, radius_y reaches 1500px-2000px!
+        let radius_x = (width * 0.75 + swell * width * 0.60) * pressure_scale * breathe;
+        let radius_y = (height * 1.05 + swell * height * 0.50).max(1000.0) * v_stretch;
+
+        // Tier 1: Living Deep Atmospheric Ambient Wash (Sinks across 100% of the display wallpaper)
         cr.save().expect("Cairo save");
-        cr.scale(1.0, 1.85); // Natural vertical atmospheric wash along monitor bezel
-        let sink_pat = cairo::RadialGradient::new(0.0, 0.0, 15.0, 0.0, 0.0, sink_reach);
+        let wash_rx = radius_x * 1.35;
+        let wash_ry = radius_y * 1.20;
+        cr.scale(wash_rx, wash_ry);
+        let vol_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
         match state.theme.as_str() {
             "plasma" => {
-                sink_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.60 * swell);
-                sink_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.42 * swell);
-                sink_pat.add_color_stop_rgba(0.65, 0.20, 0.40, 0.75, 0.20 * swell);
-                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                vol_pat.add_color_stop_rgba(0.00, 0.95, 0.35, 0.95, 0.48 * swell);
+                vol_pat.add_color_stop_rgba(0.30, 0.65, 0.25, 0.90, 0.28 * swell);
+                vol_pat.add_color_stop_rgba(0.65, 0.25, 0.35, 0.65, 0.12 * swell);
+                vol_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             "solar" => {
-                sink_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.60 * swell);
-                sink_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.44 * swell);
-                sink_pat.add_color_stop_rgba(0.65, 0.75, 0.18, 0.05, 0.20 * swell);
-                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                vol_pat.add_color_stop_rgba(0.00, 1.00, 0.85, 0.30, 0.48 * swell);
+                vol_pat.add_color_stop_rgba(0.30, 0.98, 0.48, 0.12, 0.28 * swell);
+                vol_pat.add_color_stop_rgba(0.65, 0.70, 0.18, 0.05, 0.12 * swell);
+                vol_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             "liquid" => {
-                sink_pat.add_color_stop_rgba(0.00, 0.15, 0.96, 0.90, 0.58 * swell);
-                sink_pat.add_color_stop_rgba(0.25, 0.08, 0.78, 0.88, 0.42 * swell);
-                sink_pat.add_color_stop_rgba(0.55, 0.04, 0.50, 0.75, 0.24 * swell);
-                sink_pat.add_color_stop_rgba(0.85, 0.02, 0.25, 0.45, 0.09 * swell);
-                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                vol_pat.add_color_stop_rgba(0.00, 0.15, 0.96, 0.90, 0.50 * swell);
+                vol_pat.add_color_stop_rgba(0.28, 0.08, 0.78, 0.88, 0.30 * swell);
+                vol_pat.add_color_stop_rgba(0.65, 0.04, 0.50, 0.75, 0.14 * swell);
+                vol_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
             _ => {
-                // Authentic Drooop Cosmic Aurora:
-                // Soft incandescent luminous center -> vivid auroral violet-magenta -> electric indigo -> ethereal cyan mist
-                sink_pat.add_color_stop_rgba(0.00, 0.30, 0.90, 1.00, 0.60 * swell);
-                sink_pat.add_color_stop_rgba(0.28, 0.85, 0.40, 0.92, 0.42 * swell);
-                sink_pat.add_color_stop_rgba(0.60, 0.25, 0.65, 0.85, 0.22 * swell);
-                sink_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+                // aurora / heavenly
+                vol_pat.add_color_stop_rgba(0.00, 0.30, 0.92, 1.00, 0.52 * swell);
+                vol_pat.add_color_stop_rgba(0.28, 0.65, 0.38, 0.92, 0.32 * swell);
+                vol_pat.add_color_stop_rgba(0.60, 0.08, 0.55, 0.80, 0.14 * swell);
+                vol_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
             }
         }
-        cr.arc(0.0, 0.0, sink_reach, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-        let _ = cr.set_source(&sink_pat);
+        cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+        let _ = cr.set_source(&vol_pat);
         let _ = cr.fill();
         let _ = cr.restore();
 
-        // B. Living Organic Fluid Meniscus Wave (Authentic 64-step harmonic wobble, base_radius up to 600px!)
-        let base_radius = (150.0 + swell * 440.0) * pressure_scale;
-        cr.save().expect("Cairo save");
-        cr.new_path();
-        let steps = 64;
-        for i in 0..=steps {
-            let theta = (std::f64::consts::PI / 2.0)
-                + (std::f64::consts::PI * i as f64 / steps as f64);
-            // Three harmonic ripples creating an organic living liquid wave (alive without chaotic jitter)
-            let w1 = 0.075 * (theta * 2.5 + elapsed * 3.4).sin();
-            let w2 = 0.040 * (theta * 4.5 - elapsed * 2.1).sin();
-            let w3 = 0.025 * (theta * 1.5 + elapsed * 1.2).cos();
-            let wobble = (w1 + w2 + w3) * (0.35 + 0.65 * swell);
-            let r = base_radius * (1.0 + wobble);
-            let x = r * theta.cos();
-            // Dynamic vertical stretch flexing with movement
-            let y = r * theta.sin() * (1.45 + 0.12 * (elapsed * 2.4).sin());
-            if i == 0 {
-                cr.move_to(x, y);
-            } else {
-                cr.line_to(x, y);
-            }
+        // Tier 2: Magnificent Incandescent Chromatic Dispersion Core / Heavenly Veil
+        // Blits the high-resolution pre-computed texture across 75%+ of the display!
+        if let Some(surf) = luts.luts.get(&state.theme).or_else(|| luts.luts.get("aurora")).or_else(|| luts.luts.get("heavenly")) {
+            let lut_w = 512.0;
+            let lut_h = 1024.0;
+            cr.save().expect("Cairo save");
+            cr.scale(radius_x / lut_w, radius_y / (lut_h / 2.0));
+            cr.translate(-lut_w, -lut_h / 2.0);
+            let pat = SurfacePattern::create(surf);
+            pat.set_filter(Filter::Bilinear);
+            let _ = cr.set_source(&pat);
+            let glow_alpha = (swell.sqrt() * 1.05 * pulse_alpha).min(1.0);
+            let _ = cr.paint_with_alpha(glow_alpha);
+            let _ = cr.restore();
         }
-        cr.line_to(0.0, base_radius * 1.55);
-        cr.close_path();
 
-        // Viscous, luminous fluid gradient
-        let liquid_pat = cairo::RadialGradient::new(0.0, 0.0, 8.0, 0.0, 0.0, base_radius * 1.15);
-        match state.theme.as_str() {
-            "plasma" => {
-                liquid_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * swell);
-                liquid_pat.add_color_stop_rgba(0.20, 0.72, 0.35, 0.98, 0.85 * swell);
-                liquid_pat.add_color_stop_rgba(0.52, 0.98, 0.28, 0.60, 0.60 * swell);
-                liquid_pat.add_color_stop_rgba(0.80, 0.10, 0.05, 0.20, 0.18 * swell);
-                liquid_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
-            }
-            "solar" => {
-                liquid_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 0.95, 0.95 * swell);
-                liquid_pat.add_color_stop_rgba(0.18, 1.00, 0.85, 0.25, 0.88 * swell);
-                liquid_pat.add_color_stop_rgba(0.48, 0.98, 0.42, 0.10, 0.62 * swell);
-                liquid_pat.add_color_stop_rgba(0.78, 0.80, 0.12, 0.08, 0.25 * swell);
-                liquid_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
-            }
-            "liquid" => {
-                liquid_pat.add_color_stop_rgba(0.00, 0.98, 1.00, 1.00, 0.85 * swell);
-                liquid_pat.add_color_stop_rgba(0.20, 0.25, 0.95, 0.88, 0.72 * swell);
-                liquid_pat.add_color_stop_rgba(0.48, 0.08, 0.75, 0.92, 0.52 * swell);
-                liquid_pat.add_color_stop_rgba(0.78, 0.03, 0.45, 0.75, 0.25 * swell);
-                liquid_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
-            }
-            _ => {
-                // aurora
-                liquid_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.92 * swell);
-                liquid_pat.add_color_stop_rgba(0.12, 1.00, 0.85, 0.35, 0.82 * swell);
-                liquid_pat.add_color_stop_rgba(0.32, 0.95, 0.35, 0.75, 0.68 * swell);
-                liquid_pat.add_color_stop_rgba(0.58, 0.55, 0.45, 0.98, 0.45 * swell);
-                liquid_pat.add_color_stop_rgba(0.82, 0.08, 0.80, 0.95, 0.22 * swell);
-                liquid_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
-            }
-        }
-        let _ = cr.set_source(&liquid_pat);
-        let _ = cr.fill();
-
-        // C. Specular 3D Core Droplet Highlight (Additive Screen blend, offset inward for real 3D depth)
-        let core_r = base_radius * 0.52;
+        // Tier 3: Molten Specular Core Arc (Intense living brilliance right at the glass bezel)
         cr.save().expect("Cairo save");
         cr.set_operator(cairo::Operator::Screen);
-        let core_pat = cairo::RadialGradient::new(-core_r * 0.35, 0.0, 5.0, 0.0, 0.0, core_r);
-        core_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * swell);
-        core_pat.add_color_stop_rgba(0.22, 0.80, 0.95, 1.00, 0.80 * swell);
-        core_pat.add_color_stop_rgba(0.58, 0.45, 0.30, 0.95, 0.40 * swell);
-        core_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
-        cr.scale(1.0, 1.35);
-        cr.arc(0.0, 0.0, core_r, 0.0, 2.0 * std::f64::consts::PI);
-        let _ = cr.set_source(&core_pat);
+        let core_r = (240.0 + swell * 360.0) * pressure_scale * (1.0 + 0.08 * (elapsed * 4.2).sin());
+        cr.scale(core_r * 0.75, core_r * 1.55);
+        let spec_pat = cairo::RadialGradient::new(0.0, 0.0, 0.02, 0.0, 0.0, 1.0);
+        spec_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * swell);
+        spec_pat.add_color_stop_rgba(0.25, 1.00, 1.00, 1.00, 0.80 * swell);
+        spec_pat.add_color_stop_rgba(0.60, 0.95, 0.85, 1.00, 0.40 * swell);
+        spec_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+        cr.arc(0.0, 0.0, 1.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+        let _ = cr.set_source(&spec_pat);
         let _ = cr.fill();
         let _ = cr.restore();
 
-        let _ = cr.restore(); // restore fluid meniscus matrix
-
-        // D. Bezel Rim Meniscus along the physical glass
+        // Tier 4: Molten Bezel Rim Light (Luminous glass edge line)
         cr.save().expect("Cairo save");
         let rim_pat = cairo::LinearGradient::new(-4.0, 0.0, 0.0, 0.0);
         rim_pat.add_color_stop_rgba(0.0, 0.2, 0.8, 1.0, 0.0);
-        rim_pat.add_color_stop_rgba(1.0, 1.0, 1.0, 1.0, 0.90 * swell);
+        rim_pat.add_color_stop_rgba(1.0, 1.0, 1.0, 1.0, 0.95 * swell);
         let _ = cr.set_source(&rim_pat);
-        let rim_h = 240.0 * pressure_scale;
+        let rim_h = (height * 0.40 + swell * height * 0.50).min(height);
         cr.rectangle(-4.0, -rim_h / 2.0, 4.0, rim_h);
         let _ = cr.fill();
         let _ = cr.restore();
