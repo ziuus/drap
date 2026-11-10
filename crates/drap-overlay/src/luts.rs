@@ -2,6 +2,7 @@ use cairo::{Context, Format, ImageSurface, RadialGradient};
 use std::collections::HashMap;
 
 pub struct Luts {
+    #[allow(dead_code)]
     pub luts: HashMap<String, ImageSurface>,
     pub surge_luts: HashMap<String, ImageSurface>,
 }

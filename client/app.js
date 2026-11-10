@@ -14,7 +14,7 @@
   }
   let targetHost = window.location.host;
   let storedTargetEdge = localStorage.getItem("drap_target_edge");
-  if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "phone-left") {
+  if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "direct" || storedTargetEdge === "phone-left") {
     storedTargetEdge = "right";
     localStorage.setItem("drap_target_edge", "right");
   }
@@ -387,32 +387,19 @@
     const intensity = overlayState.currentIntensity;
     if (intensity <= 0.004) return;
 
-    const lut = themeLuts[activeTheme] || themeLuts.heavenly;
     const edge = overlayState.activeEdge || "right";
     const coord = overlayState.currentCoord;
     const pressureScale = 0.90 + overlayState.currentPressure * 0.45;
 
     const breathe = 1.0 + 0.055 * Math.sin(tSec * 2.6) + 0.025 * Math.sin(tSec * 5.2);
     const breatheY = 1.0 + 0.035 * Math.cos(tSec * 2.2);
-    const pulseAlpha = 1.0 + 0.060 * Math.sin(tSec * 3.2);
 
     const origin = getEdgeOrigin(edge, coord, w, h);
 
     // Two-stage spatial dynamics:
-    // Stage 1 (intensity <= 0.25): subtle, focused, elegant connection bead indicating click-and-hold / pickup.
-    // Stage 2 (intensity > 0.25): exponential swell into the massive, hyper-luminous Drooop aura with additive Screen bloom!
-    const swell = intensity <= 0.25 ? 0.0 : Math.pow((intensity - 0.25) / 0.75, 1.22);
-
-    let radiusX = ((160 + Math.min(0.25, intensity) * 120) + swell * 700) * pressureScale * breathe;
-    let radiusY = ((250 + Math.min(0.25, intensity) * 160) + swell * 800) * breatheY;
-
-    if (edge.startsWith("corner-")) {
-      radiusX = ((160 + Math.min(0.25, intensity) * 120) + swell * 640) * pressureScale * breathe;
-      radiusY = radiusX;
-    } else if (edge === "top" || edge === "bottom") {
-      radiusX = ((150 + Math.min(0.25, intensity) * 120) + swell * 600) * pressureScale * breathe;
-      radiusY = ((240 + Math.min(0.25, intensity) * 160) + swell * 700) * breatheY;
-    }
+    // Stage 1 (intensity <= 0.18): Sleek, elegant connection bead indicating initial touch / hold.
+    // Stage 2 (intensity > 0.18): Massive Drooop organic liquid meniscus + deep volumetric sink!
+    const swell = intensity <= 0.18 ? 0.0 : Math.pow((intensity - 0.18) / 0.82, 1.15);
 
     ctx.save();
     ctx.translate(origin.x, origin.y);
@@ -423,299 +410,161 @@
       ctx.transform(1, skewY, 0, 1, 0, 0);
     }
 
-    // 1. Initial Touch / Pickup Bead (ONLY shown initially during hold/pickup, fades out during drag!)
-    const beadAlpha = Math.max(0.0, 1.0 - swell * 1.6) * Math.min(1.0, intensity / 0.25);
+    // 1. Initial Touch / Hold Bead (ONLY shown initially during click & hold, fades out completely during drag!)
+    const beadAlpha = Math.max(0.0, 1.0 - swell * 2.5) * Math.min(1.0, intensity / 0.18);
     if (beadAlpha > 0.01) {
-      const beadRx = (130 + Math.min(0.25, intensity) * 60) * pressureScale * breathe;
-      const beadRy = (220 + Math.min(0.25, intensity) * 80) * breatheY;
+      const beadRx = (110 + Math.min(0.18, intensity) * 60) * pressureScale * breathe;
+      const beadRy = (190 + Math.min(0.18, intensity) * 80) * breatheY;
       ctx.save();
-      ctx.scale(beadRx / LUT_W, beadRy / (LUT_H / 2));
-      ctx.translate(-LUT_W, -LUT_H / 2);
-      ctx.globalAlpha = beadAlpha * 0.92 * pulseAlpha;
-      ctx.drawImage(lut, 0, 0);
+      ctx.scale(beadRx / 100, beadRy / 100);
+      const beadGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 100);
+      if (activeTheme === "plasma") {
+        beadGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.90 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.25, `rgba(184, 89, 250, ${(0.70 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.60, `rgba(64, 51, 230, ${(0.35 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (activeTheme === "solar") {
+        beadGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.25, `rgba(255, 209, 64, ${(0.72 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.60, `rgba(242, 89, 20, ${(0.35 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (activeTheme === "liquid") {
+        beadGrad.addColorStop(0, `rgba(242, 255, 255, ${(0.90 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.25, `rgba(51, 235, 230, ${(0.70 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.60, `rgba(20, 166, 217, ${(0.35 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else {
+        // aurora
+        beadGrad.addColorStop(0, `rgba(255, 255, 250, ${(0.92 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.22, `rgba(255, 140, 191, ${(0.72 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(0.55, `rgba(166, 76, 242, ${(0.38 * beadAlpha).toFixed(2)})`);
+        beadGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 100, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.fillStyle = beadGrad;
+      ctx.fill();
       ctx.restore();
     }
 
-    // 2. Main Ambience: Grand Volumetric Atmospheric Sink (Sinking across 55%+ of the display!)
+    // 2. Main Ambience: Authentic Drooop Visual Architecture (Active during dragging)
     if (swell > 0.02) {
-      const sinkReach = (380 + swell * 540) * pressureScale * breathe;
-      const sinkGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, sinkReach);
+      // A. Massive Volumetric Ambient Sink (Sinking across 600px - 950px+ of the display!)
+      const sinkReach = (400 + swell * 550) * pressureScale * breathe;
+      ctx.save();
+      ctx.scale(1.0, 1.85); // Natural vertical atmospheric wash along monitor bezel
+      const sinkGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, sinkReach);
       if (activeTheme === "plasma") {
-        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.88 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.12, `rgba(102, 230, 255, ${(0.68 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.35, `rgba(217, 38, 242, ${(0.42 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.65, `rgba(51, 25, 217, ${(0.18 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0, `rgba(242, 89, 242, ${(0.60 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.30, `rgba(166, 64, 230, ${(0.42 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.65, `rgba(51, 51, 191, ${(0.20 * swell).toFixed(2)})`);
         sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "solar") {
-        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.90 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.12, `rgba(255, 230, 76, ${(0.70 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.35, `rgba(255, 115, 20, ${(0.42 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.65, `rgba(217, 25, 13, ${(0.16 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0, `rgba(255, 217, 76, ${(0.60 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.30, `rgba(250, 122, 31, ${(0.44 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.65, `rgba(191, 46, 13, ${(0.20 * swell).toFixed(2)})`);
         sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else if (activeTheme === "liquid") {
-        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.88 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.12, `rgba(51, 242, 255, ${(0.68 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.35, `rgba(13, 165, 250, ${(0.42 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.65, `rgba(25, 64, 217, ${(0.18 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0, `rgba(38, 245, 230, ${(0.58 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.25, `rgba(20, 199, 224, ${(0.42 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.55, `rgba(10, 128, 191, ${(0.24 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.85, `rgba(5, 64, 115, ${(0.09 * swell).toFixed(2)})`);
         sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else {
         // Authentic Drooop Cosmic Aurora:
-        // Incandescent white core -> glowing gold-amber -> soft coral-magenta -> violet -> sky cyan mist
-        sinkGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.10, `rgba(255, 230, 153, ${(0.76 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.28, `rgba(255, 89, 178, ${(0.52 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.55, `rgba(128, 64, 242, ${(0.30 * swell).toFixed(2)})`);
-        sinkGrad.addColorStop(0.78, `rgba(25, 191, 242, ${(0.12 * swell).toFixed(2)})`);
+        // Soft incandescent luminous center -> vivid auroral violet-magenta -> electric indigo -> ethereal cyan mist
+        sinkGrad.addColorStop(0, `rgba(76, 230, 255, ${(0.60 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.28, `rgba(217, 102, 235, ${(0.42 * swell).toFixed(2)})`);
+        sinkGrad.addColorStop(0.60, `rgba(64, 166, 217, ${(0.22 * swell).toFixed(2)})`);
         sinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
       }
-      ctx.save();
-      ctx.scale(1.0, 2.2); // Elongate along entire monitor bezel (natural atmospheric veil)
       ctx.beginPath();
       ctx.arc(0, 0, sinkReach, Math.PI / 2, (3 * Math.PI) / 2);
       ctx.fillStyle = sinkGrad;
       ctx.fill();
       ctx.restore();
 
-      // Incandescent additive core bloom right at the bezel contact
+      // B. Living Organic Fluid Meniscus Wave (Authentic 64-step harmonic wobble, base radius up to 600px!)
+      const baseR = (150 + swell * 440) * pressureScale;
+      ctx.save();
+      ctx.beginPath();
+      const steps = 64;
+      for (let i = 0; i <= steps; i++) {
+        const theta = Math.PI / 2 + (Math.PI * i) / steps;
+        const w1 = 0.075 * Math.sin(theta * 2.5 + tSec * 3.4);
+        const w2 = 0.040 * Math.sin(theta * 4.5 - tSec * 2.1);
+        const w3 = 0.025 * Math.cos(theta * 1.5 + tSec * 1.2);
+        const wobble = (w1 + w2 + w3) * (0.35 + 0.65 * swell);
+        const r = baseR * (1 + wobble);
+        const px = r * Math.cos(theta);
+        const py = r * Math.sin(theta) * (1.45 + 0.12 * Math.sin(tSec * 2.4));
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.lineTo(0, baseR * 1.55);
+      ctx.closePath();
+
+      const fluidGrad = ctx.createRadialGradient(0, 0, 8, 0, 0, baseR * 1.15);
+      if (activeTheme === "plasma") {
+        fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.20, `rgba(184, 89, 250, ${(0.85 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.52, `rgba(250, 71, 153, ${(0.60 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.80, `rgba(25, 13, 51, ${(0.18 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (activeTheme === "solar") {
+        fluidGrad.addColorStop(0, `rgba(255, 255, 242, ${(0.95 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.18, `rgba(255, 217, 64, ${(0.88 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.48, `rgba(250, 107, 25, ${(0.62 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.78, `rgba(204, 31, 20, ${(0.25 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (activeTheme === "liquid") {
+        fluidGrad.addColorStop(0, `rgba(250, 255, 255, ${(0.85 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.20, `rgba(64, 242, 224, ${(0.72 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.48, `rgba(20, 191, 235, ${(0.52 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.78, `rgba(8, 115, 191, ${(0.25 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else {
+        // aurora
+        fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.12, `rgba(255, 217, 89, ${(0.82 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.32, `rgba(242, 89, 191, ${(0.68 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.58, `rgba(140, 115, 250, ${(0.45 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(0.82, `rgba(20, 204, 242, ${(0.22 * swell).toFixed(2)})`);
+        fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      }
+      ctx.fillStyle = fluidGrad;
+      ctx.fill();
+
+      // C. Specular 3D Core Droplet Highlight (Additive Screen blend, offset inward for real 3D depth)
+      const coreR = baseR * 0.52;
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      const coreBloomR = (180 + swell * 280) * pressureScale;
-      const bloomGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreBloomR);
-      bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
-      bloomGrad.addColorStop(0.25, `rgba(255, 235, 178, ${(0.85 * swell).toFixed(2)})`);
-      bloomGrad.addColorStop(0.60, `rgba(242, 102, 204, ${(0.45 * swell).toFixed(2)})`);
-      bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.save();
-      ctx.scale(1.0, 1.6);
+      const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 5, 0, 0, coreR);
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
+      coreGrad.addColorStop(0.22, `rgba(204, 242, 255, ${(0.80 * swell).toFixed(2)})`);
+      coreGrad.addColorStop(0.58, `rgba(115, 76, 242, ${(0.40 * swell).toFixed(2)})`);
+      coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.scale(1.0, 1.35);
       ctx.beginPath();
-      ctx.arc(0, 0, coreBloomR, Math.PI / 2, (3 * Math.PI) / 2);
-      ctx.fillStyle = bloomGrad;
+      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.fillStyle = coreGrad;
       ctx.fill();
       ctx.restore();
-      ctx.restore();
-    }
 
-    // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans with Additive Blending)
-    if (intensity > 0.06) {
+      ctx.restore(); // restore fluid meniscus matrix
+
+      // D. Bezel Rim Meniscus along the physical glass
       ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      const numRays = swell > 0.1 ? 9 : 5;
-      const baseReach = ((150 + Math.min(0.25, intensity) * 80) + swell * 540) * pressureScale;
-      for (let i = 0; i < numRays; i++) {
-        const angleOffset = (i - (numRays - 1) / 2) * (swell > 0.1 ? 0.15 : 0.18);
-        const beamLen = baseReach * (0.80 + 0.20 * Math.sin(tSec * 3.4 + i * 1.3));
-        const beamAlpha = (0.28 + 0.32 * Math.abs(Math.sin(tSec * 4.2 + i * 0.8))) * intensity;
-
-        ctx.save();
-        ctx.rotate(angleOffset);
-        const beamGrad = ctx.createLinearGradient(0, 0, -beamLen, 0);
-        if (activeTheme === "plasma") {
-          beamGrad.addColorStop(0, `rgba(102, 242, 255, ${(beamAlpha * 0.90).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(217, 38, 242, ${(beamAlpha * 0.70).toFixed(2)})`);
-          beamGrad.addColorStop(1, "rgba(128, 25, 230, 0)");
-        } else if (activeTheme === "solar") {
-          beamGrad.addColorStop(0, `rgba(255, 230, 76, ${(beamAlpha * 0.90).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(255, 115, 20, ${(beamAlpha * 0.70).toFixed(2)})`);
-          beamGrad.addColorStop(1, "rgba(204, 13, 13, 0)");
-        } else if (activeTheme === "liquid") {
-          beamGrad.addColorStop(0, `rgba(51, 255, 230, ${(beamAlpha * 0.90).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(13, 191, 250, ${(beamAlpha * 0.70).toFixed(2)})`);
-          beamGrad.addColorStop(1, "rgba(15, 76, 217, 0)");
-        } else {
-          // aurora / heavenly: incandescent multi-spectral fan
-          const rayColors = [
-            ["rgba(255, 224, 102, 0.92)", "rgba(255, 64, 165, 0.72)"],
-            ["rgba(255, 64, 165, 0.92)", "rgba(191, 38, 242, 0.72)"],
-            ["rgba(191, 38, 242, 0.92)", "rgba(13, 191, 250, 0.72)"],
-            ["rgba(13, 191, 250, 0.92)", "rgba(51, 102, 242, 0.72)"]
-          ];
-          const [cStart, cMid] = rayColors[i % rayColors.length];
-          beamGrad.addColorStop(0, cStart.replace("0.92", (beamAlpha * 0.92).toFixed(2)));
-          beamGrad.addColorStop(0.45, cMid.replace("0.72", (beamAlpha * 0.72).toFixed(2)));
-          beamGrad.addColorStop(1, "rgba(25, 25, 115, 0)");
-        }
-        ctx.fillStyle = beamGrad;
-        const beamSpread = (24 + swell * 20) * pressureScale;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(-beamLen, -beamSpread);
-        ctx.lineTo(-beamLen, beamSpread);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
+      const rimH = 240 * pressureScale;
+      const rimGrad = ctx.createLinearGradient(-4, 0, 0, 0);
+      rimGrad.addColorStop(0, "rgba(51, 204, 255, 0)");
+      rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.90 * swell).toFixed(2)})`);
+      ctx.fillStyle = rimGrad;
+      ctx.fillRect(-4, -rimH / 2, 4, rimH);
       ctx.restore();
     }
 
-    // 3. Harmonic Fluid Meniscus Wobble & Specular Droplet
-    ctx.save();
-    const baseR = ((34 + Math.min(0.25, intensity) * 20) + swell * 110) * pressureScale;
-    ctx.beginPath();
-    const steps = 48;
-    for (let i = 0; i <= steps; i++) {
-      const theta = Math.PI / 2 + (Math.PI * i) / steps;
-      const w1 = 0.075 * Math.sin(theta * 2.5 + tSec * 3.4);
-      const w2 = 0.040 * Math.sin(theta * 4.5 - tSec * 2.1);
-      const w3 = 0.025 * Math.cos(theta * 1.5 + tSec * 1.2);
-      const wobble = (w1 + w2 + w3) * (0.35 + 0.65 * intensity);
-      const r = baseR * (1 + wobble);
-      const px = r * Math.cos(theta);
-      const py = r * Math.sin(theta) * (1.42 + 0.10 * Math.sin(tSec * 2.4));
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-
-    const fluidGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, baseR * 1.15);
-    if (activeTheme === "plasma") {
-      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.20, `rgba(102, 242, 255, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.48, `rgba(217, 38, 242, ${(0.65 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.78, `rgba(89, 25, 230, ${(0.30 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    } else if (activeTheme === "solar") {
-      fluidGrad.addColorStop(0, `rgba(255, 255, 230, ${(0.95 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.20, `rgba(255, 224, 76, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.48, `rgba(242, 89, 13, ${(0.65 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.78, `rgba(178, 15, 25, ${(0.30 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    } else if (activeTheme === "liquid") {
-      fluidGrad.addColorStop(0, `rgba(240, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.20, `rgba(51, 242, 217, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.48, `rgba(13, 165, 242, ${(0.65 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.78, `rgba(15, 64, 191, ${(0.30 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    } else {
-      // aurora: radiant spectral burst
-      fluidGrad.addColorStop(0, `rgba(255, 255, 240, ${(0.98 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.18, `rgba(255, 204, 89, ${(0.90 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.42, `rgba(255, 64, 165, ${(0.75 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.68, `rgba(178, 38, 242, ${(0.50 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.88, `rgba(13, 191, 250, ${(0.25 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    }
-    ctx.fillStyle = fluidGrad;
-    ctx.fill();
-
-    ctx.strokeStyle = `rgba(255, 255, 255, ${(0.38 * intensity).toFixed(2)})`;
-    ctx.lineWidth = 1.6 * pressureScale;
-    ctx.stroke();
-
-    // Specular Core Droplet with Additive Screen Blending
-    const coreR = baseR * 0.38;
-    const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 2, 0, 0, coreR);
-    if (activeTheme === "solar") {
-      coreGrad.addColorStop(0, `rgba(255, 255, 235, ${(0.98 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(255, 224, 102, ${(0.90 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(242, 102, 13, ${(0.55 * intensity).toFixed(2)})`);
-    } else if (activeTheme === "plasma") {
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(128, 242, 255, ${(0.90 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(217, 38, 242, ${(0.55 * intensity).toFixed(2)})`);
-    } else if (activeTheme === "liquid") {
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(89, 255, 242, ${(0.90 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(13, 165, 242, ${(0.55 * intensity).toFixed(2)})`);
-    } else {
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(255, 224, 128, ${(0.90 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(255, 89, 178, ${(0.55 * intensity).toFixed(2)})`);
-    }
-    coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.scale(1, 1.35);
-    ctx.beginPath();
-    ctx.arc(0, 0, coreR, 0, Math.PI * 2);
-    ctx.fillStyle = coreGrad;
-    ctx.fill();
-    ctx.restore();
-    ctx.restore();
-
-    // 4. Dynamic Bezel Rim Light
-    const rimH = Math.min(h * 0.90, (200 + swell * 350) * pressureScale);
-    const rimW = (3.5 + swell * 3.5) * pressureScale;
-    const rimGrad = ctx.createLinearGradient(-rimW, 0, 0, 0);
-    rimGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-    if (activeTheme === "aurora") {
-      rimGrad.addColorStop(0.65, `rgba(255, 128, 191, ${(0.75 * intensity).toFixed(2)})`);
-      rimGrad.addColorStop(1, `rgba(255, 235, 178, ${(0.98 * intensity).toFixed(2)})`);
-    } else if (activeTheme === "solar") {
-      rimGrad.addColorStop(0.65, `rgba(255, 178, 64, ${(0.75 * intensity).toFixed(2)})`);
-      rimGrad.addColorStop(1, `rgba(255, 245, 191, ${(0.98 * intensity).toFixed(2)})`);
-    } else if (activeTheme === "plasma") {
-      rimGrad.addColorStop(0.65, `rgba(217, 76, 242, ${(0.75 * intensity).toFixed(2)})`);
-      rimGrad.addColorStop(1, `rgba(153, 242, 255, ${(0.98 * intensity).toFixed(2)})`);
-    } else if (activeTheme === "liquid") {
-      rimGrad.addColorStop(0.65, `rgba(51, 230, 217, ${(0.75 * intensity).toFixed(2)})`);
-      rimGrad.addColorStop(1, `rgba(204, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
-    } else {
-      rimGrad.addColorStop(0.65, `rgba(217, 191, 255, ${(0.75 * intensity).toFixed(2)})`);
-      rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
-    }
-    ctx.fillStyle = rimGrad;
-    ctx.fillRect(-rimW, -rimH / 2, rimW, rimH);
-
-    // 5. Theme Optical Tendrils / Embers
-    if (activeTheme === "plasma" && intensity > 0.12) {
-      ctx.save();
-      ctx.strokeStyle = `rgba(165, 243, 252, ${(0.82 * intensity).toFixed(2)})`;
-      ctx.lineCap = "round";
-      for (let b = 0; b < 4; b++) {
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        let cx = 0;
-        let cy = 0;
-        const len = (90 + intensity * 190) * (0.7 + 0.3 * Math.sin(tSec * 11 + b * 1.6));
-        for (let s = 1; s <= 8; s++) {
-          cx -= len / 8;
-          cy += Math.sin(tSec * 24 + s * 3.8 + b * 2.8) * 15 * intensity;
-          ctx.lineTo(cx, cy);
-        }
-        ctx.lineWidth = b === 0 ? 2.4 : 1.4;
-        ctx.stroke();
-      }
-      ctx.restore();
-    } else if (activeTheme === "solar" && intensity > 0.12) {
-      ctx.save();
-      for (let idx = 0; idx < 6; idx++) {
-        const phase = idx * 1.1;
-        const ey = ((tSec * 55 + phase * 32) % 160) - 80;
-        const ex = -(16 + idx * 16 + Math.sin(tSec * 3 + phase) * 14) * intensity * pressureScale;
-        const er = (2 + (idx % 3)) * intensity * pressureScale;
-        ctx.beginPath();
-        ctx.arc(ex, ey, er, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(251, 191, 36, ${(0.90 * intensity).toFixed(2)})`;
-        ctx.fill();
-      }
-      ctx.restore();
-    } else if (intensity > 0.08) {
-      // Shimmering Prismatic Bioluminescent Stardust Motes
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      const numMotes = swell > 0.1 ? 14 : 8;
-      for (let idx = 0; idx < numMotes; idx++) {
-        const phase = idx * 1.25;
-        const spanY = 200 + swell * 350;
-        const sy = ((tSec * 50 + phase * 38) % spanY) - spanY / 2;
-        const sx = -((24 + idx * 22 + Math.cos(tSec * 2.6 + phase) * 18) + swell * 160) * intensity * pressureScale;
-        const sparkleAlpha = (0.4 + 0.6 * Math.abs(Math.sin(tSec * 4.0 + phase * 2.0))) * intensity;
-        const sr = (2.0 + (idx % 3) * 1.2 + swell * 1.8) * pressureScale;
-        ctx.beginPath();
-        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-        if (idx % 3 === 0) {
-          ctx.fillStyle = `rgba(255, 224, 115, ${(sparkleAlpha * 0.95).toFixed(2)})`;
-        } else if (idx % 3 === 1) {
-          ctx.fillStyle = `rgba(255, 97, 204, ${(sparkleAlpha * 0.95).toFixed(2)})`;
-        } else {
-          ctx.fillStyle = `rgba(97, 235, 255, ${(sparkleAlpha * 0.95).toFixed(2)})`;
-        }
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    ctx.restore();
+    ctx.restore(); // restore origin transform
   }
 
   function drawStageSurgeAndCaustics(ctx, w, h, now) {
@@ -1510,101 +1359,40 @@
     const proxT = distTop < reachV ? Math.pow((reachV - distTop) / reachV, 1.12) : 0.0;
     const proxB = distBottom < reachV ? Math.pow((reachV - distBottom) / reachV, 1.12) : 0.0;
 
-    if (isMultiSideSend) {
-      if (proxR > 0.05 && proxT > 0.05) {
-        phoneCorner = "top-right";
-        desktopCorner = "top-right";
-        phoneEdge = "right";
-        desktopEdge = "right";
-        normCoord = 0.0;
-        proximity = Math.min(1.0, Math.hypot(proxR, proxT));
-      } else if (proxR > 0.05 && proxB > 0.05) {
-        phoneCorner = "bottom-right";
-        desktopCorner = "bottom-right";
-        phoneEdge = "right";
-        desktopEdge = "right";
-        normCoord = 1.0;
-        proximity = Math.min(1.0, Math.hypot(proxR, proxB));
-      } else if (proxL > 0.05 && proxT > 0.05) {
-        phoneCorner = "top-left";
-        desktopCorner = "top-left";
-        phoneEdge = "left";
-        desktopEdge = "left";
-        normCoord = 0.0;
-        proximity = Math.min(1.0, Math.hypot(proxL, proxT));
-      } else if (proxL > 0.05 && proxB > 0.05) {
-        phoneCorner = "bottom-left";
-        desktopCorner = "bottom-left";
-        phoneEdge = "left";
-        desktopEdge = "left";
-        normCoord = 1.0;
-        proximity = Math.min(1.0, Math.hypot(proxL, proxB));
-      } else {
-        const maxProx = Math.max(proxL, proxR, proxT, proxB);
-        if (maxProx > 0) {
-          if (maxProx === proxR) {
-            phoneEdge = "right";
-            desktopEdge = "right";
-            normCoord = normY;
-            proximity = proxR;
-          } else if (maxProx === proxL) {
-            phoneEdge = "left";
-            desktopEdge = "left";
-            normCoord = normY;
-            proximity = proxL;
-          } else if (maxProx === proxT) {
-            phoneEdge = "top";
-            desktopEdge = "top";
-            normCoord = normX;
-            proximity = proxT;
-          } else {
-            phoneEdge = "bottom";
-            desktopEdge = "bottom";
-            normCoord = normX;
-            proximity = proxB;
-          }
-        } else {
-          // Centered / no edge proximity yet -> ALWAYS default to right bezel
-          phoneEdge = "right";
-          desktopEdge = "right";
-          normCoord = normY;
-          proximity = 0.0;
-        }
-      }
-    } else {
-      // Single-edge mode: default to right bezel
-      phoneEdge = (targetEdgePref && targetEdgePref !== "auto" && targetEdgePref !== "direct") ? targetEdgePref : "right";
-      desktopEdge = phoneEdge;
-      normCoord = (phoneEdge === "top" || phoneEdge === "bottom") ? normX : normY;
-      if (phoneEdge === "left") proximity = proxL;
-      else if (phoneEdge === "top") proximity = proxT;
-      else if (phoneEdge === "bottom") proximity = proxB;
-      else proximity = proxR;
-    }
+    // Omnidirectional phone send: Moving toward ANY bezel on phone smoothly drives proximity to 1.0!
+    const maxProx = Math.max(proxL, proxR, proxT, proxB);
+    let proximity = maxProx;
 
-    // Explicit edge lock if user picked one in settings (default: RIGHT BEZEL)
+    // phoneEdge / phoneCorner controls the glowing feedback on the handset chassis itself
+    let phoneEdge = "right";
+    let phoneCorner = "";
+    if (proxR > 0.05 && proxT > 0.05) phoneCorner = "top-right";
+    else if (proxR > 0.05 && proxB > 0.05) phoneCorner = "bottom-right";
+    else if (proxL > 0.05 && proxT > 0.05) phoneCorner = "top-left";
+    else if (proxL > 0.05 && proxB > 0.05) phoneCorner = "bottom-left";
+    else if (maxProx === proxL) phoneEdge = "left";
+    else if (maxProx === proxT) phoneEdge = "top";
+    else if (maxProx === proxB) phoneEdge = "bottom";
+    else phoneEdge = "right";
+
+    // Desktop Edge arrival: Strictly RIGHT bezel by default!
+    let desktopEdge = "right";
+    let desktopCorner = "";
+    let normCoord = normY;
+
     if (targetEdgePref === "left") {
       desktopEdge = "left";
-      desktopCorner = "";
-      proximity = Math.max(proxR, proxL, proxT, proxB);
       normCoord = normY;
     } else if (targetEdgePref === "top") {
       desktopEdge = "top";
-      desktopCorner = "";
-      proximity = Math.max(proxR, proxL, proxT, proxB);
       normCoord = normX;
     } else if (targetEdgePref === "bottom") {
       desktopEdge = "bottom";
-      desktopCorner = "";
-      proximity = Math.max(proxR, proxL, proxT, proxB);
       normCoord = normX;
-    } else if (targetEdgePref === "direct") {
-      // Direct omnidirectional mode (phone edge maps 1:1 to desktop edge)
     } else {
-      // Default: Always arrive on Right Bezel of the desktop monitor!
+      // Default standard desktop arrival: RIGHT BEZEL
       desktopEdge = "right";
       desktopCorner = "";
-      proximity = Math.max(proxR, proxL, proxT, proxB);
       normCoord = normY;
     }
 
