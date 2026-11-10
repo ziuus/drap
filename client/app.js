@@ -398,15 +398,20 @@
 
     const origin = getEdgeOrigin(edge, coord, w, h);
 
-    let radiusX = (180 + intensity * 190) * pressureScale * breathe;
-    let radiusY = (300 + intensity * 250) * breatheY;
+    // Two-stage spatial dynamics:
+    // Stage 1 (intensity <= 0.25): subtle, focused, elegant connection bead indicating click-and-hold / pickup.
+    // Stage 2 (intensity > 0.25): exponential swell into the massive, hyper-luminous Drooop aura with additive Screen bloom!
+    const swell = intensity <= 0.25 ? 0.0 : Math.pow((intensity - 0.25) / 0.75, 1.22);
+
+    let radiusX = ((160 + Math.min(0.25, intensity) * 120) + swell * 700) * pressureScale * breathe;
+    let radiusY = ((250 + Math.min(0.25, intensity) * 160) + swell * 800) * breatheY;
 
     if (edge.startsWith("corner-")) {
-      radiusX = (200 + intensity * 180) * pressureScale * breathe;
+      radiusX = ((160 + Math.min(0.25, intensity) * 120) + swell * 640) * pressureScale * breathe;
       radiusY = radiusX;
     } else if (edge === "top" || edge === "bottom") {
-      radiusX = (160 + intensity * 160) * pressureScale * breathe;
-      radiusY = (280 + intensity * 240) * breatheY;
+      radiusX = ((150 + Math.min(0.25, intensity) * 120) + swell * 600) * pressureScale * breathe;
+      radiusY = ((240 + Math.min(0.25, intensity) * 160) + swell * 700) * breatheY;
     }
 
     ctx.save();
@@ -426,53 +431,95 @@
     ctx.drawImage(lut, 0, 0);
     ctx.restore();
 
-    // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans)
+    // 1b. Hyper-Luminous Additive Screen Bloom (The High-Energy Drooop Incandescent Glow)
+    if (swell > 0.02) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const bloomRx = radiusX * 0.88;
+      const bloomRy = radiusY * 0.88;
+      const bloomGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRx);
+      if (activeTheme === "plasma") {
+        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.12, `rgba(102, 230, 255, ${(0.88 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.35, `rgba(217, 38, 242, ${(0.70 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.65, `rgba(51, 25, 217, ${(0.35 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (activeTheme === "solar") {
+        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.12, `rgba(255, 230, 76, ${(0.90 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.35, `rgba(255, 115, 20, ${(0.70 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.65, `rgba(217, 25, 13, ${(0.35 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (activeTheme === "liquid") {
+        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.12, `rgba(51, 242, 255, ${(0.88 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.35, `rgba(13, 165, 250, ${(0.70 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.65, `rgba(25, 64, 217, ${(0.35 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else {
+        // Cosmic Aurora / Heavenly: celestial incandescent gold-white -> hot rose -> electric violet -> laser cyan
+        bloomGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.10, `rgba(255, 235, 165, ${(0.92 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.28, `rgba(255, 76, 178, ${(0.80 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.50, `rgba(140, 46, 250, ${(0.58 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(0.72, `rgba(20, 209, 250, ${(0.30 * swell).toFixed(2)})`);
+        bloomGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      }
+      ctx.save();
+      ctx.scale(1, bloomRy / bloomRx);
+      ctx.beginPath();
+      ctx.arc(0, 0, bloomRx, Math.PI / 2, (3 * Math.PI) / 2);
+      ctx.fillStyle = bloomGrad;
+      ctx.fill();
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans with Additive Blending)
     if (intensity > 0.06) {
       ctx.save();
-      const numRays = 7;
-      const baseReach = (140 + intensity * 160) * pressureScale;
+      ctx.globalCompositeOperation = "screen";
+      const numRays = swell > 0.1 ? 9 : 5;
+      const baseReach = ((150 + Math.min(0.25, intensity) * 80) + swell * 540) * pressureScale;
       for (let i = 0; i < numRays; i++) {
-        const angleOffset = (i - (numRays - 1) / 2) * 0.18;
-        const beamLen = baseReach * (0.75 + 0.25 * Math.sin(tSec * 3.4 + i * 1.3));
-        const beamAlpha = (0.25 + 0.30 * Math.abs(Math.sin(tSec * 4.2 + i * 0.8))) * intensity;
+        const angleOffset = (i - (numRays - 1) / 2) * (swell > 0.1 ? 0.15 : 0.18);
+        const beamLen = baseReach * (0.80 + 0.20 * Math.sin(tSec * 3.4 + i * 1.3));
+        const beamAlpha = (0.28 + 0.32 * Math.abs(Math.sin(tSec * 4.2 + i * 0.8))) * intensity;
 
         ctx.save();
         ctx.rotate(angleOffset);
         const beamGrad = ctx.createLinearGradient(0, 0, -beamLen, 0);
         if (activeTheme === "plasma") {
-          beamGrad.addColorStop(0, `rgba(102, 242, 255, ${(beamAlpha * 0.85).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(217, 38, 242, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(0, `rgba(102, 242, 255, ${(beamAlpha * 0.90).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(217, 38, 242, ${(beamAlpha * 0.70).toFixed(2)})`);
           beamGrad.addColorStop(1, "rgba(128, 25, 230, 0)");
         } else if (activeTheme === "solar") {
-          beamGrad.addColorStop(0, `rgba(255, 230, 76, ${(beamAlpha * 0.85).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(255, 115, 20, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(0, `rgba(255, 230, 76, ${(beamAlpha * 0.90).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(255, 115, 20, ${(beamAlpha * 0.70).toFixed(2)})`);
           beamGrad.addColorStop(1, "rgba(204, 13, 13, 0)");
         } else if (activeTheme === "liquid") {
-          beamGrad.addColorStop(0, `rgba(51, 255, 230, ${(beamAlpha * 0.85).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(13, 191, 250, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(0, `rgba(51, 255, 230, ${(beamAlpha * 0.90).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(13, 191, 250, ${(beamAlpha * 0.70).toFixed(2)})`);
           beamGrad.addColorStop(1, "rgba(15, 76, 217, 0)");
-        } else if (activeTheme === "heavenly") {
-          beamGrad.addColorStop(0, `rgba(255, 250, 230, ${(beamAlpha * 0.85).toFixed(2)})`);
-          beamGrad.addColorStop(0.4, `rgba(204, 140, 255, ${(beamAlpha * 0.65).toFixed(2)})`);
-          beamGrad.addColorStop(1, "rgba(64, 204, 250, 0)");
         } else {
-          // aurora: incandescent multi-spectral fan
+          // aurora / heavenly: incandescent multi-spectral fan
           const rayColors = [
-            ["rgba(255, 224, 102, 0.9)", "rgba(255, 64, 165, 0.7)"],
-            ["rgba(255, 64, 165, 0.9)", "rgba(191, 38, 242, 0.7)"],
-            ["rgba(191, 38, 242, 0.9)", "rgba(13, 191, 250, 0.7)"],
-            ["rgba(13, 191, 250, 0.9)", "rgba(51, 102, 242, 0.7)"]
+            ["rgba(255, 224, 102, 0.92)", "rgba(255, 64, 165, 0.72)"],
+            ["rgba(255, 64, 165, 0.92)", "rgba(191, 38, 242, 0.72)"],
+            ["rgba(191, 38, 242, 0.92)", "rgba(13, 191, 250, 0.72)"],
+            ["rgba(13, 191, 250, 0.92)", "rgba(51, 102, 242, 0.72)"]
           ];
           const [cStart, cMid] = rayColors[i % rayColors.length];
-          beamGrad.addColorStop(0, cStart.replace("0.9", (beamAlpha * 0.9).toFixed(2)));
-          beamGrad.addColorStop(0.45, cMid.replace("0.7", (beamAlpha * 0.65).toFixed(2)));
+          beamGrad.addColorStop(0, cStart.replace("0.92", (beamAlpha * 0.92).toFixed(2)));
+          beamGrad.addColorStop(0.45, cMid.replace("0.72", (beamAlpha * 0.72).toFixed(2)));
           beamGrad.addColorStop(1, "rgba(25, 25, 115, 0)");
         }
         ctx.fillStyle = beamGrad;
+        const beamSpread = (24 + swell * 20) * pressureScale;
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(-beamLen, -24);
-        ctx.lineTo(-beamLen, 24);
+        ctx.lineTo(-beamLen, -beamSpread);
+        ctx.lineTo(-beamLen, beamSpread);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
@@ -482,7 +529,7 @@
 
     // 3. Harmonic Fluid Meniscus Wobble & Specular Droplet
     ctx.save();
-    const baseR = (36 + intensity * 64) * pressureScale;
+    const baseR = ((34 + Math.min(0.25, intensity) * 20) + swell * 110) * pressureScale;
     ctx.beginPath();
     const steps = 48;
     for (let i = 0; i <= steps; i++) {
@@ -518,12 +565,6 @@
       fluidGrad.addColorStop(0.48, `rgba(13, 165, 242, ${(0.65 * intensity).toFixed(2)})`);
       fluidGrad.addColorStop(0.78, `rgba(15, 64, 191, ${(0.30 * intensity).toFixed(2)})`);
       fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-    } else if (activeTheme === "heavenly") {
-      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.20, `rgba(255, 239, 191, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.48, `rgba(217, 153, 250, ${(0.65 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.78, `rgba(64, 204, 250, ${(0.30 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     } else {
       // aurora: radiant spectral burst
       fluidGrad.addColorStop(0, `rgba(255, 255, 240, ${(0.98 * intensity).toFixed(2)})`);
@@ -540,28 +581,29 @@
     ctx.lineWidth = 1.6 * pressureScale;
     ctx.stroke();
 
-    // Specular Core Droplet
-    const coreR = baseR * 0.36;
+    // Specular Core Droplet with Additive Screen Blending
+    const coreR = baseR * 0.38;
     const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 2, 0, 0, coreR);
     if (activeTheme === "solar") {
-      coreGrad.addColorStop(0, `rgba(255, 255, 235, ${(0.95 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(255, 224, 102, ${(0.85 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(242, 102, 13, ${(0.45 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0, `rgba(255, 255, 235, ${(0.98 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(255, 224, 102, ${(0.90 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(242, 102, 13, ${(0.55 * intensity).toFixed(2)})`);
     } else if (activeTheme === "plasma") {
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(128, 242, 255, ${(0.85 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(217, 38, 242, ${(0.45 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(128, 242, 255, ${(0.90 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(217, 38, 242, ${(0.55 * intensity).toFixed(2)})`);
     } else if (activeTheme === "liquid") {
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(89, 255, 242, ${(0.85 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(13, 165, 242, ${(0.45 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(89, 255, 242, ${(0.90 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(13, 165, 242, ${(0.55 * intensity).toFixed(2)})`);
     } else {
-      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.96 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.35, `rgba(255, 224, 128, ${(0.85 * intensity).toFixed(2)})`);
-      coreGrad.addColorStop(0.70, `rgba(255, 89, 178, ${(0.45 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(255, 224, 128, ${(0.90 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(255, 89, 178, ${(0.55 * intensity).toFixed(2)})`);
     }
     coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.save();
+    ctx.globalCompositeOperation = "screen";
     ctx.scale(1, 1.35);
     ctx.beginPath();
     ctx.arc(0, 0, coreR, 0, Math.PI * 2);
@@ -571,8 +613,8 @@
     ctx.restore();
 
     // 4. Dynamic Bezel Rim Light
-    const rimH = Math.min(h * 0.70, 200 * pressureScale);
-    const rimW = 3.5 * pressureScale;
+    const rimH = Math.min(h * 0.90, (200 + swell * 350) * pressureScale);
+    const rimW = (3.5 + swell * 3.5) * pressureScale;
     const rimGrad = ctx.createLinearGradient(-rimW, 0, 0, 0);
     rimGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
     if (activeTheme === "aurora") {
@@ -624,6 +666,30 @@
         ctx.beginPath();
         ctx.arc(ex, ey, er, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(251, 191, 36, ${(0.90 * intensity).toFixed(2)})`;
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if (intensity > 0.08) {
+      // Shimmering Prismatic Bioluminescent Stardust Motes
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const numMotes = swell > 0.1 ? 14 : 8;
+      for (let idx = 0; idx < numMotes; idx++) {
+        const phase = idx * 1.25;
+        const spanY = 200 + swell * 350;
+        const sy = ((tSec * 50 + phase * 38) % spanY) - spanY / 2;
+        const sx = -((24 + idx * 22 + Math.cos(tSec * 2.6 + phase) * 18) + swell * 160) * intensity * pressureScale;
+        const sparkleAlpha = (0.4 + 0.6 * Math.abs(Math.sin(tSec * 4.0 + phase * 2.0))) * intensity;
+        const sr = (2.0 + (idx % 3) * 1.2 + swell * 1.8) * pressureScale;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        if (idx % 3 === 0) {
+          ctx.fillStyle = `rgba(255, 224, 115, ${(sparkleAlpha * 0.95).toFixed(2)})`;
+        } else if (idx % 3 === 1) {
+          ctx.fillStyle = `rgba(255, 97, 204, ${(sparkleAlpha * 0.95).toFixed(2)})`;
+        } else {
+          ctx.fillStyle = `rgba(97, 235, 255, ${(sparkleAlpha * 0.95).toFixed(2)})`;
+        }
         ctx.fill();
       }
       ctx.restore();
@@ -1500,18 +1566,26 @@
     if (targetEdgePref === "left") {
       desktopEdge = "left";
       desktopCorner = "";
+      proximity = Math.max(proxR, proxL, proxT, proxB);
+      normCoord = normY;
     } else if (targetEdgePref === "top") {
       desktopEdge = "top";
       desktopCorner = "";
+      proximity = Math.max(proxR, proxL, proxT, proxB);
+      normCoord = normX;
     } else if (targetEdgePref === "bottom") {
       desktopEdge = "bottom";
       desktopCorner = "";
+      proximity = Math.max(proxR, proxL, proxT, proxB);
+      normCoord = normX;
     } else if (targetEdgePref === "direct") {
       // Direct omnidirectional mode (phone edge maps 1:1 to desktop edge)
     } else {
       // Default: Always arrive on Right Bezel of the desktop monitor!
       desktopEdge = "right";
       desktopCorner = "";
+      proximity = Math.max(proxR, proxL, proxT, proxB);
+      normCoord = normY;
     }
 
     return {
@@ -1961,6 +2035,24 @@
 
       lastClientX = x;
       lastClientY = y;
+      const initialMetrics = computeSpatialMetrics(x, y);
+      queueSpatialPacket({
+        type: "drag_start",
+        edge: initialMetrics.desktopEdge,
+        corner: initialMetrics.desktopCorner,
+        phone_edge: initialMetrics.phoneEdge,
+        phone_corner: initialMetrics.phoneCorner,
+        coord: initialMetrics.normCoord,
+        x: initialMetrics.normX,
+        y: initialMetrics.normY,
+        vy: 0,
+        proximity: 0.18,
+        pressure: 0.5,
+        title,
+        size,
+        item_type: itemType,
+        theme: activeTheme
+      });
       onDragStreaming(x, y);
       startHoldHeartbeat();
     }
@@ -1980,17 +2072,15 @@
       isScrolling = false;
       isHoldLifted = false;
 
-      if (currentMode === "browse") {
-        clearTimeout(holdTimer);
-        holdTimer = setTimeout(() => {
-          if (isPointerActive && !isScrolling && !activeDrag) {
-            try {
-              card.setPointerCapture(activePointerId);
-            } catch {}
-            startActiveDrag(startX, startY);
-          }
-        }, 180);
-      }
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => {
+        if (isPointerActive && !isScrolling && !activeDrag) {
+          try {
+            card.setPointerCapture(activePointerId);
+          } catch {}
+          startActiveDrag(startX, startY);
+        }
+      }, 160);
     });
 
     card.addEventListener("pointermove", (e) => {

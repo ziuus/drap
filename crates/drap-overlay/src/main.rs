@@ -136,7 +136,10 @@ fn process_message(s: &mut OverlayState, msg: WsMessage) {
                 s.target_pressure = press.clamp(0.2, 2.0);
             }
             if let Some(prox) = msg.proximity {
-                s.target_intensity = if prox > 0.015 { prox.min(1.0) } else { 0.0 };
+                // Drag active: minimum 0.18 for the initial stage click-and-hold bead, scaling up to 1.0
+                s.target_intensity = (0.18 + prox * 0.82).min(1.0);
+            } else if msg.msg_type == "drag_start" {
+                s.target_intensity = 0.22;
             } else {
                 s.target_intensity = 0.85;
             }
@@ -330,18 +333,26 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let breathe_y = 1.0 + 0.035 * (elapsed * 2.2).cos();
     let pulse_alpha = 1.0 + 0.060 * (elapsed * 3.2).sin();
 
-    // Focused, sleek volumetric edge bulb (Drooop aesthetic)
+    // Two-stage spatial dynamics:
+    // Stage 1 (intensity <= 0.25): subtle, focused, elegant connection bead indicating click-and-hold / pickup.
+    // Stage 2 (intensity > 0.25): exponential swell into the massive, hyper-luminous Drooop aura with additive Screen bloom!
+    let swell = if intensity <= 0.25 {
+        0.0
+    } else {
+        ((intensity - 0.25) / 0.75).powf(1.22)
+    };
+
     let (radius, radius_y) = if edge.starts_with("corner-") {
-        let r = (200.0 + intensity * 180.0) * pressure_scale * breathe;
+        let r = ((160.0 + intensity.min(0.25) * 120.0) + swell * 640.0) * pressure_scale * breathe;
         (r, r)
     } else if edge == "top" || edge == "bottom" {
-        let rx = (160.0 + intensity * 160.0) * pressure_scale * breathe;
-        let ry = (280.0 + intensity * 240.0) * breathe_y;
+        let rx = ((150.0 + intensity.min(0.25) * 120.0) + swell * 600.0) * pressure_scale * breathe;
+        let ry = ((240.0 + intensity.min(0.25) * 160.0) + swell * 700.0) * breathe_y;
         (rx, ry)
     } else {
-        // Left / Right edge: 180px to 380px reach from the bezel
-        let rx = (180.0 + intensity * 190.0) * pressure_scale * breathe;
-        let ry = (300.0 + intensity * 250.0) * breathe_y;
+        // Left / Right edge: 160px initial hold bead, dynamically swelling up to ~880px reach into desktop
+        let rx = ((160.0 + intensity.min(0.25) * 120.0) + swell * 700.0) * pressure_scale * breathe;
+        let ry = ((250.0 + intensity.min(0.25) * 160.0) + swell * 800.0) * breathe_y;
         (rx, ry)
     };
 
@@ -356,7 +367,7 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
         cr.transform(skew_mat);
     }
 
-    // 1. Tier 1: Magnificent Precomputed Bilinear Chromatic Dispersion Atmospheric Wash
+    // 1. Tier 1: Precomputed Bilinear Chromatic Dispersion Atmospheric Wash
     cr.save().expect("Cairo save");
     cr.scale(radius / lut_w, radius_y / (lut_h / 2.0));
     cr.translate(-lut_w, -lut_h / 2.0);
@@ -367,54 +378,101 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let _ = cr.paint_with_alpha(glow_alpha);
     let _ = cr.restore();
 
-    // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans)
+    // 1b. Tier 1b: Hyper-Luminous Additive Screen Bloom (The High-Energy Drooop Incandescent Glow)
+    if swell > 0.02 {
+        cr.save().expect("Cairo save");
+        cr.set_operator(cairo::Operator::Screen);
+        let bloom_rx = radius * 0.88;
+        let bloom_ry = radius_y * 0.88;
+        let bloom_pat = cairo::RadialGradient::new(0.0, 0.0, 0.0, 0.0, 0.0, bloom_rx);
+        match state.theme.as_str() {
+            "plasma" => {
+                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * swell);
+                bloom_pat.add_color_stop_rgba(0.12, 0.40, 0.90, 1.00, 0.88 * swell);
+                bloom_pat.add_color_stop_rgba(0.35, 0.85, 0.18, 0.95, 0.70 * swell);
+                bloom_pat.add_color_stop_rgba(0.65, 0.20, 0.10, 0.85, 0.35 * swell);
+                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+            }
+            "solar" => {
+                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * swell);
+                bloom_pat.add_color_stop_rgba(0.12, 1.00, 0.90, 0.30, 0.90 * swell);
+                bloom_pat.add_color_stop_rgba(0.35, 1.00, 0.45, 0.08, 0.70 * swell);
+                bloom_pat.add_color_stop_rgba(0.65, 0.85, 0.10, 0.05, 0.35 * swell);
+                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+            }
+            "liquid" => {
+                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * swell);
+                bloom_pat.add_color_stop_rgba(0.12, 0.20, 0.95, 0.95, 0.88 * swell);
+                bloom_pat.add_color_stop_rgba(0.35, 0.05, 0.65, 0.98, 0.70 * swell);
+                bloom_pat.add_color_stop_rgba(0.65, 0.10, 0.25, 0.85, 0.35 * swell);
+                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+            }
+            _ => {
+                // Cosmic Aurora / Heavenly: incandescent gold core -> hot rose -> electric violet -> laser cyan
+                bloom_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * swell);
+                bloom_pat.add_color_stop_rgba(0.10, 1.00, 0.92, 0.65, 0.92 * swell);
+                bloom_pat.add_color_stop_rgba(0.28, 1.00, 0.32, 0.75, 0.80 * swell);
+                bloom_pat.add_color_stop_rgba(0.50, 0.55, 0.18, 0.98, 0.58 * swell);
+                bloom_pat.add_color_stop_rgba(0.72, 0.08, 0.82, 0.98, 0.30 * swell);
+                bloom_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
+            }
+        }
+        cr.scale(1.0, bloom_ry / bloom_rx);
+        cr.arc(0.0, 0.0, bloom_rx, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+        let _ = cr.set_source(&bloom_pat);
+        let _ = cr.fill();
+        let _ = cr.restore();
+    }
+
+    // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans with Additive Blending)
     if intensity > 0.06 {
         cr.save().expect("Cairo save");
-        let num_rays = 7;
-        let base_reach = (140.0 + intensity * 160.0) * pressure_scale;
+        cr.set_operator(cairo::Operator::Screen);
+        let num_rays = if swell > 0.10 { 9 } else { 5 };
+        let base_reach = ((150.0 + intensity.min(0.25) * 80.0) + swell * 540.0) * pressure_scale;
         for i in 0..num_rays {
-            let angle_offset = (i as f64 - (num_rays as f64 - 1.0) / 2.0) * 0.18;
-            let beam_len = base_reach * (0.75 + 0.25 * (elapsed * 3.4 + i as f64 * 1.3).sin());
-            let beam_alpha = (0.25 + 0.30 * (elapsed * 4.2 + i as f64 * 0.8).sin().abs()) * intensity;
+            let angle_offset = (i as f64 - (num_rays as f64 - 1.0) / 2.0) * (if swell > 0.1 { 0.15 } else { 0.18 });
+            let beam_len = base_reach * (0.80 + 0.20 * (elapsed * 3.4 + i as f64 * 1.3).sin());
+            let beam_alpha = (0.28 + 0.32 * (elapsed * 4.2 + i as f64 * 0.8).sin().abs()) * intensity;
 
             cr.save().expect("Cairo save");
             cr.rotate(angle_offset);
             let beam_pat = cairo::LinearGradient::new(0.0, 0.0, -beam_len, 0.0);
             match state.theme.as_str() {
                 "plasma" => {
-                    beam_pat.add_color_stop_rgba(0.0, 0.40, 0.95, 1.0, beam_alpha * 0.85);
-                    beam_pat.add_color_stop_rgba(0.4, 0.85, 0.15, 0.95, beam_alpha * 0.65);
+                    beam_pat.add_color_stop_rgba(0.0, 0.40, 0.95, 1.0, beam_alpha * 0.90);
+                    beam_pat.add_color_stop_rgba(0.4, 0.85, 0.15, 0.95, beam_alpha * 0.70);
                     beam_pat.add_color_stop_rgba(1.0, 0.50, 0.10, 0.90, 0.0);
                 }
                 "solar" => {
-                    beam_pat.add_color_stop_rgba(0.0, 1.0, 0.90, 0.30, beam_alpha * 0.85);
-                    beam_pat.add_color_stop_rgba(0.4, 1.0, 0.45, 0.08, beam_alpha * 0.65);
+                    beam_pat.add_color_stop_rgba(0.0, 1.0, 0.90, 0.30, beam_alpha * 0.90);
+                    beam_pat.add_color_stop_rgba(0.4, 1.0, 0.45, 0.08, beam_alpha * 0.70);
                     beam_pat.add_color_stop_rgba(1.0, 0.80, 0.05, 0.05, 0.0);
                 }
                 "liquid" => {
-                    beam_pat.add_color_stop_rgba(0.0, 0.20, 1.0, 0.90, beam_alpha * 0.85);
-                    beam_pat.add_color_stop_rgba(0.4, 0.05, 0.75, 0.98, beam_alpha * 0.65);
+                    beam_pat.add_color_stop_rgba(0.0, 0.20, 1.0, 0.90, beam_alpha * 0.90);
+                    beam_pat.add_color_stop_rgba(0.4, 0.05, 0.75, 0.98, beam_alpha * 0.70);
                     beam_pat.add_color_stop_rgba(1.0, 0.08, 0.30, 0.85, 0.0);
                 }
                 _ => {
                     // aurora / heavenly — cycling prismatic beams
                     if i % 3 == 0 {
-                        beam_pat.add_color_stop_rgba(0.0, 1.0, 0.82, 0.35, beam_alpha * 0.90); // blazing gold
-                        beam_pat.add_color_stop_rgba(0.4, 0.98, 0.25, 0.65, beam_alpha * 0.70); // coral rose
+                        beam_pat.add_color_stop_rgba(0.0, 1.0, 0.85, 0.40, beam_alpha * 0.92); // blazing gold
+                        beam_pat.add_color_stop_rgba(0.4, 0.98, 0.28, 0.65, beam_alpha * 0.72); // coral rose
                         beam_pat.add_color_stop_rgba(1.0, 0.60, 0.15, 0.95, 0.0);
                     } else if i % 3 == 1 {
-                        beam_pat.add_color_stop_rgba(0.0, 0.95, 0.18, 0.85, beam_alpha * 0.90); // neon magenta
-                        beam_pat.add_color_stop_rgba(0.4, 0.55, 0.18, 0.98, beam_alpha * 0.70); // electric violet
+                        beam_pat.add_color_stop_rgba(0.0, 0.95, 0.22, 0.85, beam_alpha * 0.92); // neon magenta
+                        beam_pat.add_color_stop_rgba(0.4, 0.55, 0.20, 0.98, beam_alpha * 0.72); // electric violet
                         beam_pat.add_color_stop_rgba(1.0, 0.08, 0.75, 0.95, 0.0);
                     } else {
-                        beam_pat.add_color_stop_rgba(0.0, 0.10, 0.88, 0.98, beam_alpha * 0.90); // laser cyan
-                        beam_pat.add_color_stop_rgba(0.4, 0.25, 0.45, 0.98, beam_alpha * 0.70); // sapphire
+                        beam_pat.add_color_stop_rgba(0.0, 0.15, 0.90, 0.98, beam_alpha * 0.92); // laser cyan
+                        beam_pat.add_color_stop_rgba(0.4, 0.28, 0.48, 0.98, beam_alpha * 0.72); // sapphire
                         beam_pat.add_color_stop_rgba(1.0, 0.65, 0.20, 0.90, 0.0);
                     }
                 }
             }
             let _ = cr.set_source(&beam_pat);
-            let beam_spread = 28.0 * pressure_scale;
+            let beam_spread = (24.0 + swell * 20.0) * pressure_scale;
             cr.new_path();
             cr.move_to(0.0, 0.0);
             cr.line_to(-beam_len, -beam_spread);
@@ -427,7 +485,7 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     }
 
     // 3. Living Dynamic Harmonic Fluid Meniscus & Surface-Tension Wobble
-    let base_radius = (36.0 + intensity * 64.0) * pressure_scale;
+    let base_radius = ((34.0 + intensity.min(0.25) * 20.0) + swell * 110.0) * pressure_scale;
     cr.save().expect("Cairo save");
     cr.new_path();
     let steps = 48;
@@ -490,53 +548,57 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     cr.set_source_rgba(1.0, 0.92, 0.60, 0.50 * intensity);
     let _ = cr.stroke();
 
-    // Specular 3D Core Droplet with Chromatic Halo
-    let core_r = base_radius * 0.36;
+    // Specular 3D Core Droplet with Chromatic Halo (Additive Screen blend for incandescent core)
+    let core_r = base_radius * 0.38;
+    cr.save().expect("Cairo save");
+    cr.set_operator(cairo::Operator::Screen);
     let core_pat = cairo::RadialGradient::new(-core_r * 0.35, 0.0, 2.0, 0.0, 0.0, core_r);
-    core_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * intensity);
-    core_pat.add_color_stop_rgba(0.28, 1.00, 0.85, 0.40, 0.85 * intensity);
-    core_pat.add_color_stop_rgba(0.62, 0.95, 0.30, 0.75, 0.55 * intensity);
+    core_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.98 * intensity);
+    core_pat.add_color_stop_rgba(0.28, 1.00, 0.88, 0.45, 0.90 * intensity);
+    core_pat.add_color_stop_rgba(0.62, 0.95, 0.35, 0.78, 0.60 * intensity);
     core_pat.add_color_stop_rgba(1.00, 0.00, 0.00, 0.00, 0.00);
     cr.scale(1.0, 1.35);
     cr.arc(0.0, 0.0, core_r, 0.0, 2.0 * std::f64::consts::PI);
     let _ = cr.set_source(&core_pat);
     let _ = cr.fill();
     let _ = cr.restore();
+    let _ = cr.restore();
 
-    // 4. Concentric Chromatic Aberration Dispersion Ripples (RGB Separation)
-    if intensity > 0.12 {
+    // 4. Concentric Chromatic Aberration Dispersion Ripples (RGB Separation with Screen blending)
+    if intensity > 0.10 {
         cr.save().expect("Cairo save");
-        let wave_r = (base_radius * 0.65 + (elapsed * 55.0) % 90.0) * pressure_scale;
-        let wave_env = (1.0 - (wave_r / (base_radius * 0.65 + 90.0)).powi(2)).max(0.0);
+        cr.set_operator(cairo::Operator::Screen);
+        let wave_r = (base_radius * 0.65 + (elapsed * 55.0) % (90.0 + swell * 80.0)) * pressure_scale;
+        let wave_env = (1.0 - (wave_r / (base_radius * 0.65 + 90.0 + swell * 80.0)).powi(2)).max(0.0);
 
         // Red chromatic fringe
         cr.new_path();
         cr.arc(0.0, 0.0, wave_r + 6.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-        cr.set_line_width(2.0);
-        cr.set_source_rgba(1.0, 0.25, 0.50, 0.60 * wave_env * intensity);
+        cr.set_line_width(2.0 + swell * 1.5);
+        cr.set_source_rgba(1.0, 0.25, 0.50, 0.65 * wave_env * intensity);
         let _ = cr.stroke();
 
         // Green/Cyan core crest
         cr.new_path();
         cr.arc(0.0, 0.0, wave_r, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-        cr.set_line_width(2.4);
-        cr.set_source_rgba(0.15, 0.95, 0.85, 0.70 * wave_env * intensity);
+        cr.set_line_width(2.5 + swell * 2.0);
+        cr.set_source_rgba(0.15, 0.95, 0.85, 0.75 * wave_env * intensity);
         let _ = cr.stroke();
 
         // Blue/Violet chromatic trail
         if wave_r > 6.0 {
             cr.new_path();
             cr.arc(0.0, 0.0, wave_r - 6.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-            cr.set_line_width(1.8);
-            cr.set_source_rgba(0.60, 0.20, 0.98, 0.55 * wave_env * intensity);
+            cr.set_line_width(1.8 + swell * 1.2);
+            cr.set_source_rgba(0.60, 0.20, 0.98, 0.60 * wave_env * intensity);
             let _ = cr.stroke();
         }
         let _ = cr.restore();
     }
 
     // 5. Tier 5: Molten Dynamic Bezel Rim Light (Brilliant neon glass edge highlight)
-    let rim_h = (200.0 * pressure_scale).min(height * 0.70);
-    let rim_w = 3.5 * pressure_scale;
+    let rim_h = ((200.0 + swell * 350.0) * pressure_scale).min(height * 0.90);
+    let rim_w = (3.5 + swell * 3.5) * pressure_scale;
     let rim_pat = cairo::LinearGradient::new(-rim_w, 0.0, 0.0, 0.0);
     match state.theme.as_str() {
         "plasma" => {
@@ -573,25 +635,26 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     if state.theme == "plasma" && intensity > 0.10 {
         // Crackling lightning tendrils branching across desktop
         cr.save().expect("Cairo save");
+        cr.set_operator(cairo::Operator::Screen);
         cr.set_line_cap(cairo::LineCap::Round);
         for branch in 0..5 {
             cr.new_path();
             cr.move_to(0.0, 0.0);
             let mut cx = 0.0;
             let mut cy = 0.0;
-            let len = (120.0 + intensity * 260.0)
+            let len = ((120.0 + intensity.min(0.25) * 80.0) + swell * 400.0)
                 * (0.7 + 0.3 * (elapsed * 12.0 + branch as f64 * 1.5).sin())
                 * pressure_scale;
             let segs = 8;
             for s in 0..segs {
                 cx -= len / segs as f64;
                 let jitter = (elapsed * 24.0 + s as f64 * 4.0 + branch as f64 * 3.0).sin()
-                    * 18.0
+                    * (18.0 + swell * 14.0)
                     * pressure_scale;
                 cy += jitter;
                 cr.line_to(cx, cy);
             }
-            cr.set_line_width(if branch == 0 { 2.8 } else { 1.5 } * pressure_scale);
+            cr.set_line_width(if branch == 0 { 2.8 + swell * 1.5 } else { 1.5 + swell * 0.8 } * pressure_scale);
             cr.set_source_rgba(0.40, 0.95, 1.0, 0.92 * intensity);
             let _ = cr.stroke();
         }
@@ -599,36 +662,40 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     } else if state.theme == "solar" && intensity > 0.10 {
         // Rising thermonuclear embers
         cr.save().expect("Cairo save");
-        for idx in 0..8 {
+        cr.set_operator(cairo::Operator::Screen);
+        for idx in 0..10 {
             let phase = idx as f64 * 1.1;
-            let ey = ((elapsed * 65.0 + phase * 35.0) % 190.0) - 95.0;
-            let ex = -(18.0 + idx as f64 * 18.0 + (elapsed * 3.0 + phase).sin() * 16.0)
+            let ey = ((elapsed * 65.0 + phase * 35.0) % (190.0 + swell * 200.0)) - (95.0 + swell * 100.0);
+            let ex = -((18.0 + idx as f64 * 18.0 + (elapsed * 3.0 + phase).sin() * 16.0) + swell * 140.0)
                 * intensity
                 * pressure_scale;
-            let er = (2.2 + (idx % 3) as f64) * intensity * pressure_scale;
+            let er = (2.2 + (idx % 3) as f64 + swell * 2.0) * intensity * pressure_scale;
             cr.arc(ex, ey, er, 0.0, 2.0 * std::f64::consts::PI);
             cr.set_source_rgba(1.0, 0.85, 0.30, 0.92 * intensity);
             let _ = cr.fill();
         }
         let _ = cr.restore();
-    } else if intensity > 0.12 {
+    } else if intensity > 0.08 {
         // Shimmering Prismatic Bioluminescent Stardust Motes
         cr.save().expect("Cairo save");
-        for idx in 0..10 {
+        cr.set_operator(cairo::Operator::Screen);
+        let num_motes = if swell > 0.1 { 14 } else { 8 };
+        for idx in 0..num_motes {
             let phase = idx as f64 * 1.25;
-            let sy = ((elapsed * 50.0 + phase * 38.0) % 200.0) - 100.0;
-            let sx = -(24.0 + idx as f64 * 22.0 + (elapsed * 2.6 + phase).cos() * 18.0)
+            let span_y = 200.0 + swell * 350.0;
+            let sy = ((elapsed * 50.0 + phase * 38.0) % span_y) - span_y / 2.0;
+            let sx = -((24.0 + idx as f64 * 22.0 + (elapsed * 2.6 + phase).cos() * 18.0) + swell * 160.0)
                 * intensity
                 * pressure_scale;
             let sparkle_alpha = (0.4 + 0.6 * (elapsed * 4.0 + phase * 2.0).sin().abs()) * intensity;
-            let sr = (2.0 + (idx % 3) as f64 * 1.2) * pressure_scale;
+            let sr = (2.0 + (idx % 3) as f64 * 1.2 + swell * 1.8) * pressure_scale;
             cr.arc(sx, sy, sr, 0.0, 2.0 * std::f64::consts::PI);
             if idx % 3 == 0 {
-                cr.set_source_rgba(1.0, 0.85, 0.40, sparkle_alpha * 0.95); // gold mote
+                cr.set_source_rgba(1.0, 0.88, 0.45, sparkle_alpha * 0.95); // gold mote
             } else if idx % 3 == 1 {
-                cr.set_source_rgba(1.0, 0.35, 0.75, sparkle_alpha * 0.95); // rose mote
+                cr.set_source_rgba(1.0, 0.38, 0.80, sparkle_alpha * 0.95); // rose mote
             } else {
-                cr.set_source_rgba(0.35, 0.90, 1.0, sparkle_alpha * 0.95); // cyan mote
+                cr.set_source_rgba(0.38, 0.92, 1.0, sparkle_alpha * 0.95); // cyan mote
             }
             let _ = cr.fill();
         }

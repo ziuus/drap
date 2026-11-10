@@ -442,6 +442,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 launch_video_continuity(url, start_time)
 
             elif msg_type in ("drag_start", "drag_move", "drag_edge_enter", "drag_edge_leave", "drag_drop"):
+                # Default edge to "right" if not explicitly specified
+                if not data.get("edge") and not data.get("corner"):
+                    data["edge"] = "right"
                 # Broadcast real-time spatial touch telemetry to overlay
                 await manager.broadcast(data, sender=websocket)
 
