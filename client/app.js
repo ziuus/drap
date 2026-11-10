@@ -7,7 +7,11 @@
   // 1. STATE & CONFIGURATION
   // =========================================================================
   let currentMode = localStorage.getItem("drap_gesture_mode") || "transfer"; // 'transfer' | 'browse'
-  let activeTheme = localStorage.getItem("drap_effect_theme") || "heavenly";
+  let activeTheme = localStorage.getItem("drap_effect_theme");
+  if (!activeTheme || activeTheme === "heavenly") {
+    activeTheme = "aurora";
+    localStorage.setItem("drap_effect_theme", "aurora");
+  }
   let targetHost = window.location.host;
   let storedTargetEdge = localStorage.getItem("drap_target_edge");
   if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "phone-left" || storedTargetEdge === "direct") {
@@ -103,133 +107,140 @@
   const surgeLuts = {};
 
   const THEME_STOPS = {
-    heavenly: {
-      wash: [
-        [0.0, "rgba(255, 255, 255, 0.58)"],
-        [0.28, "rgba(250, 253, 255, 0.38)"],
-        [0.6, "rgba(242, 249, 255, 0.18)"],
-        [0.85, "rgba(230, 242, 255, 0.06)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
-      ],
-      core: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.18, "rgba(255, 255, 255, 0.98)"],
-        [0.38, "rgba(252, 253, 255, 0.92)"],
-        [0.58, "rgba(244, 249, 255, 0.78)"],
-        [0.75, "rgba(232, 244, 255, 0.52)"],
-        [0.88, "rgba(218, 236, 255, 0.22)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
-      ],
-      surge: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.22, "rgba(255, 255, 255, 0.95)"],
-        [0.45, "rgba(245, 250, 255, 0.82)"],
-        [0.7, "rgba(225, 240, 255, 0.48)"],
-        [0.9, "rgba(200, 228, 255, 0.15)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
-      ]
-    },
     aurora: {
       wash: [
-        [0.0, "rgba(76, 235, 255, 0.48)"],
-        [0.35, "rgba(140, 89, 242, 0.26)"],
-        [0.7, "rgba(13, 115, 179, 0.11)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(147, 51, 242, 0.55)"],
+        [0.25, "rgba(235, 38, 165, 0.42)"],
+        [0.55, "rgba(13, 191, 242, 0.26)"],
+        [0.80, "rgba(25, 76, 217, 0.12)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.08, "rgba(250, 242, 224, 1.0)"],
-        [0.18, "rgba(250, 204, 89, 0.96)"],
-        [0.32, "rgba(242, 97, 148, 0.92)"],
-        [0.48, "rgba(189, 122, 219, 0.86)"],
-        [0.65, "rgba(133, 209, 209, 0.76)"],
-        [0.8, "rgba(89, 166, 242, 0.52)"],
-        [0.92, "rgba(46, 102, 217, 0.24)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 250, 230, 1.0)"],
+        [0.08, "rgba(255, 209, 102, 0.98)"],
+        [0.20, "rgba(255, 64, 165, 0.95)"],
+        [0.38, "rgba(217, 25, 242, 0.90)"],
+        [0.58, "rgba(89, 51, 250, 0.82)"],
+        [0.74, "rgba(13, 191, 250, 0.68)"],
+        [0.88, "rgba(25, 102, 230, 0.38)"],
+        [0.96, "rgba(38, 25, 153, 0.14)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.15, "rgba(255, 235, 195, 0.96)"],
-        [0.32, "rgba(250, 180, 95, 0.9)"],
-        [0.5, "rgba(245, 115, 165, 0.82)"],
-        [0.68, "rgba(185, 120, 235, 0.68)"],
-        [0.84, "rgba(85, 200, 250, 0.42)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 242, 1.0)"],
+        [0.08, "rgba(255, 224, 115, 0.99)"],
+        [0.20, "rgba(255, 76, 165, 0.98)"],
+        [0.38, "rgba(230, 38, 230, 0.95)"],
+        [0.56, "rgba(115, 64, 250, 0.88)"],
+        [0.72, "rgba(20, 204, 250, 0.70)"],
+        [0.86, "rgba(38, 115, 235, 0.40)"],
+        [0.96, "rgba(64, 31, 165, 0.15)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
+      ]
+    },
+    heavenly: {
+      wash: [
+        [0.00, "rgba(217, 230, 255, 0.52)"],
+        [0.28, "rgba(191, 115, 242, 0.34)"],
+        [0.60, "rgba(64, 204, 250, 0.18)"],
+        [0.85, "rgba(153, 102, 230, 0.08)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
+      ],
+      core: [
+        [0.00, "rgba(255, 255, 255, 1.0)"],
+        [0.12, "rgba(255, 242, 204, 0.98)"],
+        [0.28, "rgba(242, 153, 235, 0.92)"],
+        [0.50, "rgba(153, 115, 250, 0.80)"],
+        [0.72, "rgba(76, 191, 250, 0.56)"],
+        [0.90, "rgba(64, 230, 217, 0.25)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
+      ],
+      surge: [
+        [0.00, "rgba(255, 255, 255, 1.0)"],
+        [0.12, "rgba(255, 235, 191, 0.98)"],
+        [0.28, "rgba(242, 153, 230, 0.92)"],
+        [0.48, "rgba(165, 128, 250, 0.82)"],
+        [0.70, "rgba(89, 204, 250, 0.58)"],
+        [0.88, "rgba(76, 242, 217, 0.26)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     liquid: {
       wash: [
-        [0.0, "rgba(45, 212, 191, 0.5)"],
-        [0.4, "rgba(14, 165, 233, 0.28)"],
-        [0.75, "rgba(2, 132, 199, 0.12)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(13, 242, 217, 0.52)"],
+        [0.30, "rgba(20, 184, 242, 0.36)"],
+        [0.65, "rgba(31, 89, 217, 0.18)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.16, "rgba(224, 255, 254, 0.96)"],
-        [0.34, "rgba(56, 235, 225, 0.88)"],
-        [0.54, "rgba(20, 184, 225, 0.72)"],
-        [0.74, "rgba(12, 125, 195, 0.45)"],
-        [0.9, "rgba(6, 78, 140, 0.18)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 255, 1.0)"],
+        [0.12, "rgba(89, 255, 242, 0.98)"],
+        [0.28, "rgba(13, 224, 230, 0.92)"],
+        [0.52, "rgba(15, 140, 242, 0.76)"],
+        [0.74, "rgba(13, 82, 217, 0.48)"],
+        [0.90, "rgba(5, 41, 153, 0.20)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.18, "rgba(204, 251, 241, 0.95)"],
-        [0.38, "rgba(45, 212, 191, 0.85)"],
-        [0.62, "rgba(14, 165, 233, 0.62)"],
-        [0.85, "rgba(3, 105, 161, 0.28)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 255, 1.0)"],
+        [0.12, "rgba(89, 255, 242, 0.98)"],
+        [0.30, "rgba(20, 224, 235, 0.90)"],
+        [0.55, "rgba(20, 153, 242, 0.72)"],
+        [0.76, "rgba(15, 89, 217, 0.48)"],
+        [0.92, "rgba(8, 46, 153, 0.20)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     plasma: {
       wash: [
-        [0.0, "rgba(242, 89, 242, 0.46)"],
-        [0.38, "rgba(140, 51, 224, 0.26)"],
-        [0.72, "rgba(64, 26, 128, 0.1)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(242, 38, 217, 0.55)"],
+        [0.32, "rgba(140, 25, 242, 0.38)"],
+        [0.65, "rgba(13, 217, 250, 0.20)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.14, "rgba(245, 158, 255, 0.94)"],
-        [0.32, "rgba(217, 70, 239, 0.86)"],
-        [0.54, "rgba(147, 51, 234, 0.68)"],
-        [0.76, "rgba(79, 70, 229, 0.42)"],
-        [0.92, "rgba(30, 27, 75, 0.15)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 255, 1.0)"],
+        [0.10, "rgba(102, 242, 255, 0.98)"],
+        [0.26, "rgba(242, 38, 242, 0.94)"],
+        [0.48, "rgba(153, 20, 250, 0.82)"],
+        [0.72, "rgba(38, 128, 242, 0.58)"],
+        [0.90, "rgba(20, 51, 178, 0.22)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.16, "rgba(240, 171, 252, 0.95)"],
-        [0.36, "rgba(217, 70, 239, 0.85)"],
-        [0.6, "rgba(126, 34, 206, 0.65)"],
-        [0.85, "rgba(59, 130, 246, 0.3)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 255, 1.0)"],
+        [0.12, "rgba(89, 242, 255, 0.98)"],
+        [0.28, "rgba(242, 46, 242, 0.92)"],
+        [0.50, "rgba(165, 25, 250, 0.78)"],
+        [0.72, "rgba(38, 140, 242, 0.55)"],
+        [0.90, "rgba(20, 51, 178, 0.22)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     solar: {
       wash: [
-        [0.0, "rgba(255, 217, 76, 0.46)"],
-        [0.38, "rgba(249, 115, 22, 0.26)"],
-        [0.72, "rgba(153, 27, 27, 0.1)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 178, 38, 0.55)"],
+        [0.30, "rgba(250, 82, 20, 0.38)"],
+        [0.65, "rgba(191, 20, 38, 0.18)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.0, "rgba(255, 255, 245, 1.0)"],
-        [0.15, "rgba(254, 240, 138, 0.95)"],
-        [0.34, "rgba(251, 146, 60, 0.86)"],
-        [0.56, "rgba(239, 68, 68, 0.66)"],
-        [0.78, "rgba(185, 28, 28, 0.38)"],
-        [0.92, "rgba(127, 29, 29, 0.14)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 230, 1.0)"],
+        [0.12, "rgba(255, 224, 64, 0.98)"],
+        [0.28, "rgba(255, 128, 13, 0.94)"],
+        [0.50, "rgba(242, 56, 13, 0.80)"],
+        [0.74, "rgba(204, 20, 31, 0.52)"],
+        [0.92, "rgba(102, 10, 25, 0.20)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.0, "rgba(255, 255, 255, 1.0)"],
-        [0.16, "rgba(254, 240, 138, 0.96)"],
-        [0.36, "rgba(251, 146, 60, 0.86)"],
-        [0.62, "rgba(220, 38, 38, 0.62)"],
-        [0.86, "rgba(127, 29, 29, 0.25)"],
-        [1.0, "rgba(0, 0, 0, 0)"]
+        [0.00, "rgba(255, 255, 230, 1.0)"],
+        [0.12, "rgba(255, 224, 76, 0.98)"],
+        [0.28, "rgba(255, 140, 20, 0.92)"],
+        [0.52, "rgba(242, 64, 13, 0.78)"],
+        [0.75, "rgba(204, 25, 38, 0.52)"],
+        [0.92, "rgba(102, 10, 25, 0.20)"],
+        [1.00, "rgba(0, 0, 0, 0)"]
       ]
     }
   };
@@ -425,11 +436,65 @@
     ctx.save();
     ctx.scale(radiusX / LUT_W, radiusY / (LUT_H / 2));
     ctx.translate(-LUT_W, -LUT_H / 2);
-    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.10 * pulseAlpha);
+    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.15 * pulseAlpha);
     ctx.drawImage(lut, 0, 0);
     ctx.restore();
 
-    // 2. Harmonic Fluid Meniscus Wobble & Specular Droplet
+    // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans)
+    if (intensity > 0.06) {
+      ctx.save();
+      const numRays = 9;
+      const baseReach = (320 + intensity * 480) * pressureScale;
+      for (let i = 0; i < numRays; i++) {
+        const angleOffset = (i - (numRays - 1) / 2) * 0.16;
+        const beamLen = baseReach * (0.75 + 0.25 * Math.sin(tSec * 3.4 + i * 1.3));
+        const beamAlpha = (0.30 + 0.35 * Math.abs(Math.sin(tSec * 4.2 + i * 0.8))) * intensity;
+
+        ctx.save();
+        ctx.rotate(angleOffset);
+        const beamGrad = ctx.createLinearGradient(0, 0, -beamLen, 0);
+        if (activeTheme === "plasma") {
+          beamGrad.addColorStop(0, `rgba(102, 242, 255, ${(beamAlpha * 0.85).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(217, 38, 242, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(1, "rgba(128, 25, 230, 0)");
+        } else if (activeTheme === "solar") {
+          beamGrad.addColorStop(0, `rgba(255, 230, 76, ${(beamAlpha * 0.85).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(255, 115, 20, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(1, "rgba(204, 13, 13, 0)");
+        } else if (activeTheme === "liquid") {
+          beamGrad.addColorStop(0, `rgba(51, 255, 230, ${(beamAlpha * 0.85).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(13, 191, 250, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(1, "rgba(15, 76, 217, 0)");
+        } else if (activeTheme === "heavenly") {
+          beamGrad.addColorStop(0, `rgba(255, 250, 230, ${(beamAlpha * 0.85).toFixed(2)})`);
+          beamGrad.addColorStop(0.4, `rgba(204, 140, 255, ${(beamAlpha * 0.65).toFixed(2)})`);
+          beamGrad.addColorStop(1, "rgba(64, 204, 250, 0)");
+        } else {
+          // aurora: incandescent multi-spectral fan
+          const rayColors = [
+            ["rgba(255, 224, 102, 0.9)", "rgba(255, 64, 165, 0.7)"],
+            ["rgba(255, 64, 165, 0.9)", "rgba(191, 38, 242, 0.7)"],
+            ["rgba(191, 38, 242, 0.9)", "rgba(13, 191, 250, 0.7)"],
+            ["rgba(13, 191, 250, 0.9)", "rgba(51, 102, 242, 0.7)"]
+          ];
+          const [cStart, cMid] = rayColors[i % rayColors.length];
+          beamGrad.addColorStop(0, cStart.replace("0.9", (beamAlpha * 0.9).toFixed(2)));
+          beamGrad.addColorStop(0.45, cMid.replace("0.7", (beamAlpha * 0.65).toFixed(2)));
+          beamGrad.addColorStop(1, "rgba(25, 25, 115, 0)");
+        }
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-beamLen, -24);
+        ctx.lineTo(-beamLen, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // 3. Harmonic Fluid Meniscus Wobble & Specular Droplet
     ctx.save();
     const baseR = (110 + intensity * 260) * pressureScale;
     ctx.beginPath();
@@ -450,24 +515,36 @@
 
     const fluidGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, baseR * 1.15);
     if (activeTheme === "plasma") {
-      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.25, `rgba(168, 85, 247, ${(0.60 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.60, `rgba(59, 130, 246, ${(0.25 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.20, `rgba(102, 242, 255, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.48, `rgba(217, 38, 242, ${(0.65 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.78, `rgba(89, 25, 230, ${(0.30 * intensity).toFixed(2)})`);
       fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     } else if (activeTheme === "solar") {
-      fluidGrad.addColorStop(0, `rgba(255, 255, 240, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.25, `rgba(245, 158, 11, ${(0.60 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.60, `rgba(239, 68, 68, ${(0.25 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0, `rgba(255, 255, 230, ${(0.95 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.20, `rgba(255, 224, 76, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.48, `rgba(242, 89, 13, ${(0.65 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.78, `rgba(178, 15, 25, ${(0.30 * intensity).toFixed(2)})`);
       fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     } else if (activeTheme === "liquid") {
-      fluidGrad.addColorStop(0, `rgba(240, 253, 250, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.25, `rgba(20, 184, 166, ${(0.60 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.60, `rgba(14, 116, 144, ${(0.25 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0, `rgba(240, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.20, `rgba(51, 242, 217, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.48, `rgba(13, 165, 242, ${(0.65 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.78, `rgba(15, 64, 191, ${(0.30 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    } else if (activeTheme === "heavenly") {
+      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.20, `rgba(255, 239, 191, ${(0.85 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.48, `rgba(217, 153, 250, ${(0.65 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.78, `rgba(64, 204, 250, ${(0.30 * intensity).toFixed(2)})`);
       fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     } else {
-      fluidGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.85 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.22, `rgba(240, 249, 255, ${(0.65 * intensity).toFixed(2)})`);
-      fluidGrad.addColorStop(0.55, `rgba(186, 230, 253, ${(0.28 * intensity).toFixed(2)})`);
+      // aurora: radiant spectral burst
+      fluidGrad.addColorStop(0, `rgba(255, 255, 240, ${(0.98 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.18, `rgba(255, 204, 89, ${(0.90 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.42, `rgba(255, 64, 165, ${(0.75 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.68, `rgba(178, 38, 242, ${(0.50 * intensity).toFixed(2)})`);
+      fluidGrad.addColorStop(0.88, `rgba(13, 191, 250, ${(0.25 * intensity).toFixed(2)})`);
       fluidGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     }
     ctx.fillStyle = fluidGrad;
@@ -480,9 +557,23 @@
     // Specular Core Droplet
     const coreR = baseR * 0.44;
     const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 3, 0, 0, coreR);
-    coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.92 * intensity).toFixed(2)})`);
-    coreGrad.addColorStop(0.35, `rgba(255, 255, 255, ${(0.68 * intensity).toFixed(2)})`);
-    coreGrad.addColorStop(0.70, `rgba(200, 235, 255, ${(0.25 * intensity).toFixed(2)})`);
+    if (activeTheme === "solar") {
+      coreGrad.addColorStop(0, `rgba(255, 255, 235, ${(0.95 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(255, 224, 102, ${(0.85 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(242, 102, 13, ${(0.45 * intensity).toFixed(2)})`);
+    } else if (activeTheme === "plasma") {
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(128, 242, 255, ${(0.85 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(217, 38, 242, ${(0.45 * intensity).toFixed(2)})`);
+    } else if (activeTheme === "liquid") {
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(89, 255, 242, ${(0.85 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(13, 165, 242, ${(0.45 * intensity).toFixed(2)})`);
+    } else {
+      coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.96 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.35, `rgba(255, 224, 128, ${(0.85 * intensity).toFixed(2)})`);
+      coreGrad.addColorStop(0.70, `rgba(255, 89, 178, ${(0.45 * intensity).toFixed(2)})`);
+    }
     coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.save();
     ctx.scale(1, 1.35);
@@ -493,17 +584,31 @@
     ctx.restore();
     ctx.restore();
 
-    // 3. Dynamic Bezel Rim Light
+    // 4. Dynamic Bezel Rim Light
     const rimH = Math.min(h * 0.85, 280 * pressureScale);
     const rimW = 4.5 * pressureScale;
     const rimGrad = ctx.createLinearGradient(-rimW, 0, 0, 0);
     rimGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-    rimGrad.addColorStop(0.65, `rgba(255, 255, 255, ${(0.65 * intensity).toFixed(2)})`);
-    rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.95 * intensity).toFixed(2)})`);
+    if (activeTheme === "aurora") {
+      rimGrad.addColorStop(0.65, `rgba(255, 128, 191, ${(0.75 * intensity).toFixed(2)})`);
+      rimGrad.addColorStop(1, `rgba(255, 235, 178, ${(0.98 * intensity).toFixed(2)})`);
+    } else if (activeTheme === "solar") {
+      rimGrad.addColorStop(0.65, `rgba(255, 178, 64, ${(0.75 * intensity).toFixed(2)})`);
+      rimGrad.addColorStop(1, `rgba(255, 245, 191, ${(0.98 * intensity).toFixed(2)})`);
+    } else if (activeTheme === "plasma") {
+      rimGrad.addColorStop(0.65, `rgba(217, 76, 242, ${(0.75 * intensity).toFixed(2)})`);
+      rimGrad.addColorStop(1, `rgba(153, 242, 255, ${(0.98 * intensity).toFixed(2)})`);
+    } else if (activeTheme === "liquid") {
+      rimGrad.addColorStop(0.65, `rgba(51, 230, 217, ${(0.75 * intensity).toFixed(2)})`);
+      rimGrad.addColorStop(1, `rgba(204, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
+    } else {
+      rimGrad.addColorStop(0.65, `rgba(217, 191, 255, ${(0.75 * intensity).toFixed(2)})`);
+      rimGrad.addColorStop(1, `rgba(255, 255, 255, ${(0.98 * intensity).toFixed(2)})`);
+    }
     ctx.fillStyle = rimGrad;
     ctx.fillRect(-rimW, -rimH / 2, rimW, rimH);
 
-    // 4. Theme Optical Tendrils / Embers
+    // 5. Theme Optical Tendrils / Embers
     if (activeTheme === "plasma" && intensity > 0.12) {
       ctx.save();
       ctx.strokeStyle = `rgba(165, 243, 252, ${(0.82 * intensity).toFixed(2)})`;
@@ -566,14 +671,52 @@
           ctx.rotate(origin.angle);
           ctx.scale(rx / LUT_W, ry / (LUT_H / 2));
           ctx.translate(-LUT_W, -LUT_H / 2);
-          ctx.globalAlpha = damping * 0.96;
+          ctx.globalAlpha = damping * 0.98;
           ctx.drawImage(lut, 0, 0);
           ctx.restore();
         }
       }
     }
 
-    // 2. Hamiltonian Damped Concentric Water Caustic Rings
+    // 2. High-Energy Supernova Burst Rays on Entry
+    if (overlayState.confirmActive && overlayState.confirmProgress < 0.40) {
+      const burstP = overlayState.confirmProgress / 0.40;
+      const burstAlpha = Math.pow(1.0 - burstP, 2);
+      const maxReach = Math.hypot(w, h) * 1.18;
+      const origin = getEdgeOrigin(overlayState.confirmEdge, overlayState.confirmCoord, w, h);
+      ctx.save();
+      ctx.translate(origin.x, origin.y);
+      ctx.rotate(origin.angle);
+      const numBurstRays = 12;
+      const rayLen = maxReach * 0.55 * burstP;
+      for (let i = 0; i < numBurstRays; i++) {
+        const angle = (i - (numBurstRays - 1) / 2) * 0.22;
+        ctx.save();
+        ctx.rotate(angle);
+        const rayGrad = ctx.createLinearGradient(0, 0, -rayLen, 0);
+        if (i % 3 === 0) {
+          rayGrad.addColorStop(0, `rgba(255, 230, 102, ${(burstAlpha * 0.90).toFixed(2)})`);
+          rayGrad.addColorStop(1, "rgba(242, 51, 165, 0)");
+        } else if (i % 3 === 1) {
+          rayGrad.addColorStop(0, `rgba(242, 51, 217, ${(burstAlpha * 0.90).toFixed(2)})`);
+          rayGrad.addColorStop(1, "rgba(115, 38, 242, 0)");
+        } else {
+          rayGrad.addColorStop(0, `rgba(51, 217, 255, ${(burstAlpha * 0.90).toFixed(2)})`);
+          rayGrad.addColorStop(1, "rgba(25, 89, 242, 0)");
+        }
+        ctx.fillStyle = rayGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-rayLen, -36 * burstP);
+        ctx.lineTo(-rayLen, 36 * burstP);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // 3. Hamiltonian Damped Concentric Chromatic Water Caustic Rings
     for (let i = overlayState.causticWaves.length - 1; i >= 0; i--) {
       const wave = overlayState.causticWaves[i];
       const elapsed = now - wave.born;
@@ -585,30 +728,77 @@
       const easeOut = 1.0 - Math.pow(1.0 - p, 2.2);
       const env = Math.pow(1.0 - p, 1.65);
       const origin = getEdgeOrigin(wave.edge, wave.coord, w, h);
-      const maxR = Math.hypot(w, h) * 0.72;
+      const maxR = Math.hypot(w, h) * 0.75;
       const rPrimary = 36 + easeOut * maxR;
-      const rSecondary = Math.max(12, rPrimary - 34);
 
       ctx.save();
       ctx.translate(origin.x, origin.y);
 
-      // Outer specular caustic crest
+      // Outer Magenta/Red dispersion crest
       ctx.beginPath();
-      ctx.arc(0, 0, rPrimary, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.78 * env).toFixed(3)})`;
-      ctx.lineWidth = 2.4 * (1 - p * 0.5);
+      ctx.arc(0, 0, rPrimary + 14, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 64, 140, ${(0.65 * env).toFixed(3)})`;
+      ctx.lineWidth = 2.8 * (1 - p * 0.5);
       ctx.stroke();
 
-      // Inner chromatic dispersion ring
+      // Primary Specular Caustic Shock Crest
       ctx.beginPath();
-      ctx.arc(0, 0, rSecondary, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(56, 189, 248, ${(0.58 * env).toFixed(3)})`;
-      ctx.lineWidth = 1.6 * (1 - p * 0.4);
+      ctx.arc(0, 0, rPrimary, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.88 * env).toFixed(3)})`;
+      ctx.lineWidth = 3.6 * (1 - p * 0.5);
       ctx.stroke();
+
+      // Inner Cyan/Turquoise dispersion ring
+      if (rPrimary > 24) {
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(8, rPrimary - 14), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(51, 224, 255, ${(0.70 * env).toFixed(3)})`;
+        ctx.lineWidth = 2.6 * (1 - p * 0.4);
+        ctx.stroke();
+      }
+
+      // Deep Violet dispersion trailing ring
+      if (rPrimary > 48) {
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(6, rPrimary - 36), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(165, 51, 250, ${(0.50 * env).toFixed(3)})`;
+        ctx.lineWidth = 2.0 * (1 - p * 0.4);
+        ctx.stroke();
+      }
 
       ctx.restore();
     }
-  }
+
+    // 4. Exploding Supernova Star Particles
+    if (overlayState.confirmActive && overlayState.confirmProgress > 0.05 && overlayState.confirmProgress < 0.75) {
+      const progress = overlayState.confirmProgress;
+      const ease = 1.0 - Math.pow(1.0 - progress, 2.6);
+      const damping = Math.pow(Math.max(0.0, 1.0 - progress), 1.45);
+      const maxReach = Math.hypot(w, h) * 1.18;
+      const origin = getEdgeOrigin(overlayState.confirmEdge, overlayState.confirmCoord, w, h);
+      ctx.save();
+      ctx.translate(origin.x, origin.y);
+      ctx.rotate(origin.angle);
+      const numSparks = 14;
+      for (let i = 0; i < numSparks; i++) {
+        const sparkAngle = (i / numSparks) * Math.PI * 2;
+        const sparkDist = ease * maxReach * 0.45 * (0.65 + 0.35 * Math.abs(Math.sin(i * 1.7)));
+        const sx = -sparkDist * Math.abs(Math.cos(sparkAngle));
+        const sy = sparkDist * Math.sin(sparkAngle);
+        const sparkR = (3.2 * damping) * (0.8 + 0.4 * Math.abs(Math.cos(i)));
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(0.5, sparkR), 0, Math.PI * 2);
+        if (i % 3 === 0) {
+          ctx.fillStyle = `rgba(255, 217, 89, ${(0.90 * damping).toFixed(2)})`;
+        } else if (i % 3 === 1) {
+          ctx.fillStyle = `rgba(255, 76, 178, ${(0.90 * damping).toFixed(2)})`;
+        } else {
+          ctx.fillStyle = `rgba(76, 230, 255, ${(0.90 * damping).toFixed(2)})`;
+        }
+        ctx.fill();
+      }
+      ctx.restore();
+    }
 
   function roundRectPath(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -1395,7 +1585,20 @@
         handsetBezelGlow.style.opacity = Math.min(1, proximity * 1.35).toFixed(2);
         const glowOriginX = (m.normX * 100).toFixed(1);
         const glowOriginY = (m.normY * 100).toFixed(1);
-        handsetBezelGlow.style.background = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.45) 0%, rgba(56,189,248,0.28) 32%, rgba(192,132,252,0.12) 58%, transparent 78%)`;
+        let grad;
+        if (activeTheme === "aurora") {
+          grad = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.70) 0%, rgba(255,107,157,0.55) 25%, rgba(192,38,211,0.42) 50%, rgba(6,182,212,0.25) 75%, transparent 92%)`;
+        } else if (activeTheme === "plasma") {
+          grad = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.70) 0%, rgba(244,114,182,0.55) 25%, rgba(168,85,247,0.42) 50%, rgba(59,130,246,0.25) 75%, transparent 92%)`;
+        } else if (activeTheme === "solar") {
+          grad = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.70) 0%, rgba(251,191,36,0.55) 25%, rgba(249,115,22,0.42) 50%, rgba(220,38,38,0.25) 75%, transparent 92%)`;
+        } else if (activeTheme === "liquid") {
+          grad = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.70) 0%, rgba(45,212,191,0.55) 25%, rgba(14,165,233,0.42) 50%, rgba(2,132,199,0.25) 75%, transparent 92%)`;
+        } else {
+          // heavenly: iridescent opal
+          grad = `radial-gradient(circle at ${glowOriginX}% ${glowOriginY}%, rgba(255,255,255,0.70) 0%, rgba(255,239,184,0.50) 25%, rgba(210,158,255,0.38) 50%, rgba(56,189,248,0.22) 75%, transparent 92%)`;
+        }
+        handsetBezelGlow.style.background = grad;
       } else {
         handsetBezelGlow.style.opacity = "0";
       }

@@ -15,9 +15,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=2.2.0">
+  <link rel="stylesheet" href="/style.css?v=2.3.0">
 </head>
-<body data-theme="heavenly">
+<body data-theme="aurora">
   <!-- Full-Viewport Handset Optical Layers (Active during touch/pointer drag) -->
   <div class="phone-edge-bulb" id="phoneEdgeBulb" style="display: none;"></div>
   <div class="phone-corner-bulb" id="phoneCornerBulb" style="display: none;"></div>
@@ -213,8 +213,8 @@
 
           <!-- Shader Palette Selector -->
           <div class="stage-shader-bar" role="radiogroup" aria-label="Optical Shader Theme">
-            <button type="button" class="shader-tab active" data-theme-select="heavenly">Heavenly</button>
-            <button type="button" class="shader-tab" data-theme-select="aurora">Aurora</button>
+            <button type="button" class="shader-tab active" data-theme-select="aurora">Aurora (Default)</button>
+            <button type="button" class="shader-tab" data-theme-select="heavenly">Heavenly</button>
             <button type="button" class="shader-tab" data-theme-select="liquid">Liquid</button>
             <button type="button" class="shader-tab" data-theme-select="plasma">Plasma</button>
             <button type="button" class="shader-tab" data-theme-select="solar">Solar</button>
@@ -501,13 +501,13 @@ exec-once = drap on   # Launches FastAPI/Node Gateway + GTK4 Layer-Shell Overlay
       <div class="settings-section">
         <label class="settings-label">Optical Bezel LUT Palette</label>
         <div class="theme-grid">
-          <button class="theme-pill active" data-theme="heavenly" type="button">
+          <button class="theme-pill active" data-theme="aurora" type="button">
+            <span class="theme-glow-dot aurora-dot"></span>
+            <span>Aurora (Default)</span>
+          </button>
+          <button class="theme-pill" data-theme="heavenly" type="button">
             <span class="theme-glow-dot heavenly-dot"></span>
             <span>Heavenly</span>
-          </button>
-          <button class="theme-pill" data-theme="aurora" type="button">
-            <span class="theme-glow-dot aurora-dot"></span>
-            <span>Aurora</span>
           </button>
           <button class="theme-pill" data-theme="liquid" type="button">
             <span class="theme-glow-dot liquid-dot"></span>
@@ -597,6 +597,6 @@ exec-once = drap on   # Launches FastAPI/Node Gateway + GTK4 Layer-Shell Overlay
     </div>
   </div>
 
-  <script src="/app.js?v=2.2.0"></script>
+  <script src="/app.js?v=2.3.0"></script>
 </body>
 </html>
