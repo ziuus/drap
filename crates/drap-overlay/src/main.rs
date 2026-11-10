@@ -330,17 +330,18 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let breathe_y = 1.0 + 0.035 * (elapsed * 2.2).cos();
     let pulse_alpha = 1.0 + 0.060 * (elapsed * 3.2).sin();
 
-    // Expansive volumetric aura reaching up to 1200px across display
+    // Focused, sleek volumetric edge bulb (Drooop aesthetic)
     let (radius, radius_y) = if edge.starts_with("corner-") {
-        let r = (1000.0 + intensity * 900.0) * pressure_scale * breathe;
+        let r = (200.0 + intensity * 180.0) * pressure_scale * breathe;
         (r, r)
     } else if edge == "top" || edge == "bottom" {
-        let rx = (850.0 + intensity * 850.0) * pressure_scale * breathe;
-        let ry = (width * (0.90 + intensity * 0.45)).max(1050.0) * breathe_y;
+        let rx = (160.0 + intensity * 160.0) * pressure_scale * breathe;
+        let ry = (280.0 + intensity * 240.0) * breathe_y;
         (rx, ry)
     } else {
-        let rx = (950.0 + intensity * 950.0) * pressure_scale * breathe;
-        let ry = (height * (1.00 + intensity * 0.40)).max(1150.0) * breathe_y;
+        // Left / Right edge: 180px to 380px reach from the bezel
+        let rx = (180.0 + intensity * 190.0) * pressure_scale * breathe;
+        let ry = (300.0 + intensity * 250.0) * breathe_y;
         (rx, ry)
     };
 
@@ -362,19 +363,19 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let pat = SurfacePattern::create(surf);
     pat.set_filter(Filter::Fast);
     let _ = cr.set_source(&pat);
-    let glow_alpha = (intensity.sqrt() * 1.15 * pulse_alpha).min(1.0);
+    let glow_alpha = (intensity.sqrt() * 1.05 * pulse_alpha).min(1.0);
     let _ = cr.paint_with_alpha(glow_alpha);
     let _ = cr.restore();
 
     // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans)
     if intensity > 0.06 {
         cr.save().expect("Cairo save");
-        let num_rays = 9;
-        let base_reach = (320.0 + intensity * 480.0) * pressure_scale;
+        let num_rays = 7;
+        let base_reach = (140.0 + intensity * 160.0) * pressure_scale;
         for i in 0..num_rays {
-            let angle_offset = (i as f64 - (num_rays as f64 - 1.0) / 2.0) * 0.16;
+            let angle_offset = (i as f64 - (num_rays as f64 - 1.0) / 2.0) * 0.18;
             let beam_len = base_reach * (0.75 + 0.25 * (elapsed * 3.4 + i as f64 * 1.3).sin());
-            let beam_alpha = (0.30 + 0.35 * (elapsed * 4.2 + i as f64 * 0.8).sin().abs()) * intensity;
+            let beam_alpha = (0.25 + 0.30 * (elapsed * 4.2 + i as f64 * 0.8).sin().abs()) * intensity;
 
             cr.save().expect("Cairo save");
             cr.rotate(angle_offset);
@@ -426,7 +427,7 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     }
 
     // 3. Living Dynamic Harmonic Fluid Meniscus & Surface-Tension Wobble
-    let base_radius = (150.0 + intensity * 380.0) * pressure_scale;
+    let base_radius = (36.0 + intensity * 64.0) * pressure_scale;
     cr.save().expect("Cairo save");
     cr.new_path();
     let steps = 48;
@@ -490,8 +491,8 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     let _ = cr.stroke();
 
     // Specular 3D Core Droplet with Chromatic Halo
-    let core_r = base_radius * 0.45;
-    let core_pat = cairo::RadialGradient::new(-core_r * 0.35, 0.0, 3.0, 0.0, 0.0, core_r);
+    let core_r = base_radius * 0.36;
+    let core_pat = cairo::RadialGradient::new(-core_r * 0.35, 0.0, 2.0, 0.0, 0.0, core_r);
     core_pat.add_color_stop_rgba(0.00, 1.00, 1.00, 1.00, 0.95 * intensity);
     core_pat.add_color_stop_rgba(0.28, 1.00, 0.85, 0.40, 0.85 * intensity);
     core_pat.add_color_stop_rgba(0.62, 0.95, 0.30, 0.75, 0.55 * intensity);
@@ -505,28 +506,28 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     // 4. Concentric Chromatic Aberration Dispersion Ripples (RGB Separation)
     if intensity > 0.12 {
         cr.save().expect("Cairo save");
-        let wave_r = (base_radius * 0.80 + (elapsed * 65.0) % 200.0) * pressure_scale;
-        let wave_env = (1.0 - (wave_r / (base_radius * 0.80 + 200.0)).powi(2)).max(0.0);
+        let wave_r = (base_radius * 0.65 + (elapsed * 55.0) % 90.0) * pressure_scale;
+        let wave_env = (1.0 - (wave_r / (base_radius * 0.65 + 90.0)).powi(2)).max(0.0);
 
         // Red chromatic fringe
         cr.new_path();
-        cr.arc(0.0, 0.0, wave_r + 8.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-        cr.set_line_width(2.4);
+        cr.arc(0.0, 0.0, wave_r + 6.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+        cr.set_line_width(2.0);
         cr.set_source_rgba(1.0, 0.25, 0.50, 0.60 * wave_env * intensity);
         let _ = cr.stroke();
 
         // Green/Cyan core crest
         cr.new_path();
         cr.arc(0.0, 0.0, wave_r, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-        cr.set_line_width(2.8);
+        cr.set_line_width(2.4);
         cr.set_source_rgba(0.15, 0.95, 0.85, 0.70 * wave_env * intensity);
         let _ = cr.stroke();
 
         // Blue/Violet chromatic trail
-        if wave_r > 8.0 {
+        if wave_r > 6.0 {
             cr.new_path();
-            cr.arc(0.0, 0.0, wave_r - 8.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
-            cr.set_line_width(2.2);
+            cr.arc(0.0, 0.0, wave_r - 6.0, std::f64::consts::PI / 2.0, 3.0 * std::f64::consts::PI / 2.0);
+            cr.set_line_width(1.8);
             cr.set_source_rgba(0.60, 0.20, 0.98, 0.55 * wave_env * intensity);
             let _ = cr.stroke();
         }
@@ -534,8 +535,8 @@ fn draw_ambience(cr: &Context, width: f64, height: f64, state: &OverlayState, lu
     }
 
     // 5. Tier 5: Molten Dynamic Bezel Rim Light (Brilliant neon glass edge highlight)
-    let rim_h = (320.0 * pressure_scale).min(height * 0.88);
-    let rim_w = 5.0 * pressure_scale;
+    let rim_h = (200.0 * pressure_scale).min(height * 0.70);
+    let rim_w = 3.5 * pressure_scale;
     let rim_pat = cairo::LinearGradient::new(-rim_w, 0.0, 0.0, 0.0);
     match state.theme.as_str() {
         "plasma" => {

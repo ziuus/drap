@@ -14,12 +14,12 @@
   }
   let targetHost = window.location.host;
   let storedTargetEdge = localStorage.getItem("drap_target_edge");
-  if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "phone-left" || storedTargetEdge === "direct") {
+  if (!storedTargetEdge || storedTargetEdge === "auto" || storedTargetEdge === "left" || storedTargetEdge === "phone-left") {
     storedTargetEdge = "right";
     localStorage.setItem("drap_target_edge", "right");
   }
   let targetEdgePref = storedTargetEdge;
-  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") !== "false";
+  let isMultiSideSend = localStorage.getItem("drap_multi_side_send") === "true";
   let liquidGlassEnabled = true;
   let activeCategory = "all";
 
@@ -109,137 +109,123 @@
   const THEME_STOPS = {
     aurora: {
       wash: [
-        [0.00, "rgba(147, 51, 242, 0.55)"],
-        [0.25, "rgba(235, 38, 165, 0.42)"],
-        [0.55, "rgba(13, 191, 242, 0.26)"],
-        [0.80, "rgba(25, 76, 217, 0.12)"],
+        [0.00, "rgba(255, 240, 140, 0.68)"],
+        [0.08, "rgba(255, 89, 166, 0.54)"],
+        [0.20, "rgba(235, 38, 235, 0.40)"],
+        [0.38, "rgba(115, 46, 250, 0.26)"],
+        [0.60, "rgba(15, 209, 250, 0.14)"],
+        [0.82, "rgba(31, 89, 235, 0.04)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.00, "rgba(255, 250, 230, 1.0)"],
-        [0.08, "rgba(255, 209, 102, 0.98)"],
-        [0.20, "rgba(255, 64, 165, 0.95)"],
-        [0.38, "rgba(217, 25, 242, 0.90)"],
-        [0.58, "rgba(89, 51, 250, 0.82)"],
-        [0.74, "rgba(13, 191, 250, 0.68)"],
-        [0.88, "rgba(25, 102, 230, 0.38)"],
-        [0.96, "rgba(38, 25, 153, 0.14)"],
+        [0.00, "rgba(255, 255, 235, 0.95)"],
+        [0.28, "rgba(255, 217, 102, 0.85)"],
+        [0.62, "rgba(242, 76, 191, 0.55)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.00, "rgba(255, 255, 242, 1.0)"],
-        [0.08, "rgba(255, 224, 115, 0.99)"],
-        [0.20, "rgba(255, 76, 165, 0.98)"],
-        [0.38, "rgba(230, 38, 230, 0.95)"],
-        [0.56, "rgba(115, 64, 250, 0.88)"],
-        [0.72, "rgba(20, 204, 250, 0.70)"],
-        [0.86, "rgba(38, 115, 235, 0.40)"],
-        [0.96, "rgba(64, 31, 165, 0.15)"],
+        [0.00, "rgba(255, 255, 242, 0.85)"],
+        [0.12, "rgba(255, 102, 178, 0.70)"],
+        [0.30, "rgba(217, 46, 235, 0.52)"],
+        [0.52, "rgba(89, 64, 250, 0.32)"],
+        [0.72, "rgba(20, 204, 250, 0.16)"],
+        [0.90, "rgba(25, 89, 217, 0.04)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     heavenly: {
       wash: [
-        [0.00, "rgba(217, 230, 255, 0.52)"],
-        [0.28, "rgba(191, 115, 242, 0.34)"],
-        [0.60, "rgba(64, 204, 250, 0.18)"],
-        [0.85, "rgba(153, 102, 230, 0.08)"],
+        [0.00, "rgba(255, 255, 255, 0.68)"],
+        [0.10, "rgba(255, 235, 191, 0.52)"],
+        [0.25, "rgba(242, 166, 235, 0.36)"],
+        [0.50, "rgba(140, 153, 250, 0.20)"],
+        [0.75, "rgba(64, 217, 250, 0.08)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.00, "rgba(255, 255, 255, 1.0)"],
-        [0.12, "rgba(255, 242, 204, 0.98)"],
-        [0.28, "rgba(242, 153, 235, 0.92)"],
-        [0.50, "rgba(153, 115, 250, 0.80)"],
-        [0.72, "rgba(76, 191, 250, 0.56)"],
-        [0.90, "rgba(64, 230, 217, 0.25)"],
+        [0.00, "rgba(255, 255, 255, 0.95)"],
+        [0.28, "rgba(255, 242, 204, 0.85)"],
+        [0.62, "rgba(217, 166, 250, 0.55)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.00, "rgba(255, 255, 255, 1.0)"],
-        [0.12, "rgba(255, 235, 191, 0.98)"],
-        [0.28, "rgba(242, 153, 230, 0.92)"],
-        [0.48, "rgba(165, 128, 250, 0.82)"],
-        [0.70, "rgba(89, 204, 250, 0.58)"],
-        [0.88, "rgba(76, 242, 217, 0.26)"],
+        [0.00, "rgba(255, 255, 255, 0.85)"],
+        [0.14, "rgba(255, 235, 191, 0.70)"],
+        [0.32, "rgba(242, 153, 230, 0.52)"],
+        [0.55, "rgba(140, 153, 250, 0.30)"],
+        [0.78, "rgba(64, 217, 250, 0.14)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     liquid: {
       wash: [
-        [0.00, "rgba(13, 242, 217, 0.52)"],
-        [0.30, "rgba(20, 184, 242, 0.36)"],
-        [0.65, "rgba(31, 89, 217, 0.18)"],
+        [0.00, "rgba(230, 255, 255, 0.70)"],
+        [0.10, "rgba(38, 235, 217, 0.52)"],
+        [0.28, "rgba(20, 173, 242, 0.38)"],
+        [0.52, "rgba(20, 107, 235, 0.20)"],
+        [0.75, "rgba(13, 51, 191, 0.08)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.00, "rgba(255, 255, 255, 1.0)"],
-        [0.12, "rgba(89, 255, 242, 0.98)"],
-        [0.28, "rgba(13, 224, 230, 0.92)"],
-        [0.52, "rgba(15, 140, 242, 0.76)"],
-        [0.74, "rgba(13, 82, 217, 0.48)"],
-        [0.90, "rgba(5, 41, 153, 0.20)"],
+        [0.00, "rgba(255, 255, 255, 0.95)"],
+        [0.28, "rgba(89, 255, 242, 0.85)"],
+        [0.62, "rgba(20, 166, 242, 0.55)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.00, "rgba(255, 255, 255, 1.0)"],
-        [0.12, "rgba(89, 255, 242, 0.98)"],
-        [0.30, "rgba(20, 224, 235, 0.90)"],
-        [0.55, "rgba(20, 153, 242, 0.72)"],
-        [0.76, "rgba(15, 89, 217, 0.48)"],
-        [0.92, "rgba(8, 46, 153, 0.20)"],
+        [0.00, "rgba(255, 255, 255, 0.85)"],
+        [0.14, "rgba(89, 242, 255, 0.70)"],
+        [0.32, "rgba(20, 217, 230, 0.52)"],
+        [0.56, "rgba(20, 140, 242, 0.30)"],
+        [0.78, "rgba(13, 76, 217, 0.14)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     plasma: {
       wash: [
-        [0.00, "rgba(242, 38, 217, 0.55)"],
-        [0.32, "rgba(140, 25, 242, 0.38)"],
-        [0.65, "rgba(13, 217, 250, 0.20)"],
+        [0.00, "rgba(250, 255, 255, 0.70)"],
+        [0.10, "rgba(242, 51, 242, 0.52)"],
+        [0.26, "rgba(184, 25, 250, 0.38)"],
+        [0.50, "rgba(64, 38, 242, 0.20)"],
+        [0.75, "rgba(20, 191, 250, 0.08)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.00, "rgba(255, 255, 255, 1.0)"],
-        [0.10, "rgba(102, 242, 255, 0.98)"],
-        [0.26, "rgba(242, 38, 242, 0.94)"],
-        [0.48, "rgba(153, 20, 250, 0.82)"],
-        [0.72, "rgba(38, 128, 242, 0.58)"],
-        [0.90, "rgba(20, 51, 178, 0.22)"],
+        [0.00, "rgba(255, 255, 255, 0.95)"],
+        [0.28, "rgba(102, 242, 255, 0.85)"],
+        [0.62, "rgba(217, 51, 242, 0.55)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.00, "rgba(255, 255, 255, 1.0)"],
-        [0.12, "rgba(89, 242, 255, 0.98)"],
-        [0.28, "rgba(242, 46, 242, 0.92)"],
-        [0.50, "rgba(165, 25, 250, 0.78)"],
-        [0.72, "rgba(38, 140, 242, 0.55)"],
-        [0.90, "rgba(20, 51, 178, 0.22)"],
+        [0.00, "rgba(255, 255, 255, 0.85)"],
+        [0.14, "rgba(89, 242, 255, 0.70)"],
+        [0.32, "rgba(242, 46, 242, 0.52)"],
+        [0.55, "rgba(140, 31, 250, 0.30)"],
+        [0.78, "rgba(25, 166, 250, 0.14)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ]
     },
     solar: {
       wash: [
-        [0.00, "rgba(255, 178, 38, 0.55)"],
-        [0.30, "rgba(250, 82, 20, 0.38)"],
-        [0.65, "rgba(191, 20, 38, 0.18)"],
+        [0.00, "rgba(255, 255, 217, 0.70)"],
+        [0.10, "rgba(255, 204, 51, 0.54)"],
+        [0.26, "rgba(250, 97, 20, 0.38)"],
+        [0.50, "rgba(230, 31, 31, 0.22)"],
+        [0.75, "rgba(166, 13, 46, 0.08)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       core: [
-        [0.00, "rgba(255, 255, 230, 1.0)"],
-        [0.12, "rgba(255, 224, 64, 0.98)"],
-        [0.28, "rgba(255, 128, 13, 0.94)"],
-        [0.50, "rgba(242, 56, 13, 0.80)"],
-        [0.74, "rgba(204, 20, 31, 0.52)"],
-        [0.92, "rgba(102, 10, 25, 0.20)"],
+        [0.00, "rgba(255, 255, 235, 0.95)"],
+        [0.28, "rgba(255, 224, 76, 0.85)"],
+        [0.62, "rgba(242, 89, 25, 0.55)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ],
       surge: [
-        [0.00, "rgba(255, 255, 230, 1.0)"],
-        [0.12, "rgba(255, 224, 76, 0.98)"],
-        [0.28, "rgba(255, 140, 20, 0.92)"],
-        [0.52, "rgba(242, 64, 13, 0.78)"],
-        [0.75, "rgba(204, 25, 38, 0.52)"],
-        [0.92, "rgba(102, 10, 25, 0.20)"],
+        [0.00, "rgba(255, 255, 230, 0.85)"],
+        [0.14, "rgba(255, 204, 64, 0.70)"],
+        [0.32, "rgba(255, 115, 20, 0.52)"],
+        [0.56, "rgba(230, 46, 20, 0.30)"],
+        [0.78, "rgba(178, 20, 38, 0.14)"],
         [1.00, "rgba(0, 0, 0, 0)"]
       ]
     }
@@ -412,15 +398,15 @@
 
     const origin = getEdgeOrigin(edge, coord, w, h);
 
-    let radiusX = (500 + intensity * 620) * pressureScale * breathe;
-    let radiusY = Math.max(620, h * (0.95 + intensity * 0.4)) * breatheY;
+    let radiusX = (180 + intensity * 190) * pressureScale * breathe;
+    let radiusY = (300 + intensity * 250) * breatheY;
 
     if (edge.startsWith("corner-")) {
-      radiusX = (620 + intensity * 650) * pressureScale * breathe;
+      radiusX = (200 + intensity * 180) * pressureScale * breathe;
       radiusY = radiusX;
     } else if (edge === "top" || edge === "bottom") {
-      radiusX = (450 + intensity * 540) * pressureScale * breathe;
-      radiusY = Math.max(680, w * (0.85 + intensity * 0.4)) * breatheY;
+      radiusX = (160 + intensity * 160) * pressureScale * breathe;
+      radiusY = (280 + intensity * 240) * breatheY;
     }
 
     ctx.save();
@@ -436,19 +422,19 @@
     ctx.save();
     ctx.scale(radiusX / LUT_W, radiusY / (LUT_H / 2));
     ctx.translate(-LUT_W, -LUT_H / 2);
-    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.15 * pulseAlpha);
+    ctx.globalAlpha = Math.min(1.0, Math.sqrt(intensity) * 1.05 * pulseAlpha);
     ctx.drawImage(lut, 0, 0);
     ctx.restore();
 
     // 2. Bursting Volumetric Corona Light Rays (Dynamic Angled Light Fans)
     if (intensity > 0.06) {
       ctx.save();
-      const numRays = 9;
-      const baseReach = (320 + intensity * 480) * pressureScale;
+      const numRays = 7;
+      const baseReach = (140 + intensity * 160) * pressureScale;
       for (let i = 0; i < numRays; i++) {
-        const angleOffset = (i - (numRays - 1) / 2) * 0.16;
+        const angleOffset = (i - (numRays - 1) / 2) * 0.18;
         const beamLen = baseReach * (0.75 + 0.25 * Math.sin(tSec * 3.4 + i * 1.3));
-        const beamAlpha = (0.30 + 0.35 * Math.abs(Math.sin(tSec * 4.2 + i * 0.8))) * intensity;
+        const beamAlpha = (0.25 + 0.30 * Math.abs(Math.sin(tSec * 4.2 + i * 0.8))) * intensity;
 
         ctx.save();
         ctx.rotate(angleOffset);
@@ -496,7 +482,7 @@
 
     // 3. Harmonic Fluid Meniscus Wobble & Specular Droplet
     ctx.save();
-    const baseR = (110 + intensity * 260) * pressureScale;
+    const baseR = (36 + intensity * 64) * pressureScale;
     ctx.beginPath();
     const steps = 48;
     for (let i = 0; i <= steps; i++) {
@@ -555,8 +541,8 @@
     ctx.stroke();
 
     // Specular Core Droplet
-    const coreR = baseR * 0.44;
-    const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 3, 0, 0, coreR);
+    const coreR = baseR * 0.36;
+    const coreGrad = ctx.createRadialGradient(-coreR * 0.35, 0, 2, 0, 0, coreR);
     if (activeTheme === "solar") {
       coreGrad.addColorStop(0, `rgba(255, 255, 235, ${(0.95 * intensity).toFixed(2)})`);
       coreGrad.addColorStop(0.35, `rgba(255, 224, 102, ${(0.85 * intensity).toFixed(2)})`);
@@ -585,8 +571,8 @@
     ctx.restore();
 
     // 4. Dynamic Bezel Rim Light
-    const rimH = Math.min(h * 0.85, 280 * pressureScale);
-    const rimW = 4.5 * pressureScale;
+    const rimH = Math.min(h * 0.70, 200 * pressureScale);
+    const rimW = 3.5 * pressureScale;
     const rimGrad = ctx.createLinearGradient(-rimW, 0, 0, 0);
     rimGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
     if (activeTheme === "aurora") {
@@ -1510,7 +1496,7 @@
       else proximity = proxR;
     }
 
-    // Explicit edge lock if user picked one in settings
+    // Explicit edge lock if user picked one in settings (default: RIGHT BEZEL)
     if (targetEdgePref === "left") {
       desktopEdge = "left";
       desktopCorner = "";
@@ -1520,11 +1506,12 @@
     } else if (targetEdgePref === "bottom") {
       desktopEdge = "bottom";
       desktopCorner = "";
-    } else if (targetEdgePref === "right") {
-      if (!isMultiSideSend || proximity < 0.05) {
-        desktopEdge = "right";
-        desktopCorner = "";
-      }
+    } else if (targetEdgePref === "direct") {
+      // Direct omnidirectional mode (phone edge maps 1:1 to desktop edge)
+    } else {
+      // Default: Always arrive on Right Bezel of the desktop monitor!
+      desktopEdge = "right";
+      desktopCorner = "";
     }
 
     return {
